@@ -36,7 +36,7 @@ function generateCode(): string {
 // Change listeners for realtime simulation
 type Listener = () => void;
 const listeners: Set<Listener> = new Set();
-export function onDemoChange(fn: Listener) { listeners.add(fn); return () => listeners.delete(fn); }
+export function onDemoChange(fn: Listener) { listeners.add(fn); return () => { listeners.delete(fn); }; }
 function notify() { listeners.forEach(fn => fn()); }
 
 // ── Users ──────────────────────────────────────────────
