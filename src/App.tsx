@@ -31,7 +31,7 @@ function App() {
     return (
       <div className="flex items-center justify-center h-full bg-bg">
         <div className="text-center">
-          <div className="text-4xl mb-4">🌍🛒</div>
+          <div className="text-4xl mb-4">🛒🌍</div>
           <div className="text-text-soft animate-pulse">Loading...</div>
         </div>
       </div>

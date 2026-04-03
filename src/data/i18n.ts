@@ -76,8 +76,8 @@ type Translations = Record<TranslationKey, string>;
 
 export const strings: Record<Lang, Translations> = {
   en: {
-    "app.name": "Polyglot Cart",
-    "app.tagline": "Your multilingual shopping list",
+    "app.name": "BabelCart",
+    "app.tagline": "One list, every language",
 
     "setup.welcome": "Get started",
     "setup.nameLabel": "Your name",
@@ -156,8 +156,8 @@ export const strings: Record<Lang, Translations> = {
   },
 
   es: {
-    "app.name": "Polyglot Cart",
-    "app.tagline": "Tu lista de compras multilingüe",
+    "app.name": "BabelCart",
+    "app.tagline": "Una lista, todos los idiomas",
 
     "setup.welcome": "Comenzar",
     "setup.nameLabel": "Tu nombre",
@@ -236,8 +236,8 @@ export const strings: Record<Lang, Translations> = {
   },
 
   pl: {
-    "app.name": "Polyglot Cart",
-    "app.tagline": "Twoja wielojęzyczna lista zakupów",
+    "app.name": "BabelCart",
+    "app.tagline": "Jedna lista, każdy język",
 
     "setup.welcome": "Rozpocznij",
     "setup.nameLabel": "Twoje imię",

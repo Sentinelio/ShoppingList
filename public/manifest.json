@@ -1,6 +1,6 @@
 {
-  "name": "Polyglot Cart",
-  "short_name": "Polyglot",
+  "name": "BabelCart",
+  "short_name": "BabelCart",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1017",

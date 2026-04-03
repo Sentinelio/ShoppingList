@@ -68,7 +68,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
         {step === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
             <h1 className="text-4xl font-bold text-text">
-              {"\uD83C\uDF0D\uD83D\uDED2"} Polyglot Cart
+              {"\uD83D\uDED2\uD83C\uDF0D"} BabelCart
             </h1>
             <p className="text-lg text-text-soft">
               {t(i18nLang, "app.tagline")}
