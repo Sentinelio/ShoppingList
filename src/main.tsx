@@ -4,10 +4,10 @@ import './index.css'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 
-// Register service worker
+// Unregister any stale service workers
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister())
   })
 }
 
