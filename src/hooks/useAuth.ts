@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { createElement } from "react";
-import { supabase, type User } from "../lib/supabase";
+import { supabase, IS_DEMO, type User } from "../lib/supabase";
+import { demoCreateUser, demoGetUser, demoUpdateUser } from "../lib/demoStore";
 import { getCountryLang } from "../data/countries";
 
 const STORAGE_KEY = "polyglot_user_id";
@@ -35,6 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (IS_DEMO) {
+      const u = demoGetUser(storedId);
+      if (u) setUser(u);
+      else localStorage.removeItem(STORAGE_KEY);
+      setLoading(false);
+      return;
+    }
+
     supabase
       .from("users")
       .select("*")
@@ -52,6 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const createUser = useCallback(
     async (name: string, lang: string, country: string) => {
+      if (IS_DEMO) {
+        const newUser = demoCreateUser(name, lang, country);
+        localStorage.setItem(STORAGE_KEY, newUser.id);
+        setUser(newUser);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("users")
         .insert({ name, lang, country })
@@ -59,7 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) throw error;
-
       const newUser = data as User;
       localStorage.setItem(STORAGE_KEY, newUser.id);
       setUser(newUser);
@@ -71,6 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (updates: Partial<Pick<User, "name" | "lang" | "country" | "avatar_color">>) => {
       if (!user) return;
 
+      if (IS_DEMO) {
+        const updated = demoUpdateUser(user.id, updates);
+        if (updated) setUser(updated);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("users")
         .update(updates)
@@ -79,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) throw error;
-
       setUser(data as User);
     },
     [user],

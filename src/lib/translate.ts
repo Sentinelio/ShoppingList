@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, IS_DEMO } from './supabase';
 import { LOCAL_DICTIONARY, type DictEntry as LocalDictEntry } from '../data/localDictionary';
 
 export interface TranslateResult {
@@ -24,8 +24,8 @@ export function findInLocalDict(text: string): LocalDictEntry | undefined {
 /**
  * Translate a product name through a three-level pipeline:
  * 1. Local dictionary
- * 2. Supabase dictionary table
- * 3. Supabase Edge Function
+ * 2. Supabase dictionary table (skipped in demo mode)
+ * 3. Supabase Edge Function (skipped in demo mode — returns original text)
  */
 export async function translateProduct(
   text: string,
@@ -43,7 +43,19 @@ export async function translateProduct(
         translations[lang] = val;
       }
     }
+    // Ensure en is always present
+    if (!translations.en && localMatch.en) translations.en = localMatch.en;
     return { translations, category: localMatch.cat };
+  }
+
+  // In demo mode, skip Supabase calls — return original text for all langs
+  if (IS_DEMO) {
+    const translations: Record<string, string> = {};
+    for (const lang of targetLangs) {
+      translations[lang] = text;
+    }
+    if (!translations.en) translations.en = text;
+    return { translations, category: 'other' };
   }
 
   // ── 2. Supabase dictionary table ───────────────────────

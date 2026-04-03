@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase, type List, type ListMember, type Item } from "../lib/supabase";
+import { supabase, IS_DEMO, type List, type ListMember, type Item } from "../lib/supabase";
+import {
+  demoGetLists, demoCreateList, demoGetList, demoJoinList,
+  demoDeleteList, demoLeaveList, demoGetMembers, demoGetItems, onDemoChange,
+} from "../lib/demoStore";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // ── helpers ─────────────────────────────────────────────
@@ -28,6 +32,12 @@ export function useLists(userId: string | undefined) {
 
     setLoading(true);
 
+    if (IS_DEMO) {
+      setLists(demoGetLists(userId));
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("list_members")
       .select("list_id, lists(*)")
@@ -46,6 +56,12 @@ export function useLists(userId: string | undefined) {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Listen for demo changes
+  useEffect(() => {
+    if (!IS_DEMO) return;
+    return onDemoChange(refresh);
   }, [refresh]);
 
   return { lists, loading, refresh };
@@ -70,6 +86,14 @@ export function useListDetail(listId: string | undefined) {
 
     setLoading(true);
 
+    if (IS_DEMO) {
+      setList(demoGetList(listId));
+      setMembers(demoGetMembers(listId));
+      setItems(demoGetItems(listId));
+      setLoading(false);
+      return;
+    }
+
     const [listRes, membersRes, itemsRes] = await Promise.all([
       supabase.from("lists").select("*").eq("id", listId).single(),
       supabase.from("list_members").select("*").eq("list_id", listId),
@@ -87,9 +111,15 @@ export function useListDetail(listId: string | undefined) {
     refresh();
   }, [refresh]);
 
-  // Realtime subscription on items
+  // Listen for demo changes
   useEffect(() => {
-    if (!listId) return;
+    if (!IS_DEMO) return;
+    return onDemoChange(refresh);
+  }, [refresh]);
+
+  // Realtime subscription on items (only when not in demo mode)
+  useEffect(() => {
+    if (!listId || IS_DEMO) return;
 
     const channel: RealtimeChannel = supabase
       .channel(`items:${listId}`)
@@ -129,6 +159,10 @@ export function useListDetail(listId: string | undefined) {
 // ── mutations ───────────────────────────────────────────
 
 export async function createList(name: string, userId: string): Promise<List> {
+  if (IS_DEMO) {
+    return demoCreateList(name, userId);
+  }
+
   const code = generateCode();
 
   const { data, error } = await supabase
@@ -151,6 +185,10 @@ export async function createList(name: string, userId: string): Promise<List> {
 }
 
 export async function joinList(code: string, userId: string): Promise<List> {
+  if (IS_DEMO) {
+    return demoJoinList(code, userId);
+  }
+
   const { data, error } = await supabase
     .from("lists")
     .select("*")
@@ -171,11 +209,19 @@ export async function joinList(code: string, userId: string): Promise<List> {
 }
 
 export async function deleteList(listId: string): Promise<void> {
+  if (IS_DEMO) {
+    demoDeleteList(listId);
+    return;
+  }
   const { error } = await supabase.from("lists").delete().eq("id", listId);
   if (error) throw error;
 }
 
 export async function leaveList(listId: string, userId: string): Promise<void> {
+  if (IS_DEMO) {
+    demoLeaveList(listId, userId);
+    return;
+  }
   const { error } = await supabase
     .from("list_members")
     .delete()

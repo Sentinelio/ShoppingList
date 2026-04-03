@@ -1,4 +1,5 @@
-import { supabase, type Item } from "../lib/supabase";
+import { supabase, IS_DEMO, type Item } from "../lib/supabase";
+import { demoAddItem, demoUpdateItem, demoDeleteItem, demoCheckDuplicate } from "../lib/demoStore";
 
 export interface AddItemParams {
   listId: string;
@@ -13,6 +14,10 @@ export interface AddItemParams {
 }
 
 export async function addItem(params: AddItemParams): Promise<Item> {
+  if (IS_DEMO) {
+    return demoAddItem(params);
+  }
+
   const { data, error } = await supabase
     .from("items")
     .insert({
@@ -37,6 +42,12 @@ export async function updateItem(
   itemId: string,
   updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "checked">>,
 ): Promise<Item> {
+  if (IS_DEMO) {
+    const result = demoUpdateItem(itemId, updates);
+    if (!result) throw new Error("Item not found");
+    return result;
+  }
+
   const { data, error } = await supabase
     .from("items")
     .update(updates)
@@ -53,6 +64,12 @@ export async function toggleItem(itemId: string, checked: boolean): Promise<Item
     navigator.vibrate(10);
   }
 
+  if (IS_DEMO) {
+    const result = demoUpdateItem(itemId, { checked });
+    if (!result) throw new Error("Item not found");
+    return result;
+  }
+
   const { data, error } = await supabase
     .from("items")
     .update({ checked })
@@ -65,6 +82,10 @@ export async function toggleItem(itemId: string, checked: boolean): Promise<Item
 }
 
 export async function deleteItem(itemId: string): Promise<void> {
+  if (IS_DEMO) {
+    demoDeleteItem(itemId);
+    return;
+  }
   const { error } = await supabase.from("items").delete().eq("id", itemId);
   if (error) throw error;
 }
@@ -73,6 +94,10 @@ export async function checkDuplicate(
   listId: string,
   translations: Record<string, string>,
 ): Promise<Item | null> {
+  if (IS_DEMO) {
+    return demoCheckDuplicate(listId, translations);
+  }
+
   const enName = translations.en?.toLowerCase();
   if (!enName) return null;
 
