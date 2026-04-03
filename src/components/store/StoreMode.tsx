@@ -74,29 +74,28 @@ export default function StoreMode({
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      {/* Close button */}
-      <div className="flex justify-end px-4 pt-3">
-        <button
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
-          className="flex items-center justify-center rounded-full bg-card text-text-soft active:text-text transition-colors cursor-pointer"
-          style={{ width: 44, height: 44 }}
-          aria-label="Close"
+      {/* Close button — fixed position with high z-index */}
+      <button
+        onClick={onClose}
+        onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
+        className="fixed top-4 right-4 z-[200] flex items-center justify-center rounded-full bg-card border border-border-light text-text-soft active:text-text active:bg-accent cursor-pointer"
+        style={{ width: 48, height: 48, marginTop: "env(safe-area-inset-top)" }}
+        aria-label="Close"
+      >
+        <svg
+          width={24}
+          height={24}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            width={22}
-            height={22}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
 
       {/* Product info */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-8">
