@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useAuth } from './hooks/useAuth'
+import { IS_DEMO } from './lib/supabase'
 import SetupWizard from './components/setup/SetupWizard'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
@@ -13,8 +14,14 @@ interface Route {
 }
 
 function App() {
-  const { user, loading } = useAuth()
+  const { user, loading, logout } = useAuth()
   const [route, setRoute] = useState<Route>({ page: 'lists' })
+
+  const handleResetDebug = () => {
+    localStorage.clear()
+    logout()
+    window.location.reload()
+  }
 
   const navigate = useCallback((page: string, params?: Record<string, string>) => {
     setRoute({ page: page as Page, params })
@@ -47,7 +54,19 @@ function App() {
       return <SettingsPage onNavigate={navigate} />
     case 'lists':
     default:
-      return <ListsPage onNavigate={navigate} />
+      return (
+        <>
+          <ListsPage onNavigate={navigate} />
+          {IS_DEMO && (
+            <button
+              onClick={handleResetDebug}
+              className="fixed top-3 left-3 z-50 px-3 py-1.5 rounded-lg bg-danger text-white text-xs font-medium opacity-70 active:opacity-100 cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+        </>
+      )
   }
 }
 
