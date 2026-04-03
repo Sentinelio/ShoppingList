@@ -1,16 +1,25 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useLists } from "../hooks/useList";
+import { useLists, deleteList } from "../hooks/useList";
 import { IS_DEMO } from "../lib/supabase";
 import { demoGetMembers, demoGetItems } from "../lib/demoStore";
-import { t, type Lang } from "../data/i18n";
-import ListCard, { type ListCardData } from "../components/lists/ListCard";
+import { t } from "../data/i18n";
+import type { Lang } from "../data/i18n";
+import type { List, ListMember, Item } from "../lib/supabase";
+import SwipeRow from "../components/ui/SwipeRow";
 import CreateListModal from "../components/lists/CreateListModal";
 import JoinListModal from "../components/lists/JoinListModal";
-import Button from "../components/ui/Button";
 
 interface ListsPageProps {
-  onNavigate: (page: string, params?: any) => void;
+  onNavigate: (page: string, params?: Record<string, string>) => void;
+}
+
+interface ListCardInfo {
+  list: List;
+  members: ListMember[];
+  items: Item[];
+  uncheckedCount: number;
+  pendingCount: number;
 }
 
 export default function ListsPage({ onNavigate }: ListsPageProps) {
@@ -20,6 +29,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  const [_editListId, setEditListId] = useState<string | null>(null);
 
   const handleCreated = (listId: string) => {
     refresh();
@@ -30,95 +40,168 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
     refresh();
   };
 
-  const listCards: ListCardData[] = lists.map((l) => {
+  const handleDelete = async (listId: string) => {
+    try {
+      await deleteList(listId);
+      refresh();
+    } catch {
+      // ignore
+    }
+  };
+
+  const cardInfos: ListCardInfo[] = lists.map((l) => {
     if (IS_DEMO) {
       const members = demoGetMembers(l.id);
       const items = demoGetItems(l.id);
       return {
-        id: l.id, name: l.name, code: l.code,
-        memberCount: members.length, itemCount: items.length, members: [],
+        list: l,
+        members,
+        items,
+        uncheckedCount: items.filter((i) => !i.checked).length,
+        pendingCount: members.filter((m) => m.status === "pending").length,
       };
     }
-    return { id: l.id, name: l.name, code: l.code, memberCount: 0, itemCount: 0, members: [] };
+    return {
+      list: l,
+      members: [],
+      items: [],
+      uncheckedCount: 0,
+      pendingCount: 0,
+    };
   });
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 pt-safe-top">
-        <h1 className="text-2xl font-bold text-text">{t(lang, "lists.title")}</h1>
-        <button
-          type="button"
-          onClick={() => onNavigate("settings")}
-          className="h-10 w-10 flex items-center justify-center rounded-xl text-text-soft active:bg-card transition-colors cursor-pointer"
-          aria-label={t(lang, "settings.title")}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
+      <header className="px-5 pt-safe-top pb-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-text-muted text-xs">{t(lang, "welcome")}</p>
+            <h1 className="text-2xl font-bold text-text mt-0.5">
+              {user?.name ?? ""}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              type="button"
+              onClick={() => setShowJoin(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-accent text-sm font-medium active:brightness-90 transition-colors cursor-pointer"
+            >
+              <span>🔗</span>
+              {t(lang, "join")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("settings")}
+              className="h-9 w-9 flex items-center justify-center rounded-lg text-text-soft active:bg-card transition-colors cursor-pointer"
+              aria-label={t(lang, "settings")}
+            >
+              ⚙️
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 px-5 pt-4 pb-28 overflow-y-auto">
+      <div className="flex-1 px-5 pt-2 pb-28 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <p className="text-text-muted">{t(lang, "common.loading")}</p>
+            <div className="h-8 w-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
           </div>
-        ) : listCards.length === 0 ? (
+        ) : cardInfos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="text-6xl mb-4 opacity-30">&#128722;</div>
-            <p className="text-text-soft font-medium text-lg mb-2">{t(lang, "lists.empty")}</p>
+            <div className="text-[48px] opacity-60 mb-3">📝</div>
+            <p className="text-text font-semibold text-lg mb-1">
+              {t(lang, "noLists")}
+            </p>
             <p className="text-text-muted text-sm max-w-[260px]">
-              {t(lang, "lists.create")} {t(lang, "common.or").toLowerCase()} {t(lang, "lists.join").toLowerCase()}
+              {t(lang, "tapCreate")}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
-            {listCards.map((card) => (
-              <ListCard
-                key={card.id}
-                list={card}
-                onClick={() => onNavigate("list-detail", { listId: card.id })}
-              />
+          <div className="space-y-0">
+            {cardInfos.map((info) => (
+              <SwipeRow
+                key={info.list.id}
+                id={info.list.id}
+                lang={lang}
+                onDelete={() => handleDelete(info.list.id)}
+                onEdit={() => setEditListId(info.list.id)}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    onNavigate("list-detail", { listId: info.list.id })
+                  }
+                  className="w-full text-left bg-card rounded-xl border border-border p-3.5 active:brightness-95 transition-all cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Left: name + date */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-text font-bold text-[16px] truncate">
+                        {info.list.name}
+                      </h3>
+                      <p className="text-text-muted text-[11px] mt-0.5">
+                        {new Date(info.list.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    {/* Right: badges + avatars + chevron */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {info.uncheckedCount > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-accent/15 text-accent text-[11px] font-bold">
+                          {info.uncheckedCount}
+                        </span>
+                      )}
+                      {info.pendingCount > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500/15 text-red-400 text-[11px] font-bold">
+                          {info.pendingCount}
+                        </span>
+                      )}
+
+                      {/* Member avatars */}
+                      {info.members.length > 0 && (
+                        <div className="flex items-center">
+                          {info.members
+                            .filter((m) => m.status === "active")
+                            .slice(0, 3)
+                            .map((member, i) => (
+                              <div
+                                key={member.user_id}
+                                className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-card"
+                                style={{
+                                  backgroundColor: "#888",
+                                  marginLeft: i === 0 ? 0 : -8,
+                                }}
+                              >
+                                {member.user_id.charAt(0).toUpperCase()}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
+                      <span className="text-text-muted text-lg ml-1">
+                        ›
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </SwipeRow>
             ))}
           </div>
         )}
       </div>
 
-      {/* Bottom action bar */}
-      <div className="fixed bottom-0 inset-x-0 z-40">
-        <div className="max-w-lg mx-auto px-5 pb-safe-bottom">
-          <div className="flex gap-3 pb-4">
-            <Button
-              variant="primary"
-              size="lg"
-              className="flex-1 gap-2"
-              onClick={() => setShowCreate(true)}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              {t(lang, "lists.create")}
-            </Button>
-            <Button
-              variant="secondary"
-              size="lg"
-              className="flex-1 gap-2"
-              onClick={() => setShowJoin(true)}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                <polyline points="10 17 15 12 10 7" />
-                <line x1="15" y1="12" x2="3" y2="12" />
-              </svg>
-              {t(lang, "lists.join")}
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* FAB */}
+      <button
+        type="button"
+        onClick={() => setShowCreate(true)}
+        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white text-2xl font-bold shadow-lg shadow-orange-500/30 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+        style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+        aria-label={t(lang, "create")}
+      >
+        +
+      </button>
 
       {/* Modals */}
       <CreateListModal

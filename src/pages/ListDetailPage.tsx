@@ -161,7 +161,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-text truncate">
-              {list?.name ?? t(lang, "common.loading")}
+              {list?.name ?? "..."}
             </h1>
             {countryFlag && <span className="text-base shrink-0">{countryFlag}</span>}
           </div>
@@ -188,13 +188,13 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       <div className="flex-1 overflow-y-auto pb-32">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <p className="text-text-muted animate-pulse">{t(lang, "common.loading")}</p>
+            <p className="text-text-muted animate-pulse">{"..."}</p>
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6">
             <div className="text-6xl mb-4 opacity-30">&#128722;</div>
             <p className="text-text-soft font-medium text-lg mb-2">
-              {t(lang, "items.empty")}
+              {t(lang, "addProduct")}
             </p>
           </div>
         ) : (
@@ -256,7 +256,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                 >
                   <span className="text-base">&#9989;</span>
                   <span className="text-sm font-semibold text-text-soft">
-                    {t(lang, "items.checked")}
+                    {t(lang, "done")}
                   </span>
                   <span className="text-xs text-text-muted">({checkedItems.length})</span>
                   <svg
@@ -303,6 +303,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           shelfLang={shelfLang}
           userId={user.id}
           userName={user.name}
+          items={items}
           onItemAdded={() => {
             // Items update via realtime; optionally refresh
           }}

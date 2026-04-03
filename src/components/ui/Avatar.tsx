@@ -1,24 +1,21 @@
+const AVATAR_COLORS = ["#f0883e", "#3dd68c", "#6c8aff", "#c76dff", "#34d6c0", "#ff5c5c", "#ffb03d"];
+
 interface AvatarProps {
   name: string;
-  color: string;
-  size?: "sm" | "md" | "lg";
+  index?: number;
+  size?: number;
 }
 
-const sizeMap = {
-  sm: "h-7 w-7 text-xs",
-  md: "h-9 w-9 text-sm",
-  lg: "h-12 w-12 text-base",
-} as const;
-
-export default function Avatar({ name, color, size = "md" }: AvatarProps) {
-  const letter = name.trim().charAt(0).toUpperCase();
-
+export default function Avatar({ name, index = 0, size = 28 }: AvatarProps) {
+  const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
   return (
     <div
-      className={`${sizeMap[size]} rounded-full flex items-center justify-center font-semibold text-white shrink-0 select-none`}
-      style={{ backgroundColor: color }}
+      className="rounded-full flex items-center justify-center text-white font-bold shrink-0"
+      style={{ width: size, height: size, backgroundColor: bg, fontSize: size * 0.38 }}
     >
-      {letter}
+      {(name || "?")[0].toUpperCase()}
     </div>
   );
 }
+
+export { AVATAR_COLORS };

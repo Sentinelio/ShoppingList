@@ -26,3 +26,7 @@ export function getCategoryName(cat: string, lang: string): string {
 export function getCategoryEmoji(cat: string): string {
   return CATEGORIES[cat]?.emoji ?? "🛒";
 }
+
+export function getCategoryColor(cat: string): string {
+  return CATEGORIES[cat]?.color ?? "#8b949e";
+}

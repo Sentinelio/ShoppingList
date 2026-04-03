@@ -30,10 +30,12 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     setLang(detected);
   }, []);
 
+  // Step 3 uses the SELECTED language for i18n; all other steps use detected/initial
   const i18nLang: Lang = useMemo(() => {
+    if (step === 3 && lang && lang in strings) return lang as Lang;
     if (lang && lang in strings) return lang as Lang;
     return detectBrowserLang();
-  }, [lang]);
+  }, [lang, step]);
 
   const handleFinish = async () => {
     if (submitting) return;
@@ -45,9 +47,6 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       setSubmitting(false);
     }
   };
-
-  const selectedCountry = COUNTRIES.find(c => c.code === country);
-  const selectedLang = LANGS.find(l => l.code === lang);
 
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center px-4 py-8">
@@ -64,67 +63,73 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       </div>
 
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col">
-        {/* Step 0 - Welcome */}
+        {/* Step 0 — Welcome */}
         {step === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
-            <h1 className="text-4xl font-bold text-text">
-              {"\uD83D\uDED2\uD83C\uDF0D"} BabelCart
-            </h1>
+            <span style={{ fontSize: "64px", lineHeight: 1 }}>🌍🛒</span>
+            <h1 className="text-4xl font-bold text-text">BabelCart</h1>
             <p className="text-lg text-text-soft">
-              {t(i18nLang, "app.tagline")}
+              {t(i18nLang, "setupWelcomeText")}
             </p>
             <button
               onClick={() => setStep(1)}
-              className="w-full py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 cursor-pointer"
+              className="w-full py-4 rounded-xl text-white font-semibold text-lg transition-opacity active:opacity-80 cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
             >
-              {t(i18nLang, "setup.welcome")}
+              {t(i18nLang, "getStarted")} →
             </button>
           </div>
         )}
 
-        {/* Step 1 - Name */}
+        {/* Step 1 — Name */}
         {step === 1 && (
           <div className="flex-1 flex flex-col gap-6">
+            <div className="text-center">
+              <span style={{ fontSize: "48px", lineHeight: 1 }}>👋</span>
+            </div>
             <h2 className="text-2xl font-bold text-text text-center">
-              {t(i18nLang, "setup.step1Title")}
+              {t(i18nLang, "setupNameTitle")}
             </h2>
             <p className="text-text-soft text-center">
-              {t(i18nLang, "setup.nameLabel")}
+              {t(i18nLang, "yourName")}
             </p>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={t(i18nLang, "setup.namePlaceholder")}
               autoFocus
               className="w-full py-4 px-5 text-lg text-text bg-card rounded-xl border border-border-light outline-none focus:border-accent transition-colors placeholder:text-text-muted text-center"
             />
             <div className="mt-auto flex gap-3">
               <button
                 onClick={() => setStep(0)}
-                className="py-4 px-6 rounded-xl bg-card text-text-soft font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-border-light"
+                className="py-4 px-6 rounded-xl font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-accent bg-transparent text-accent"
               >
-                &larr;
+                ←
               </button>
               <button
                 onClick={() => setStep(2)}
                 disabled={!name.trim()}
-                className="flex-1 py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="flex-1 py-4 rounded-xl text-white font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
               >
-                {t(i18nLang, "common.confirm")}
+                {t(i18nLang, "next")}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 2 - Country (dropdown) */}
+        {/* Step 2 — Country */}
         {step === 2 && (
           <div className="flex-1 flex flex-col gap-5">
+            <div className="text-center">
+              <span style={{ fontSize: "48px", lineHeight: 1 }}>📍</span>
+            </div>
             <h2 className="text-2xl font-bold text-text text-center">
-              {t(i18nLang, "setup.countryLabel")}
+              {t(i18nLang, "setupCountryTitle")}
             </h2>
             <p className="text-sm text-text-soft text-center px-2">
-              {t(i18nLang, "setup.countryDesc")}
+              {t(i18nLang, "setupCountryHint")}
             </p>
 
             <div className="relative">
@@ -134,7 +139,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 className="w-full py-4 px-5 text-lg text-text bg-card rounded-xl border border-border-light outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
               >
                 <option value="" disabled>
-                  {t(i18nLang, "setup.countryLabel")}...
+                  {t(i18nLang, "setupCountryTitle")}...
                 </option>
                 {COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -149,42 +154,36 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               </div>
             </div>
 
-            {selectedCountry && (
-              <div className="bg-card rounded-xl p-4 border border-border-light text-center">
-                <span className="text-4xl">{selectedCountry.flag}</span>
-                <p className="text-text font-medium mt-2">{selectedCountry.name}</p>
-                <p className="text-text-muted text-xs mt-1">
-                  {t(i18nLang, "store.show")}: {selectedCountry.lang.toUpperCase()}
-                </p>
-              </div>
-            )}
-
             <div className="mt-auto flex gap-3">
               <button
                 onClick={() => setStep(1)}
-                className="py-4 px-6 rounded-xl bg-card text-text-soft font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-border-light"
+                className="py-4 px-6 rounded-xl font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-accent bg-transparent text-accent"
               >
-                &larr;
+                ←
               </button>
               <button
                 onClick={() => setStep(3)}
                 disabled={!country}
-                className="flex-1 py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="flex-1 py-4 rounded-xl text-white font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
               >
-                {t(i18nLang, "common.confirm")}
+                {t(i18nLang, "next")}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3 - Language (dropdown) */}
+        {/* Step 3 — Language (i18n switches to selected language in real-time) */}
         {step === 3 && (
           <div className="flex-1 flex flex-col gap-5">
+            <div className="text-center">
+              <span style={{ fontSize: "48px", lineHeight: 1 }}>🗣️</span>
+            </div>
             <h2 className="text-2xl font-bold text-text text-center">
-              {t(i18nLang, "setup.langLabel")}
+              {t(i18nLang, "setupLangTitle")}
             </h2>
             <p className="text-sm text-text-soft text-center px-2">
-              {t(i18nLang, "setup.langDesc")}
+              {t(i18nLang, "setupLangHint")}
             </p>
 
             <div className="relative">
@@ -194,7 +193,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 className="w-full py-4 px-5 text-lg text-text bg-card rounded-xl border border-border-light outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
               >
                 <option value="" disabled>
-                  {t(i18nLang, "setup.langLabel")}...
+                  {t(i18nLang, "setupLangTitle")}...
                 </option>
                 {LANGS.map((l) => (
                   <option key={l.code} value={l.code}>
@@ -209,28 +208,20 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               </div>
             </div>
 
-            {selectedLang && (
-              <div className="bg-card rounded-xl p-4 border border-border-light text-center">
-                <span className="text-4xl">{selectedLang.flag}</span>
-                <p className="text-text font-medium mt-2">{selectedLang.name}</p>
-              </div>
-            )}
-
             <div className="mt-auto flex gap-3">
               <button
                 onClick={() => setStep(2)}
-                className="py-4 px-6 rounded-xl bg-card text-text-soft font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-border-light"
+                className="py-4 px-6 rounded-xl font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-accent bg-transparent text-accent"
               >
-                &larr;
+                ←
               </button>
               <button
                 onClick={handleFinish}
                 disabled={!lang || submitting}
-                className="flex-1 py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="flex-1 py-4 rounded-xl text-white font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
               >
-                {submitting
-                  ? t(i18nLang, "common.loading")
-                  : t(i18nLang, "setup.finish")}
+                {submitting ? "..." : `${t(i18nLang, "finish")} ✓`}
               </button>
             </div>
           </div>

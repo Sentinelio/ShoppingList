@@ -1,325 +1,253 @@
 export type Lang = "en" | "es" | "pl";
 
-export type TranslationKey =
-  | "app.name"
-  | "app.tagline"
-  | "setup.welcome"
-  | "setup.nameLabel"
-  | "setup.namePlaceholder"
-  | "setup.countryLabel"
-  | "setup.countryDesc"
-  | "setup.langLabel"
-  | "setup.langDesc"
-  | "setup.finish"
-  | "setup.step1Title"
-  | "setup.step2Title"
-  | "setup.step3Title"
-  | "lists.title"
-  | "lists.create"
-  | "lists.join"
-  | "lists.joinCode"
-  | "lists.empty"
-  | "lists.delete"
-  | "lists.leave"
-  | "lists.members"
-  | "lists.items"
-  | "lists.pending"
-  | "lists.name"
-  | "lists.code"
-  | "lists.copied"
-  | "lists.settings"
-  | "items.add"
-  | "items.qty"
-  | "items.unit"
-  | "items.note"
-  | "items.translating"
-  | "items.delete"
-  | "items.deleteConfirm"
-  | "items.edit"
-  | "items.checked"
-  | "items.unchecked"
-  | "items.duplicate"
-  | "items.addAnyway"
-  | "items.mergeQty"
-  | "items.empty"
-  | "store.title"
-  | "store.show"
-  | "store.back"
-  | "settings.title"
-  | "settings.name"
-  | "settings.lang"
-  | "settings.country"
-  | "settings.save"
-  | "settings.saved"
-  | "settings.members"
-  | "settings.pendingRequests"
-  | "settings.approve"
-  | "settings.reject"
-  | "settings.inviteCode"
-  | "common.cancel"
-  | "common.confirm"
-  | "common.close"
-  | "common.loading"
-  | "common.error"
-  | "common.retry"
-  | "common.yes"
-  | "common.no"
-  | "common.or"
-  | "unit.x"
-  | "unit.kg"
-  | "unit.g"
-  | "unit.L"
-  | "unit.ml"
-  | "unit.pack";
+export type TranslationKey = keyof typeof strings.en;
 
-type Translations = Record<TranslationKey, string>;
-
-export const strings: Record<Lang, Translations> = {
+export const strings = {
   en: {
-    "app.name": "BabelCart",
-    "app.tagline": "One list, every language",
-
-    "setup.welcome": "Get started",
-    "setup.nameLabel": "Your name",
-    "setup.namePlaceholder": "Enter your name",
-    "setup.countryLabel": "Country of residence",
-    "setup.countryDesc": "Products will be shown in the local language so you can find them in stores",
-    "setup.langLabel": "Your language",
-    "setup.langDesc": "The app and your shopping list will appear in this language",
-    "setup.finish": "Finish setup",
-    "setup.step1Title": "Welcome",
-    "setup.step2Title": "Your profile",
-    "setup.step3Title": "Preferences",
-
-    "lists.title": "My Lists",
-    "lists.create": "Create list",
-    "lists.join": "Join list",
-    "lists.joinCode": "Enter 6-digit code",
-    "lists.empty": "No lists yet",
-    "lists.delete": "Delete list",
-    "lists.leave": "Leave list",
-    "lists.members": "members",
-    "lists.items": "items",
-    "lists.pending": "Pending approval",
-    "lists.name": "List name",
-    "lists.code": "Invite code",
-    "lists.copied": "Copied!",
-    "lists.settings": "List settings",
-
-    "items.add": "Add product...",
-    "items.qty": "Qty",
-    "items.unit": "Unit",
-    "items.note": "Note",
-    "items.translating": "Translating...",
-    "items.delete": "Delete",
-    "items.deleteConfirm": "Delete this item?",
-    "items.edit": "Edit",
-    "items.checked": "Purchased",
-    "items.unchecked": "To buy",
-    "items.duplicate": "This product already exists. Add quantity?",
-    "items.addAnyway": "Add anyway",
-    "items.mergeQty": "Merge quantities",
-    "items.empty": "List is empty. Add your first product!",
-
-    "store.title": "Store Mode",
-    "store.show": "Show in store",
-    "store.back": "Back to list",
-
-    "settings.title": "Settings",
-    "settings.name": "Your name",
-    "settings.lang": "Your language",
-    "settings.country": "Your country",
-    "settings.save": "Save",
-    "settings.saved": "Saved!",
-    "settings.members": "Members",
-    "settings.pendingRequests": "Pending requests",
-    "settings.approve": "Approve",
-    "settings.reject": "Reject",
-    "settings.inviteCode": "Invite code",
-
-    "common.cancel": "Cancel",
-    "common.confirm": "Confirm",
-    "common.close": "Close",
-    "common.loading": "Loading...",
-    "common.error": "Something went wrong",
-    "common.retry": "Retry",
-    "common.yes": "Yes",
-    "common.no": "No",
-    "common.or": "or",
-
-    "unit.x": "pcs",
-    "unit.kg": "kg",
-    "unit.g": "g",
-    "unit.L": "L",
-    "unit.ml": "ml",
-    "unit.pack": "pack",
+    "welcome": "Welcome back",
+    "setup": "Grocery lists that speak your language",
+    "yourName": "Your name",
+    "iSpeak": "I speak",
+    "iLive": "I live in",
+    "getStarted": "Get started",
+    "noLists": "No lists yet",
+    "tapCreate": "Tap + to create your first shared list",
+    "newList": "New list",
+    "listName": "Weekend groceries...",
+    "create": "Create",
+    "join": "Join",
+    "joinList": "Join a list",
+    "enterCode": "Enter the code shared by the list owner",
+    "requestJoin": "Request to join",
+    "reqSent": "Request sent!",
+    "ownerApprove": "The list owner needs to approve your request",
+    "notFound": "List not found",
+    "checkCode": "Check the code and try again",
+    "tryAgain": "Try again",
+    "alreadyPending": "Already requested",
+    "waitingOwner": "Waiting for the owner to approve",
+    "ok": "OK",
+    "addProduct": "Add product...",
+    "add": "Add",
+    "translating": "translating...",
+    "trFailed": "Translation failed",
+    "retry": "Retry",
+    "done": "Done",
+    "people": "People in this list",
+    "pendingReqs": "Pending requests",
+    "accept": "Accept",
+    "waitingApproval": "Waiting approval",
+    "shareCode": "Share this code to invite people",
+    "copyCode": "Copy invite code",
+    "copied": "Copied!",
+    "translations": "Translations",
+    "yourCountry": "your country",
+    "addedBy": "Added by",
+    "remove": "Remove from list",
+    "close": "Close",
+    "settings": "Settings",
+    "profile": "Profile",
+    "save": "Save",
+    "name": "Name",
+    "language": "Language",
+    "country": "Country",
+    "removeMember": "Remove",
+    "leave": "Leave this list",
+    "rejected": "Request rejected",
+    "confirm": "Confirm",
+    "logout": "Log out & switch user",
+    "qty": "Qty",
+    "notePlaceholder": "Note...",
+    "dupTitle": "Duplicate product?",
+    "dupDoneTitle": "Already bought?",
+    "dupSubtitle": "may already be in the list",
+    "dupDoneSubtitle": "is already in completed",
+    "dupInList": "In the list",
+    "dupBought": "Bought",
+    "mergeSum": "Add up",
+    "mergeSet": "Set",
+    "mergeMore": "Add 1 more",
+    "mergeMark": "Mark as",
+    "addSeparate": "Add separately",
+    "cancel": "Cancel",
+    "showInStore": "Show in store",
+    "confirmAction": "Confirm",
+    "pullDown": "Pull to refresh",
+    "pullRelease": "Release",
+    "next": "Next",
+    "finish": "Finish",
+    "setupNameTitle": "What's your name?",
+    "setupCountryTitle": "Where do you live?",
+    "setupCountryHint": "Products will show in this country's language",
+    "setupLangTitle": "What language do you speak?",
+    "setupLangHint": "Your lists will be in this language",
+    "setupWelcomeText": "The shopping list that speaks your language",
   },
-
   es: {
-    "app.name": "BabelCart",
-    "app.tagline": "Una lista, todos los idiomas",
-
-    "setup.welcome": "Comenzar",
-    "setup.nameLabel": "Tu nombre",
-    "setup.namePlaceholder": "Ingresa tu nombre",
-    "setup.countryLabel": "País de residencia",
-    "setup.countryDesc": "Los productos se mostrarán en el idioma local para encontrarlos en la tienda",
-    "setup.langLabel": "Tu idioma",
-    "setup.langDesc": "La app y tu lista de compras aparecerán en este idioma",
-    "setup.finish": "Finalizar configuración",
-    "setup.step1Title": "Bienvenido",
-    "setup.step2Title": "Tu perfil",
-    "setup.step3Title": "Preferencias",
-
-    "lists.title": "Mis Listas",
-    "lists.create": "Crear lista",
-    "lists.join": "Unirse a lista",
-    "lists.joinCode": "Ingresa código de 6 dígitos",
-    "lists.empty": "Aún no hay listas",
-    "lists.delete": "Eliminar lista",
-    "lists.leave": "Abandonar lista",
-    "lists.members": "miembros",
-    "lists.items": "artículos",
-    "lists.pending": "Aprobación pendiente",
-    "lists.name": "Nombre de la lista",
-    "lists.code": "Código de invitación",
-    "lists.copied": "¡Copiado!",
-    "lists.settings": "Ajustes de lista",
-
-    "items.add": "Agregar producto...",
-    "items.qty": "Cant.",
-    "items.unit": "Unidad",
-    "items.note": "Nota",
-    "items.translating": "Traduciendo...",
-    "items.delete": "Eliminar",
-    "items.deleteConfirm": "¿Eliminar este artículo?",
-    "items.edit": "Editar",
-    "items.checked": "Comprado",
-    "items.unchecked": "Por comprar",
-    "items.duplicate": "Este producto ya existe. ¿Agregar cantidad?",
-    "items.addAnyway": "Agregar de todos modos",
-    "items.mergeQty": "Combinar cantidades",
-    "items.empty": "La lista está vacía. ¡Agrega tu primer producto!",
-
-    "store.title": "Modo Tienda",
-    "store.show": "Mostrar en tienda",
-    "store.back": "Volver a la lista",
-
-    "settings.title": "Ajustes",
-    "settings.name": "Tu nombre",
-    "settings.lang": "Tu idioma",
-    "settings.country": "Tu país",
-    "settings.save": "Guardar",
-    "settings.saved": "¡Guardado!",
-    "settings.members": "Miembros",
-    "settings.pendingRequests": "Solicitudes pendientes",
-    "settings.approve": "Aprobar",
-    "settings.reject": "Rechazar",
-    "settings.inviteCode": "Código de invitación",
-
-    "common.cancel": "Cancelar",
-    "common.confirm": "Confirmar",
-    "common.close": "Cerrar",
-    "common.loading": "Cargando...",
-    "common.error": "Algo salió mal",
-    "common.retry": "Reintentar",
-    "common.yes": "Sí",
-    "common.no": "No",
-    "common.or": "o",
-
-    "unit.x": "uds",
-    "unit.kg": "kg",
-    "unit.g": "g",
-    "unit.L": "L",
-    "unit.ml": "ml",
-    "unit.pack": "paq.",
+    "welcome": "Bienvenido",
+    "setup": "Listas de compra en tu idioma",
+    "yourName": "Tu nombre",
+    "iSpeak": "Hablo",
+    "iLive": "Vivo en",
+    "getStarted": "Empezar",
+    "noLists": "No hay listas",
+    "tapCreate": "Pulsa + para crear tu primera lista",
+    "newList": "Nueva lista",
+    "listName": "Compra del finde...",
+    "create": "Crear",
+    "join": "Unirse",
+    "joinList": "Unirse a una lista",
+    "enterCode": "Introduce el código del creador de la lista",
+    "requestJoin": "Solicitar acceso",
+    "reqSent": "¡Solicitud enviada!",
+    "ownerApprove": "El creador de la lista tiene que aprobar tu solicitud",
+    "notFound": "Lista no encontrada",
+    "checkCode": "Revisa el código e inténtalo de nuevo",
+    "tryAgain": "Reintentar",
+    "alreadyPending": "Ya solicitado",
+    "waitingOwner": "Esperando aprobación del creador",
+    "ok": "OK",
+    "addProduct": "Añadir producto...",
+    "add": "Añadir",
+    "translating": "traduciendo...",
+    "trFailed": "Error de traducción",
+    "retry": "Reintentar",
+    "done": "Hechos",
+    "people": "Personas en esta lista",
+    "pendingReqs": "Solicitudes pendientes",
+    "accept": "Aceptar",
+    "waitingApproval": "Esperando aprobación",
+    "shareCode": "Comparte este código para invitar",
+    "copyCode": "Copiar código",
+    "copied": "¡Copiado!",
+    "translations": "Traducciones",
+    "yourCountry": "tu país",
+    "addedBy": "Añadido por",
+    "remove": "Eliminar de la lista",
+    "close": "Cerrar",
+    "settings": "Ajustes",
+    "profile": "Perfil",
+    "save": "Guardar",
+    "name": "Nombre",
+    "language": "Idioma",
+    "country": "País",
+    "removeMember": "Eliminar",
+    "leave": "Salir de esta lista",
+    "rejected": "Solicitud rechazada",
+    "confirm": "Confirmar",
+    "logout": "Cerrar sesión",
+    "qty": "Cant.",
+    "notePlaceholder": "Nota...",
+    "dupTitle": "¿Producto duplicado?",
+    "dupDoneTitle": "¿Ya se compró?",
+    "dupSubtitle": "ya podría estar en la lista",
+    "dupDoneSubtitle": "ya está en completados",
+    "dupInList": "En la lista",
+    "dupBought": "Comprado",
+    "mergeSum": "Sumar",
+    "mergeSet": "Establecer",
+    "mergeMore": "Añadir 1 más",
+    "mergeMark": "Marcar como",
+    "addSeparate": "Añadir por separado",
+    "cancel": "Cancelar",
+    "showInStore": "Mostrar en tienda",
+    "confirmAction": "Confirmar",
+    "pullDown": "Tirar para actualizar",
+    "pullRelease": "Soltar",
+    "next": "Siguiente",
+    "finish": "Finalizar",
+    "setupNameTitle": "¿Cómo te llamas?",
+    "setupCountryTitle": "¿Dónde vives?",
+    "setupCountryHint": "Los productos se mostrarán en el idioma de este país",
+    "setupLangTitle": "¿Qué idioma hablas?",
+    "setupLangHint": "Tus listas estarán en este idioma",
+    "setupWelcomeText": "La lista de la compra que habla tu idioma",
   },
-
   pl: {
-    "app.name": "BabelCart",
-    "app.tagline": "Jedna lista, każdy język",
-
-    "setup.welcome": "Rozpocznij",
-    "setup.nameLabel": "Twoje imię",
-    "setup.namePlaceholder": "Wpisz swoje imię",
-    "setup.countryLabel": "Kraj zamieszkania",
-    "setup.countryDesc": "Produkty będą wyświetlane w lokalnym języku, abyś mógł je znaleźć w sklepie",
-    "setup.langLabel": "Twój język",
-    "setup.langDesc": "Aplikacja i lista zakupów będą wyświetlane w tym języku",
-    "setup.finish": "Zakończ konfigurację",
-    "setup.step1Title": "Witaj",
-    "setup.step2Title": "Twój profil",
-    "setup.step3Title": "Preferencje",
-
-    "lists.title": "Moje Listy",
-    "lists.create": "Utwórz listę",
-    "lists.join": "Dołącz do listy",
-    "lists.joinCode": "Wpisz 6-cyfrowy kod",
-    "lists.empty": "Brak list",
-    "lists.delete": "Usuń listę",
-    "lists.leave": "Opuść listę",
-    "lists.members": "członków",
-    "lists.items": "produktów",
-    "lists.pending": "Oczekuje na zatwierdzenie",
-    "lists.name": "Nazwa listy",
-    "lists.code": "Kod zaproszenia",
-    "lists.copied": "Skopiowano!",
-    "lists.settings": "Ustawienia listy",
-
-    "items.add": "Dodaj produkt...",
-    "items.qty": "Ilość",
-    "items.unit": "Jedn.",
-    "items.note": "Notatka",
-    "items.translating": "Tłumaczenie...",
-    "items.delete": "Usuń",
-    "items.deleteConfirm": "Usunąć ten produkt?",
-    "items.edit": "Edytuj",
-    "items.checked": "Kupione",
-    "items.unchecked": "Do kupienia",
-    "items.duplicate": "Ten produkt już istnieje. Dodać ilość?",
-    "items.addAnyway": "Dodaj mimo to",
-    "items.mergeQty": "Połącz ilości",
-    "items.empty": "Lista jest pusta. Dodaj swój pierwszy produkt!",
-
-    "store.title": "Tryb Sklepowy",
-    "store.show": "Pokaż w sklepie",
-    "store.back": "Wróć do listy",
-
-    "settings.title": "Ustawienia",
-    "settings.name": "Twoje imię",
-    "settings.lang": "Twój język",
-    "settings.country": "Twój kraj",
-    "settings.save": "Zapisz",
-    "settings.saved": "Zapisano!",
-    "settings.members": "Członkowie",
-    "settings.pendingRequests": "Oczekujące prośby",
-    "settings.approve": "Zatwierdź",
-    "settings.reject": "Odrzuć",
-    "settings.inviteCode": "Kod zaproszenia",
-
-    "common.cancel": "Anuluj",
-    "common.confirm": "Potwierdź",
-    "common.close": "Zamknij",
-    "common.loading": "Ładowanie...",
-    "common.error": "Coś poszło nie tak",
-    "common.retry": "Ponów",
-    "common.yes": "Tak",
-    "common.no": "Nie",
-    "common.or": "lub",
-
-    "unit.x": "szt.",
-    "unit.kg": "kg",
-    "unit.g": "g",
-    "unit.L": "L",
-    "unit.ml": "ml",
-    "unit.pack": "opak.",
+    "welcome": "Witaj",
+    "setup": "Listy zakupów w Twoim języku",
+    "yourName": "Twoje imię",
+    "iSpeak": "Mówię",
+    "iLive": "Mieszkam w",
+    "getStarted": "Start",
+    "noLists": "Brak list",
+    "tapCreate": "Naciśnij + aby utworzyć pierwszą listę",
+    "newList": "Nowa lista",
+    "listName": "Zakupy weekendowe...",
+    "create": "Utwórz",
+    "join": "Dołącz",
+    "joinList": "Dołącz do listy",
+    "enterCode": "Wpisz kod udostępniony przez właściciela listy",
+    "requestJoin": "Poproś o dostęp",
+    "reqSent": "Wysłano prośbę!",
+    "ownerApprove": "Właściciel listy musi zatwierdzić Twoją prośbę",
+    "notFound": "Nie znaleziono listy",
+    "checkCode": "Sprawdź kod i spróbuj ponownie",
+    "tryAgain": "Spróbuj ponownie",
+    "alreadyPending": "Już wysłano",
+    "waitingOwner": "Oczekiwanie na zatwierdzenie",
+    "ok": "OK",
+    "addProduct": "Dodaj produkt...",
+    "add": "Dodaj",
+    "translating": "tłumaczę...",
+    "trFailed": "Błąd tłumaczenia",
+    "retry": "Ponów",
+    "done": "Gotowe",
+    "people": "Osoby na liście",
+    "pendingReqs": "Oczekujące prośby",
+    "accept": "Akceptuj",
+    "waitingApproval": "Oczekiwanie",
+    "shareCode": "Udostępnij ten kod aby zaprosić",
+    "copyCode": "Kopiuj kod",
+    "copied": "Skopiowano!",
+    "translations": "Tłumaczenia",
+    "yourCountry": "twój kraj",
+    "addedBy": "Dodane przez",
+    "remove": "Usuń z listy",
+    "close": "Zamknij",
+    "settings": "Ustawienia",
+    "profile": "Profil",
+    "save": "Zapisz",
+    "name": "Imię",
+    "language": "Język",
+    "country": "Kraj",
+    "removeMember": "Usuń",
+    "leave": "Opuść tę listę",
+    "rejected": "Prośba odrzucona",
+    "confirm": "Potwierdź",
+    "logout": "Wyloguj się",
+    "qty": "Ilość",
+    "notePlaceholder": "Notatka...",
+    "dupTitle": "Duplikat produktu?",
+    "dupDoneTitle": "Już kupione?",
+    "dupSubtitle": "może być już na liście",
+    "dupDoneSubtitle": "jest w ukończonych",
+    "dupInList": "Na liście",
+    "dupBought": "Kupione",
+    "mergeSum": "Dodaj",
+    "mergeSet": "Ustaw",
+    "mergeMore": "Dodaj 1 więcej",
+    "mergeMark": "Oznacz jako",
+    "addSeparate": "Dodaj osobno",
+    "cancel": "Anuluj",
+    "showInStore": "Pokaż w sklepie",
+    "confirmAction": "Potwierdź",
+    "pullDown": "Pociągnij aby odświeżyć",
+    "pullRelease": "Puść",
+    "next": "Dalej",
+    "finish": "Gotowe",
+    "setupNameTitle": "Jak masz na imię?",
+    "setupCountryTitle": "Gdzie mieszkasz?",
+    "setupCountryHint": "Produkty będą w języku tego kraju",
+    "setupLangTitle": "Jakim językiem mówisz?",
+    "setupLangHint": "Twoje listy będą w tym języku",
+    "setupWelcomeText": "Lista zakupów, która mówi Twoim językiem",
   },
-};
+} as const;
 
-/**
- * Translate a key for the given language.
- * Falls back to English if the key is missing in the requested language.
- */
-export function t(lang: Lang, key: TranslationKey): string {
-  return strings[lang]?.[key] ?? strings.en[key] ?? key;
+export type Translations = typeof strings.en;
+
+export function t(lang: string, key: TranslationKey): string {
+  const l = (lang === "en" || lang === "es" || lang === "pl" ? lang : "en") as Lang;
+  return strings[l][key] ?? strings.en[key] ?? key;
 }

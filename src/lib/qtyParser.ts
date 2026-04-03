@@ -1,62 +1,35 @@
-const UNITS = 'kg|g|L|l|ml|cl|pack|x|×|litros|litre|liter';
+export interface ParsedQty {
+  qty: string | null;
+  unit: string | null;
+  text: string;
+}
 
-// Matches patterns like "2kg", "500g", "3 litros", "x6", "×2"
-const LEADING_RE = new RegExp(
-  `^\\s*(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})?\\s+(?:de\\s+)?(.+)$`,
-  'i'
-);
-const TRAILING_RE = new RegExp(
-  `^(.+?)\\s+(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})?\\s*$`,
-  'i'
-);
-const MULT_RE = new RegExp(
-  `^(.+?)\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*$`,
-  'i'
-);
-const MULT_LEADING_RE = new RegExp(
-  `^\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s+(.+)$`,
-  'i'
-);
+const QTY_RX = /^(\d+(?:[.,]\d+)?)(?:\s*(kg|g|l|ml|un|x|pcs|packs?|uds?|szt)\b)?\s*[.\-–]?\s*(.+)$/i;
+const QTY_TRAIL = /^(.+?)\s+(\d+(?:[.,]\d+)?)(?:\s*(kg|g|l|ml|un|x|pcs|packs?|uds?|szt)\b)?$/i;
+const QTY_X = /^(.+?)\s*[x×]\s*(\d+(?:[.,]\d+)?)$/i;
 
-export function parseQtyInput(
-  input: string
-): { text: string; qty?: string; unit?: string } {
-  const trimmed = input.trim();
-  if (!trimmed) return { text: trimmed };
+export function parseQty(text: string): ParsedQty {
+  let m = QTY_RX.exec(text.trim());
+  if (m) return {
+    qty: m[1].replace(",", "."),
+    unit: normalizeUnit(m[2] || "x"),
+    text: m[3].trim()
+  };
+  m = QTY_X.exec(text.trim());
+  if (m) return { qty: m[2].replace(",", "."), unit: "x", text: m[1].trim() };
+  m = QTY_TRAIL.exec(text.trim());
+  if (m) return {
+    qty: m[2].replace(",", "."),
+    unit: normalizeUnit(m[3] || "x"),
+    text: m[1].trim()
+  };
+  return { qty: null, unit: null, text: text.trim() };
+}
 
-  // "2kg leche", "500g harina", "3 litros de leche", "6 eggs"
-  let m = trimmed.match(LEADING_RE);
-  if (m) {
-    const qty = m[1];
-    const unit = m[2] || undefined;
-    const text = m[3].trim();
-    return { text, qty, unit };
-  }
-
-  // "leche 2kg", "huevos 500g"
-  m = trimmed.match(TRAILING_RE);
-  if (m) {
-    const text = m[1].trim();
-    const qty = m[2];
-    const unit = m[3] || undefined;
-    return { text, qty, unit };
-  }
-
-  // "huevos x6", "leche ×2"
-  m = trimmed.match(MULT_RE);
-  if (m) {
-    const text = m[1].trim();
-    const qty = m[2];
-    return { text, qty };
-  }
-
-  // "x6 huevos"
-  m = trimmed.match(MULT_LEADING_RE);
-  if (m) {
-    const qty = m[1];
-    const text = m[2].trim();
-    return { text, qty };
-  }
-
-  return { text: trimmed };
+function normalizeUnit(u: string): string {
+  return u.toLowerCase()
+    .replace("packs", "pack")
+    .replace("uds", "un")
+    .replace("pcs", "x")
+    .replace("szt", "x");
 }

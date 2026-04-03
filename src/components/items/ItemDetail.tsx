@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import type { Item } from "../../lib/supabase";
 import Modal from "../ui/Modal";
-import Button from "../ui/Button";
 import ProductIcon from "../ui/ProductIcon";
-import { getLangFlag } from "../../data/langs";
+import { getLangFlag, getLangName } from "../../data/langs";
 import { t, type Lang } from "../../data/i18n";
 
 interface ItemDetailProps {
@@ -12,13 +11,16 @@ interface ItemDetailProps {
   onClose: () => void;
   userLang: string;
   shelfLang: string;
+  countryFlag?: string;
   onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note">>) => void;
   onDelete: (itemId: string) => void;
   onShowStore: (item: Item) => void;
+  lang?: string;
 }
 
 const UNITS = [
-  { value: "", label: "\u00d7" },
+  { value: "", label: "\u2014" },
+  { value: "x", label: "\u00d7" },
   { value: "kg", label: "kg" },
   { value: "g", label: "g" },
   { value: "L", label: "L" },
@@ -32,7 +34,8 @@ export default function ItemDetail({
   open,
   onClose,
   userLang,
-  shelfLang: _shelfLang,
+  shelfLang,
+  countryFlag,
   onUpdate,
   onDelete,
   onShowStore,
@@ -57,6 +60,8 @@ export default function ItemDetail({
   if (!item) return null;
 
   const displayName = item.translations[userLang] || item.original;
+  const shelfName = item.translations[shelfLang] || item.original;
+  const showShelf = shelfLang !== userLang && shelfName.toLowerCase() !== displayName.toLowerCase();
 
   const handleSave = () => {
     onUpdate(item.id, { qty, unit, note });
@@ -71,50 +76,60 @@ export default function ItemDetail({
     }
   };
 
-  const translationEntries = Object.entries(item.translations).filter(
-    ([, value]) => value && value.trim() !== ""
-  );
-
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="space-y-5">
-        {/* Header: emoji + name */}
+      <div className="space-y-4">
+        {/* Header: icon + name + added by */}
         <div className="flex items-center gap-3">
-          <ProductIcon name={item.original} category={item.category} />
-          <div>
-            <h3 className="text-xl font-semibold text-text">{displayName}</h3>
+          <ProductIcon name={item.original} size={52} />
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-text truncate" style={{ fontSize: 20 }}>
+              {displayName}
+            </h3>
             {item.added_by_name && (
-              <p className="text-xs text-text-muted">
-                {item.added_by_name}
+              <p className="text-text-muted truncate" style={{ fontSize: 12 }}>
+                {t(lang, "addedBy")} {item.added_by_name}
               </p>
             )}
           </div>
         </div>
 
-        {/* Editable fields */}
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="text-xs text-text-muted mb-1 block">{t(lang, "items.qty")}</label>
+        {/* Photo section placeholder */}
+        <button
+          type="button"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-bg border border-border-light text-text-soft active:bg-card transition-colors cursor-pointer"
+          style={{ fontSize: 14 }}
+        >
+          <span>{"\uD83D\uDCF7"}</span>
+          <span>Add photo</span>
+        </button>
+
+        {/* Fields row: qty + unit + note */}
+        <div className="flex gap-2 items-end">
+          <div>
+            <label className="text-text-muted block mb-1" style={{ fontSize: 11 }}>
+              {t(lang, "qty")}
+            </label>
             <input
-              type="text"
+              type="number"
               inputMode="decimal"
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               onBlur={handleSave}
-              className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
               placeholder="1"
+              className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
+              style={{ width: 60 }}
             />
           </div>
-          <div className="flex-1">
-            <label className="text-xs text-text-muted mb-1 block">{t(lang, "items.unit")}</label>
+          <div>
             <select
               value={unit}
               onChange={(e) => {
                 setUnit(e.target.value);
-                // Save on next tick after state update
                 setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0);
               }}
-              className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent appearance-none"
+              className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text outline-none focus:border-accent appearance-none"
+              style={{ width: 70 }}
             >
               {UNITS.map((u) => (
                 <option key={u.value} value={u.value}>
@@ -123,57 +138,68 @@ export default function ItemDetail({
               ))}
             </select>
           </div>
+          <div className="flex-1 min-w-0">
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onBlur={handleSave}
+              placeholder={t(lang, "notePlaceholder")}
+              className="w-full bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="text-xs text-text-muted mb-1 block">{t(lang, "items.note")}</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onBlur={handleSave}
-            rows={2}
-            className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent resize-none"
-            placeholder={t(lang, "items.note")}
-          />
-        </div>
-
-        {/* Translations */}
-        {translationEntries.length > 0 && (
-          <div>
-            <p className="text-xs text-text-muted mb-2 uppercase tracking-wide">Translations</p>
-            <div className="space-y-1.5">
-              {translationEntries.map(([langCode, value]) => (
-                <div key={langCode} className="flex items-center gap-2">
-                  <span className="text-sm shrink-0" style={{ width: "24px", textAlign: "center" }}>
-                    {getLangFlag(langCode) || langCode}
-                  </span>
-                  <span className="text-sm text-text">{value}</span>
-                </div>
-              ))}
+        {/* Shelf translation card */}
+        {showShelf && (
+          <div
+            className="rounded-xl p-3 flex items-center gap-3"
+            style={{
+              backgroundColor: "rgba(232, 195, 100, 0.12)",
+              border: "1px solid rgba(232, 195, 100, 0.25)",
+            }}
+          >
+            <span style={{ fontSize: 24 }}>
+              {countryFlag || getLangFlag(shelfLang) || ""}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-text truncate" style={{ fontSize: 15 }}>
+                {shelfName}
+              </p>
+              <p className="text-text-muted" style={{ fontSize: 11 }}>
+                {getLangName(shelfLang)} &middot; {t(lang, "yourCountry")}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Show in store */}
-        <Button
-          variant="primary"
-          className="w-full"
+        {/* Show in store button */}
+        <button
+          type="button"
           onClick={() => {
             onClose();
             onShowStore(item);
           }}
+          className="w-full h-11 rounded-xl text-white font-medium flex items-center justify-center gap-2 active:brightness-90 transition-all cursor-pointer"
+          style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}
         >
-          {t(lang, "store.show")}
-        </Button>
+          <span>{"\uD83D\uDCF1"}</span>
+          {t(lang, "showInStore")}
+        </button>
 
-        {/* Delete */}
-        <Button
-          variant="danger"
-          className="w-full"
+        {/* Delete button (2-step confirm) */}
+        <button
+          type="button"
           onClick={handleDelete}
+          className="w-full h-11 rounded-xl font-medium flex items-center justify-center gap-2 active:brightness-90 transition-all cursor-pointer"
+          style={{
+            backgroundColor: deleteStep === 0 ? "rgba(248, 113, 113, 0.15)" : "rgba(248, 113, 113, 0.3)",
+            color: "#f87171",
+            border: "1px solid rgba(248, 113, 113, 0.25)",
+          }}
         >
-          {deleteStep === 0 ? t(lang, "items.delete") : t(lang, "common.confirm") + "?"}
-        </Button>
+          {deleteStep === 0 ? t(lang, "remove") : `\u26A0\uFE0F ${t(lang, "confirm")}?`}
+        </button>
       </div>
     </Modal>
   );

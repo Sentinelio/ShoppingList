@@ -1,21 +1,29 @@
 import { PRODUCT_EMOJIS } from '../data/productEmojis';
 
-export function matchProductEmoji(
-  name: string
-): { emoji: string; color: string } | null {
-  const lower = name.toLowerCase();
+interface EmojiMatch {
+  emoji: string;
+  color: string;
+}
 
-  for (const [keywordsStr, emoji, color] of PRODUCT_EMOJIS) {
-    const keywords = keywordsStr.split('|');
-    const pattern = keywords
-      .map((kw) => (kw.length <= 3 ? `\\b${kw}\\b` : kw))
-      .join('|');
-    const regex = new RegExp(pattern, 'i');
+// Pre-compile regex for fast matching
+const COMPILED = PRODUCT_EMOJIS.map(([kw, emoji, color]) => {
+  const parts = kw.split("|")
+    .sort((a, b) => b.length - a.length)
+    .map(k => k.length <= 3 ? `\\b${k}\\b` : k);
+  return { rx: new RegExp(parts.join("|"), "i"), emoji, color };
+});
 
-    if (regex.test(lower)) {
-      return { emoji, color };
+const cache: Record<string, EmojiMatch> = {};
+
+export function matchProductEmoji(name: string): EmojiMatch {
+  const s = (name || "").toLowerCase();
+  if (cache[s]) return cache[s];
+  for (const { rx, emoji, color } of COMPILED) {
+    if (rx.test(s)) {
+      cache[s] = { emoji, color };
+      return cache[s];
     }
   }
-
-  return null;
+  cache[s] = { emoji: "🛒", color: "#7e85a0" };
+  return cache[s];
 }

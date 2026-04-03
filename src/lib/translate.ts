@@ -1,100 +1,163 @@
 import { supabase, IS_DEMO } from './supabase';
-import { LOCAL_DICTIONARY, type DictEntry as LocalDictEntry } from '../data/localDictionary';
+import { LOCAL_DICTIONARY, type DictEntry } from '../data/localDictionary';
 
 export interface TranslateResult {
   translations: Record<string, string>;
   category: string;
 }
 
-const LANG_KEYS: (keyof LocalDictEntry)[] = ['en', 'es', 'pl', 'de', 'fr', 'it', 'pt'];
+// Build reverse lookup index: normalized word → dict entry
+const DICT_INDEX: Record<string, DictEntry> = {};
+const LANG_KEYS: (keyof DictEntry)[] = ['en', 'es', 'pl', 'de', 'fr', 'it', 'pt'];
 
-/**
- * Search the local dictionary matching against all language fields (case-insensitive).
- */
-export function findInLocalDict(text: string): LocalDictEntry | undefined {
-  const normalized = text.toLowerCase().trim();
-  return LOCAL_DICTIONARY.find((entry) =>
-    LANG_KEYS.some((lang) => {
-      const val = entry[lang];
-      return typeof val === 'string' && val.toLowerCase() === normalized;
-    })
-  );
+// Initialize index
+LOCAL_DICTIONARY.forEach(entry => {
+  for (const k of LANG_KEYS) {
+    const v = entry[k];
+    if (typeof v === 'string') {
+      DICT_INDEX[v.toLowerCase()] = entry;
+    }
+  }
+});
+
+export function addToDictIndex(entry: DictEntry) {
+  for (const k of LANG_KEYS) {
+    const v = entry[k];
+    if (typeof v === 'string') {
+      DICT_INDEX[v.toLowerCase()] = entry;
+    }
+  }
 }
 
-/**
- * Translate a product name through a three-level pipeline:
- * 1. Local dictionary
- * 2. Supabase dictionary table (skipped in demo mode)
- * 3. Supabase Edge Function (skipped in demo mode — returns original text)
- */
-export async function translateProduct(
-  text: string,
-  targetLangs: string[]
-): Promise<TranslateResult> {
-  const normalized = text.toLowerCase().trim();
+interface LocalMatch {
+  translations?: Record<string, string>;
+  category: string;
+  exact: boolean;
+}
 
-  // ── 1. Local dictionary ────────────────────────────────
-  const localMatch = findInLocalDict(normalized);
-  if (localMatch) {
-    const translations: Record<string, string> = {};
-    for (const lang of targetLangs) {
-      const val = localMatch[lang as keyof LocalDictEntry];
-      if (typeof val === 'string') {
-        translations[lang] = val;
-      }
-    }
-    // Ensure en is always present
-    if (!translations.en && localMatch.en) translations.en = localMatch.en;
-    return { translations, category: localMatch.cat };
+function depluralForms(w: string): string[] {
+  const forms: string[] = [];
+  if (w.endsWith("ies")) forms.push(w.slice(0, -3) + "y");
+  if (w.endsWith("ves")) forms.push(w.slice(0, -3) + "f");
+  if (w.endsWith("es")) forms.push(w.slice(0, -2));
+  if (w.endsWith("s") && !w.endsWith("ss")) forms.push(w.slice(0, -1));
+  return forms;
+}
+
+function tryMatch(w: string): DictEntry | null {
+  if (DICT_INDEX[w]) return DICT_INDEX[w];
+  for (const d of depluralForms(w)) {
+    if (DICT_INDEX[d]) return DICT_INDEX[d];
+  }
+  return null;
+}
+
+function dictToTranslations(entry: DictEntry): Record<string, string> {
+  const tr: Record<string, string> = {};
+  for (const k of LANG_KEYS) {
+    const v = entry[k];
+    if (typeof v === 'string') tr[k] = v;
+  }
+  return tr;
+}
+
+export function findInLocalDict(text: string): LocalMatch | null {
+  const s = text.toLowerCase().trim();
+
+  // 1. Exact or deplural match → full translation + category
+  const exact = tryMatch(s);
+  if (exact) return { translations: dictToTranslations(exact), category: exact.cat, exact: true };
+
+  // 2. Strip prefixes → category ONLY
+  const stripped = s
+    .replace(/^(one|two|three|a |an |the |some |un |una |dos |tres |big |small |large |fresh |natural |organic |green |red |white |brown |raw |baked |powder |whole |half |sliced |maybe )/gi, "")
+    .replace(/^(box of |bag of |pack of |bottle of |can of |jar of |piece of |slice of |bunch of |head of |for )/gi, "")
+    .trim();
+  if (stripped !== s) {
+    const strippedMatch = tryMatch(stripped);
+    if (strippedMatch) return { category: strippedMatch.cat, exact: false };
   }
 
-  // In demo mode, skip Supabase calls — return original text for all langs
+  // 3. Word subsequence → category ONLY
+  const words = s.split(/\s+/);
+  for (let len = words.length; len >= 1; len--) {
+    for (let start = 0; start <= words.length - len; start++) {
+      const sub = words.slice(start, start + len).join(" ");
+      const subMatch = tryMatch(sub);
+      if (subMatch) return { category: subMatch.cat, exact: false };
+    }
+  }
+
+  return null;
+}
+
+export async function translateProduct(
+  text: string,
+  targetLangs: string[],
+  userLang: string = 'en'
+): Promise<TranslateResult> {
+  // 1. Local dictionary — only use if exact match
+  const local = findInLocalDict(text);
+  if (local?.exact && local.translations) {
+    return { translations: local.translations, category: local.category };
+  }
+
+  // In demo mode without Supabase, skip API calls
   if (IS_DEMO) {
     const translations: Record<string, string> = {};
     for (const lang of targetLangs) {
       translations[lang] = text;
     }
     if (!translations.en) translations.en = text;
-    return { translations, category: 'other' };
+    return { translations, category: local?.category ?? 'other' };
   }
 
-  // ── 2. Supabase dictionary table ───────────────────────
-  const { data: dbEntry } = await supabase
-    .from('dictionary')
-    .select('*')
-    .eq('key', normalized)
-    .single();
+  // 2. Supabase dictionary table
+  try {
+    const { data: dbEntry } = await supabase
+      .from('dictionary')
+      .select('*')
+      .eq('key', text.toLowerCase().trim())
+      .single();
 
-  if (dbEntry) {
-    const translations: Record<string, string> = {};
-    for (const lang of targetLangs) {
-      if (dbEntry.translations?.[lang]) {
-        translations[lang] = dbEntry.translations[lang];
+    if (dbEntry?.translations) {
+      const translations: Record<string, string> = {};
+      for (const lang of targetLangs) {
+        if (dbEntry.translations[lang]) {
+          translations[lang] = dbEntry.translations[lang];
+        }
       }
+      return { translations, category: dbEntry.category ?? 'other' };
     }
-    return { translations, category: dbEntry.category ?? '' };
+  } catch { /* continue to API */ }
+
+  // 3. Supabase Edge Function (Claude API)
+  try {
+    const { data: fnData, error } = await supabase.functions.invoke('translate', {
+      body: { text, langs: targetLangs },
+    });
+
+    if (error) throw error;
+
+    const result: TranslateResult = {
+      translations: fnData.translations ?? {},
+      category: fnData.category ?? local?.category ?? 'other',
+    };
+
+    // Save to dictionary for future lookups
+    try {
+      await supabase.from('dictionary').upsert({
+        key: text.toLowerCase().trim(),
+        translations: result.translations,
+        category: result.category,
+      });
+    } catch {
+      // ignore upsert errors
+    }
+
+    return result;
+  } catch {
+    const translations: Record<string, string> = { [userLang]: text, en: text };
+    return { translations, category: local?.category ?? 'other' };
   }
-
-  // ── 3. Supabase Edge Function ──────────────────────────
-  const { data: fnData, error } = await supabase.functions.invoke('translate', {
-    body: { text, langs: targetLangs },
-  });
-
-  if (error) {
-    throw new Error(`Translation failed: ${error.message}`);
-  }
-
-  const result: TranslateResult = {
-    translations: fnData.translations ?? {},
-    category: fnData.category ?? '',
-  };
-
-  // Save to dictionary table for future lookups
-  await supabase.from('dictionary').upsert({
-    key: normalized,
-    translations: result.translations,
-    category: result.category,
-  });
-
-  return result;
 }
