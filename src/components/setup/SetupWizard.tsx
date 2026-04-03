@@ -25,13 +25,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [lang, setLang] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Detect browser language on mount
   useEffect(() => {
     const detected = detectBrowserLang();
     setLang(detected);
   }, []);
 
-  // The i18n language follows the user's current selection (or browser default)
   const i18nLang: Lang = useMemo(() => {
     if (lang && lang in strings) return lang as Lang;
     return detectBrowserLang();
@@ -47,6 +45,9 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       setSubmitting(false);
     }
   };
+
+  const selectedCountry = COUNTRIES.find(c => c.code === country);
+  const selectedLang = LANGS.find(l => l.code === lang);
 
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center px-4 py-8">
@@ -74,7 +75,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             </p>
             <button
               onClick={() => setStep(1)}
-              className="w-full py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity hover:opacity-90 active:opacity-80"
+              className="w-full py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 cursor-pointer"
             >
               {t(i18nLang, "setup.welcome")}
             </button>
@@ -98,11 +99,17 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               autoFocus
               className="w-full py-4 px-5 text-lg text-text bg-card rounded-xl border border-border-light outline-none focus:border-accent transition-colors placeholder:text-text-muted text-center"
             />
-            <div className="mt-auto">
+            <div className="mt-auto flex gap-3">
+              <button
+                onClick={() => setStep(0)}
+                className="py-4 px-6 rounded-xl bg-card text-text-soft font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-border-light"
+              >
+                &larr;
+              </button>
               <button
                 onClick={() => setStep(2)}
                 disabled={!name.trim()}
-                className="w-full py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {t(i18nLang, "common.confirm")}
               </button>
@@ -110,81 +117,122 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
           </div>
         )}
 
-        {/* Step 2 - Country */}
+        {/* Step 2 - Country (dropdown) */}
         {step === 2 && (
-          <div className="flex-1 flex flex-col gap-4">
+          <div className="flex-1 flex flex-col gap-5">
             <h2 className="text-2xl font-bold text-text text-center">
-              {t(i18nLang, "setup.step2Title")}
+              {t(i18nLang, "setup.countryLabel")}
             </h2>
-            <p className="text-sm text-text-soft text-center">
+            <p className="text-sm text-text-soft text-center px-2">
               {t(i18nLang, "setup.countryDesc")}
             </p>
-            <div className="flex-1 overflow-y-auto -mx-1 px-1">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+
+            <div className="relative">
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full py-4 px-5 text-lg text-text bg-card rounded-xl border border-border-light outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
+              >
+                <option value="" disabled>
+                  {t(i18nLang, "setup.countryLabel")}...
+                </option>
                 {COUNTRIES.map((c) => (
-                  <button
-                    key={c.code}
-                    onClick={() => setCountry(c.code)}
-                    className={`flex items-center gap-2 p-3 rounded-xl bg-card border transition-colors text-left ${
-                      country === c.code
-                        ? "border-accent"
-                        : "border-border-light hover:border-border-light/50"
-                    }`}
-                  >
-                    <span className="text-xl">{c.flag}</span>
-                    <span className="text-sm text-text truncate">
-                      {c.name}
-                    </span>
-                  </button>
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.name}
+                  </option>
                 ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
+                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
             </div>
-            <button
-              onClick={() => setStep(3)}
-              disabled={!country}
-              className="w-full py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              {t(i18nLang, "common.confirm")}
-            </button>
+
+            {selectedCountry && (
+              <div className="bg-card rounded-xl p-4 border border-border-light text-center">
+                <span className="text-4xl">{selectedCountry.flag}</span>
+                <p className="text-text font-medium mt-2">{selectedCountry.name}</p>
+                <p className="text-text-muted text-xs mt-1">
+                  {t(i18nLang, "store.show")}: {selectedCountry.lang.toUpperCase()}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-auto flex gap-3">
+              <button
+                onClick={() => setStep(1)}
+                className="py-4 px-6 rounded-xl bg-card text-text-soft font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-border-light"
+              >
+                &larr;
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                disabled={!country}
+                className="flex-1 py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {t(i18nLang, "common.confirm")}
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Step 3 - Language */}
+        {/* Step 3 - Language (dropdown) */}
         {step === 3 && (
-          <div className="flex-1 flex flex-col gap-4">
+          <div className="flex-1 flex flex-col gap-5">
             <h2 className="text-2xl font-bold text-text text-center">
-              {t(i18nLang, "setup.step3Title")}
+              {t(i18nLang, "setup.langLabel")}
             </h2>
-            <p className="text-sm text-text-soft text-center">
+            <p className="text-sm text-text-soft text-center px-2">
               {t(i18nLang, "setup.langDesc")}
             </p>
-            <div className="flex-1 overflow-y-auto -mx-1 px-1">
-              <div className="grid grid-cols-2 gap-3">
+
+            <div className="relative">
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value)}
+                className="w-full py-4 px-5 text-lg text-text bg-card rounded-xl border border-border-light outline-none focus:border-accent transition-colors appearance-none cursor-pointer"
+              >
+                <option value="" disabled>
+                  {t(i18nLang, "setup.langLabel")}...
+                </option>
                 {LANGS.map((l) => (
-                  <button
-                    key={l.code}
-                    onClick={() => setLang(l.code)}
-                    className={`flex items-center gap-2 p-3 rounded-xl bg-card border transition-colors text-left ${
-                      lang === l.code
-                        ? "border-accent"
-                        : "border-border-light hover:border-border-light/50"
-                    }`}
-                  >
-                    <span className="text-xl">{l.flag}</span>
-                    <span className="text-sm text-text">{l.name}</span>
-                  </button>
+                  <option key={l.code} value={l.code}>
+                    {l.flag} {l.name}
+                  </option>
                 ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
+                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
             </div>
-            <button
-              onClick={handleFinish}
-              disabled={!lang || submitting}
-              className="w-full py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              {submitting
-                ? t(i18nLang, "common.loading")
-                : t(i18nLang, "setup.finish")}
-            </button>
+
+            {selectedLang && (
+              <div className="bg-card rounded-xl p-4 border border-border-light text-center">
+                <span className="text-4xl">{selectedLang.flag}</span>
+                <p className="text-text font-medium mt-2">{selectedLang.name}</p>
+              </div>
+            )}
+
+            <div className="mt-auto flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="py-4 px-6 rounded-xl bg-card text-text-soft font-medium text-lg transition-opacity active:opacity-80 cursor-pointer border border-border-light"
+              >
+                &larr;
+              </button>
+              <button
+                onClick={handleFinish}
+                disabled={!lang || submitting}
+                className="flex-1 py-4 rounded-xl bg-accent text-bg font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {submitting
+                  ? t(i18nLang, "common.loading")
+                  : t(i18nLang, "setup.finish")}
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -18,10 +18,9 @@ export default function StoreMode({
 }: StoreModeProps) {
   const [activePhrase, setActivePhrase] = useState<{
     emoji: string;
-    text: string;
+    shelfText: string;
   } | null>(null);
 
-  // Lock body scroll while fullscreen is open
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -40,6 +39,30 @@ export default function StoreMode({
     .filter(Boolean)
     .join(" ");
 
+  // Phrase overlay — tapped phrase shown in SHELF language (for the store employee)
+  if (activePhrase) {
+    return (
+      <div
+        className="fixed inset-0 z-[100] flex flex-col items-center justify-center px-6"
+        style={{
+          backgroundColor: "#0d1017",
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+        onClick={() => setActivePhrase(null)}
+      >
+        <span className="text-7xl mb-6">{activePhrase.emoji}</span>
+        <p
+          className="text-center font-bold leading-tight"
+          style={{ fontSize: "36px", color: "#e8c364" }}
+        >
+          {activePhrase.shelfText}
+        </p>
+        <p className="text-text-muted mt-8 text-sm">Tap to dismiss</p>
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col"
@@ -51,34 +74,15 @@ export default function StoreMode({
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      {/* Phrase overlay */}
-      {activePhrase && (
-        <div
-          className="absolute inset-0 z-[110] flex flex-col items-center justify-center px-6"
-          style={{ backgroundColor: "#0d1017" }}
-          onClick={() => setActivePhrase(null)}
-        >
-          <span className="text-7xl mb-6">{activePhrase.emoji}</span>
-          <p
-            className="text-center font-bold leading-tight"
-            style={{ fontSize: "36px", color: "#e8c364" }}
-          >
-            {activePhrase.text}
-          </p>
-          <p className="text-text-soft mt-8 text-sm">Tap anywhere to dismiss</p>
-        </div>
-      )}
-
       {/* Close button */}
       <div className="flex justify-end px-4 pt-3">
         <button
-          onClick={onClose}
-          className="flex items-center justify-center rounded-full bg-card text-text-soft hover:text-text transition-colors"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          className="flex items-center justify-center rounded-full bg-card text-text-soft active:text-text transition-colors cursor-pointer"
           style={{ width: 44, height: 44 }}
           aria-label="Close"
         >
           <svg
-            xmlns="http://www.w3.org/2000/svg"
             width={22}
             height={22}
             viewBox="0 0 24 24"
@@ -94,16 +98,14 @@ export default function StoreMode({
         </button>
       </div>
 
-      {/* Product info - centered, takes available space */}
+      {/* Product info */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-8">
-        {/* Emoji */}
         {emoji && (
           <span className="mb-4" style={{ fontSize: "72px", lineHeight: 1 }}>
             {emoji}
           </span>
         )}
 
-        {/* Shelf language name - HUGE */}
         <h1
           className="text-center font-bold leading-tight"
           style={{ fontSize: "42px", color: "#e8c364" }}
@@ -111,17 +113,14 @@ export default function StoreMode({
           {shelfName}
         </h1>
 
-        {/* User language name - smaller, underneath */}
-        {shelfLang !== userLang && userName !== shelfName && (
+        {shelfLang !== userLang && userName.toLowerCase() !== shelfName.toLowerCase() && (
           <p className="text-text-soft text-lg mt-2 text-center">{userName}</p>
         )}
 
-        {/* Qty + unit */}
         {qtyDisplay && (
           <p className="text-text mt-4 text-2xl font-medium">{qtyDisplay}</p>
         )}
 
-        {/* Note */}
         {item.note && (
           <p className="text-text-soft mt-2 text-base italic text-center">
             {item.note}
@@ -134,25 +133,26 @@ export default function StoreMode({
         <div className="h-px bg-border-light" />
       </div>
 
-      {/* Phrase buttons */}
+      {/* Phrase buttons — shown in USER's language, tapped shows in SHELF language */}
       <div
         className="px-4 pt-4"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-2">
           {STORE_PHRASES.map((phrase) => {
-            const phraseText = (phrase[shelfLang] as string) || phrase.en;
+            const userText = (phrase[userLang] as string) || phrase.en;
+            const shelfText = (phrase[shelfLang] as string) || phrase.en;
             return (
               <button
                 key={phrase.key}
                 onClick={() =>
-                  setActivePhrase({ emoji: phrase.emoji, text: phraseText })
+                  setActivePhrase({ emoji: phrase.emoji, shelfText })
                 }
-                className="flex items-center gap-2 rounded-xl bg-card px-3 py-3 text-left transition-colors active:bg-accent"
+                className="flex items-center gap-2 rounded-xl bg-card px-3 py-3 text-left transition-colors active:bg-accent cursor-pointer"
               >
                 <span className="text-xl shrink-0">{phrase.emoji}</span>
                 <span className="text-text text-sm leading-snug">
-                  {phraseText}
+                  {userText}
                 </span>
               </button>
             );
