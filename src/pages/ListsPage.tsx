@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useLists } from "../hooks/useList";
-import { supabase } from "../lib/supabase";
+import { IS_DEMO } from "../lib/supabase";
+import { demoGetMembers, demoGetItems } from "../lib/demoStore";
 import { t, type Lang } from "../data/i18n";
 import ListCard, { type ListCardData } from "../components/lists/ListCard";
 import CreateListModal from "../components/lists/CreateListModal";
@@ -19,74 +20,27 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
-  const [listExtras, setListExtras] = useState<
-    Record<string, { memberCount: number; itemCount: number; members: { name: string; avatar_color: string }[] }>
-  >({});
-
-  // Fetch member/item counts for each list
-  const fetchExtras = useCallback(async () => {
-    if (lists.length === 0) return;
-
-    const listIds = lists.map((l) => l.id);
-
-    const [membersRes, itemsRes, usersRes] = await Promise.all([
-      supabase
-        .from("list_members")
-        .select("list_id, user_id, status")
-        .in("list_id", listIds)
-        .eq("status", "active"),
-      supabase
-        .from("items")
-        .select("list_id")
-        .in("list_id", listIds),
-      supabase
-        .from("list_members")
-        .select("list_id, user_id, users(name, avatar_color)")
-        .in("list_id", listIds)
-        .eq("status", "active"),
-    ]);
-
-    const extras: typeof listExtras = {};
-
-    for (const id of listIds) {
-      const memberRows = (membersRes.data ?? []).filter((r: any) => r.list_id === id);
-      const itemRows = (itemsRes.data ?? []).filter((r: any) => r.list_id === id);
-      const userRows = (usersRes.data ?? []).filter((r: any) => r.list_id === id);
-
-      extras[id] = {
-        memberCount: memberRows.length,
-        itemCount: itemRows.length,
-        members: userRows
-          .map((r: any) => r.users)
-          .filter(Boolean)
-          .map((u: any) => ({ name: u.name, avatar_color: u.avatar_color })),
-      };
-    }
-
-    setListExtras(extras);
-  }, [lists]);
-
-  useEffect(() => {
-    fetchExtras();
-  }, [fetchExtras]);
 
   const handleCreated = (listId: string) => {
     refresh();
-    onNavigate("list", { listId });
+    onNavigate("list-detail", { listId });
   };
 
   const handleJoined = () => {
     refresh();
   };
 
-  const listCards: ListCardData[] = lists.map((l) => ({
-    id: l.id,
-    name: l.name,
-    code: l.code,
-    memberCount: listExtras[l.id]?.memberCount ?? 0,
-    itemCount: listExtras[l.id]?.itemCount ?? 0,
-    members: listExtras[l.id]?.members ?? [],
-  }));
+  const listCards: ListCardData[] = lists.map((l) => {
+    if (IS_DEMO) {
+      const members = demoGetMembers(l.id);
+      const items = demoGetItems(l.id);
+      return {
+        id: l.id, name: l.name, code: l.code,
+        memberCount: members.length, itemCount: items.length, members: [],
+      };
+    }
+    return { id: l.id, name: l.name, code: l.code, memberCount: 0, itemCount: 0, members: [] };
+  });
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
@@ -126,7 +80,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
               <ListCard
                 key={card.id}
                 list={card}
-                onClick={() => onNavigate("list", { listId: card.id })}
+                onClick={() => onNavigate("list-detail", { listId: card.id })}
               />
             ))}
           </div>
