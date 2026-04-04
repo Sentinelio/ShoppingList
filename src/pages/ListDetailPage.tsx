@@ -31,7 +31,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const userLang = user?.lang ?? "en";
   const lang = (userLang === "en" || userLang === "es" || userLang === "pl" ? userLang : "en") as Lang;
 
-  const { list, members, items, loading } = useListDetail(listId);
+  const { list, members, items, setItems, loading } = useListDetail(listId);
 
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [storeItem, setStoreItem] = useState<Item | null>(null);
@@ -85,30 +85,22 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   };
 
   const handleToggle = async (itemId: string, checked: boolean) => {
-    try {
-      await toggleItem(itemId, checked);
-    } catch {
-      // realtime will sync
-    }
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked } : i));
+    try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
   };
 
   const handleUpdate = async (
     itemId: string,
     updates: Partial<Pick<Item, "qty" | "unit" | "note">>,
   ) => {
-    try {
-      await updateItem(itemId, updates);
-    } catch {
-      // realtime will sync
-    }
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
+    try { await updateItem(itemId, updates); } catch { /* realtime will sync */ }
   };
 
   const handleDelete = async (itemId: string) => {
-    try {
-      await deleteItem(itemId);
-    } catch {
-      // realtime will sync
-    }
+    setItems(prev => prev.filter(i => i.id !== itemId));
+    setEditingItem(null);
+    try { await deleteItem(itemId); } catch { /* realtime will sync */ }
   };
 
   const countryFlag = list ? getCountryFlag(user?.country ?? "") : "";

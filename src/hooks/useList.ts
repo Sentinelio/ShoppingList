@@ -236,7 +236,7 @@ export function useListDetail(listId: string | undefined) {
     };
   }, [listId]);
 
-  return { list, members, items, loading, refresh };
+  return { list, members, items, setItems, loading, refresh };
 }
 
 // ── mutations ───────────────────────────────────────────
