@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useAuth } from "../hooks/useAuth";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
 import { ALL_LANGUAGES } from "../data/allLanguages";
@@ -48,6 +49,8 @@ interface AdminPageProps {
 }
 
 export default function AdminPage(_: AdminPageProps) {
+  const { user } = useAuth();
+  const lang = user?.lang ?? "en";
   const [tab, setTab] = useState<Tab>("stats");
   // Builder state
   const [building, setBuilding] = useState(false);
@@ -62,8 +65,10 @@ export default function AdminPage(_: AdminPageProps) {
   const [storeCatVersion, setStoreCatVersion] = useState(0); // bumps to force re-read of localStorage
   const [addingStore, setAddingStore] = useState(false);
   const [addingCatFor, setAddingCatFor] = useState<string | null>(null);
-  const [newStoreForm, setNewStoreForm] = useState({ id: "", emoji: "🛒", en: "", es: "", pl: "" });
-  const [newCatForm, setNewCatForm] = useState({ id: "", emoji: "📦", color: "#8b949e", en: "", es: "", pl: "" });
+  const [newStoreForm, setNewStoreForm] = useState({ emoji: "🛒", name: "" });
+  const [newCatForm, setNewCatForm] = useState({ emoji: "📦", color: "#8b949e", name: "" });
+
+  const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `item_${Date.now()}`;
 
   const storeTypesWithCats = useMemo(() => {
     void storeCatVersion; // dependency
@@ -529,7 +534,7 @@ export default function AdminPage(_: AdminPageProps) {
             <div className="flex items-center justify-between mb-3">
               <p className="text-text-muted text-xs">{storeTypesWithCats.length} store types · {storeTypesWithCats.reduce((a, s) => a + s.categories.length, 0)} categories</p>
               <button
-                onClick={() => { setAddingStore(true); setNewStoreForm({ id: "", emoji: "🛒", en: "", es: "", pl: "" }); }}
+                onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
                 className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
                 style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
               >
@@ -542,24 +547,31 @@ export default function AdminPage(_: AdminPageProps) {
               <div className="bg-card rounded-xl p-3 border border-accent/30 mb-3 space-y-2">
                 <div className="text-xs font-bold mb-1">New store type</div>
                 <div className="flex gap-2">
-                  <input value={newStoreForm.emoji} onChange={e => setNewStoreForm(p => ({ ...p, emoji: e.target.value }))} placeholder="🛒" className="w-14 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none text-center" />
-                  <input value={newStoreForm.id} onChange={e => setNewStoreForm(p => ({ ...p, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") }))} placeholder="id (e.g. bookstore)" className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none font-mono" />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <input value={newStoreForm.en} onChange={e => setNewStoreForm(p => ({ ...p, en: e.target.value }))} placeholder="English" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
-                  <input value={newStoreForm.es} onChange={e => setNewStoreForm(p => ({ ...p, es: e.target.value }))} placeholder="Español" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
-                  <input value={newStoreForm.pl} onChange={e => setNewStoreForm(p => ({ ...p, pl: e.target.value }))} placeholder="Polski" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                  <input
+                    value={newStoreForm.emoji}
+                    onChange={e => setNewStoreForm(p => ({ ...p, emoji: e.target.value }))}
+                    placeholder="🛒"
+                    className="w-14 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none text-center"
+                  />
+                  <input
+                    value={newStoreForm.name}
+                    onChange={e => setNewStoreForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Name (e.g. Bookstore)"
+                    className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none"
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      if (!newStoreForm.id.trim() || !newStoreForm.en.trim()) return;
+                      if (!newStoreForm.name.trim()) return;
+                      const id = slugify(newStoreForm.name);
+                      const name = newStoreForm.name.trim();
                       addCustomStoreType({
-                        id: newStoreForm.id.trim(),
+                        id,
                         emoji: newStoreForm.emoji.trim() || "🛒",
-                        en: newStoreForm.en.trim(),
-                        es: newStoreForm.es.trim() || newStoreForm.en.trim(),
-                        pl: newStoreForm.pl.trim() || newStoreForm.en.trim(),
+                        en: name,
+                        es: name,
+                        pl: name,
                       });
                       setStoreCatVersion(v => v + 1);
                       setAddingStore(false);
@@ -592,13 +604,12 @@ export default function AdminPage(_: AdminPageProps) {
                         <span className="text-[10px] text-text-muted" style={{ transform: isCollapsed ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
                         <span className="text-xl">{st.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-sm truncate">{st.en}</div>
-                          <div className="text-text-muted text-[10px] truncate">{st.es} · {st.pl}</div>
+                          <div className="font-bold text-sm truncate">{(st as unknown as Record<string, string>)[lang] || st.en}</div>
                         </div>
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bg text-text-muted">{st.categories.length}</span>
                       </button>
                       <button
-                        onClick={() => { setAddingCatFor(st.id); setNewCatForm({ id: "", emoji: "📦", color: "#8b949e", en: "", es: "", pl: "" }); }}
+                        onClick={() => { setAddingCatFor(st.id); setNewCatForm({ emoji: "📦", color: "#8b949e", name: "" }); }}
                         className="px-2 py-1 rounded-lg text-[10px] font-semibold text-accent cursor-pointer"
                         style={{ background: "rgba(240,136,62,0.1)", border: "1px solid rgba(240,136,62,0.2)" }}
                       >+ Cat</button>
@@ -615,27 +626,45 @@ export default function AdminPage(_: AdminPageProps) {
                     {addingCatFor === st.id && (
                       <div className="px-3 pb-3 space-y-2 border-t border-border pt-3">
                         <div className="text-[10px] font-bold text-text-muted">New category in {st.en}</div>
-                        <div className="flex gap-2">
-                          <input value={newCatForm.emoji} onChange={e => setNewCatForm(p => ({ ...p, emoji: e.target.value }))} placeholder="📦" className="w-12 bg-bg border border-border-light rounded-lg px-1 py-2 text-sm text-text outline-none text-center" />
-                          <input value={newCatForm.color} onChange={e => setNewCatForm(p => ({ ...p, color: e.target.value }))} placeholder="#8b949e" className="w-20 bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none font-mono" />
-                          <input value={newCatForm.id} onChange={e => setNewCatForm(p => ({ ...p, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") }))} placeholder="id" className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none font-mono" />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <input value={newCatForm.en} onChange={e => setNewCatForm(p => ({ ...p, en: e.target.value }))} placeholder="English" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
-                          <input value={newCatForm.es} onChange={e => setNewCatForm(p => ({ ...p, es: e.target.value }))} placeholder="Español" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
-                          <input value={newCatForm.pl} onChange={e => setNewCatForm(p => ({ ...p, pl: e.target.value }))} placeholder="Polski" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                        <div className="flex gap-2 items-center">
+                          <input
+                            value={newCatForm.emoji}
+                            onChange={e => setNewCatForm(p => ({ ...p, emoji: e.target.value }))}
+                            placeholder="📦"
+                            className="w-12 bg-bg border border-border-light rounded-lg px-1 py-2 text-sm text-text outline-none text-center"
+                          />
+                          <label className="relative cursor-pointer shrink-0">
+                            <input
+                              type="color"
+                              value={newCatForm.color}
+                              onChange={e => setNewCatForm(p => ({ ...p, color: e.target.value }))}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <div
+                              className="w-10 h-10 rounded-lg border border-border-light"
+                              style={{ background: newCatForm.color }}
+                            />
+                          </label>
+                          <input
+                            value={newCatForm.name}
+                            onChange={e => setNewCatForm(p => ({ ...p, name: e.target.value }))}
+                            placeholder="Name (e.g. Tools)"
+                            className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none"
+                          />
                         </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              if (!newCatForm.id.trim() || !newCatForm.en.trim()) return;
+                              if (!newCatForm.name.trim()) return;
+                              const id = slugify(newCatForm.name);
+                              const name = newCatForm.name.trim();
                               addCustomCategory({
-                                id: newCatForm.id.trim(),
+                                id,
                                 emoji: newCatForm.emoji.trim() || "📦",
-                                color: newCatForm.color.trim() || "#8b949e",
-                                en: newCatForm.en.trim(),
-                                es: newCatForm.es.trim() || newCatForm.en.trim(),
-                                pl: newCatForm.pl.trim() || newCatForm.en.trim(),
+                                color: newCatForm.color || "#8b949e",
+                                en: name,
+                                es: name,
+                                pl: name,
                                 storeType: st.id,
                               });
                               setStoreCatVersion(v => v + 1);
@@ -663,8 +692,8 @@ export default function AdminPage(_: AdminPageProps) {
                                 {c.emoji}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs font-semibold text-text truncate">{c.en}</div>
-                                <div className="text-text-muted text-[10px] truncate">{c.es} · {c.pl} · <span className="font-mono">{c.id}</span></div>
+                                <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
+                                <div className="text-text-muted text-[10px] truncate" style={{ color: c.color }}>{c.color}</div>
                               </div>
                               <div className="text-right shrink-0">
                                 <div className="text-sm font-bold" style={{ color: c.color }}>{total}</div>
