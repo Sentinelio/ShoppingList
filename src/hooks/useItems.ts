@@ -19,22 +19,28 @@ export async function addItem(params: AddItemParams): Promise<Item> {
     return demoAddItem(params);
   }
 
-  const { data, error } = await supabase
-    .from("items")
-    .insert({
-      list_id: params.listId,
-      original: params.original,
-      translations: params.translations,
-      category: params.category,
-      qty: params.qty,
-      unit: params.unit,
-      note: params.note,
-      photo: params.photo || null,
-      added_by: params.addedBy,
-      added_by_name: params.addedByName,
-    })
-    .select()
-    .single();
+  const row: Record<string, unknown> = {
+    list_id: params.listId,
+    original: params.original,
+    translations: params.translations,
+    category: params.category,
+    qty: params.qty,
+    unit: params.unit,
+    note: params.note,
+    added_by: params.addedBy,
+    added_by_name: params.addedByName,
+  };
+  if (params.photo) row.photo = params.photo;
+
+  let { data, error } = await supabase.from("items").insert(row).select().single();
+
+  // If insert fails with photo, retry without it (column may not exist)
+  if (error && params.photo) {
+    delete row.photo;
+    const retry = await supabase.from("items").insert(row).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) throw error;
   return data as Item;
