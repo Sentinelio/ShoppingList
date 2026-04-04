@@ -1,15 +1,18 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail } from "../hooks/useList";
+import { useListDetail, deleteList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { t, type Lang } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
+import { getLangFlag, getLangName } from "../data/langs";
 import type { Item } from "../lib/supabase";
 import ItemCard from "../components/items/ItemCard";
 import AddItemBar from "../components/items/AddItemBar";
 import ItemDetail from "../components/items/ItemDetail";
 import StoreMode from "../components/store/StoreMode";
+import Modal from "../components/ui/Modal";
+import Avatar from "../components/ui/Avatar";
 
 interface ListDetailPageProps {
   listId: string;
@@ -28,7 +31,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const userLang = user?.lang ?? "en";
   const lang = (userLang === "en" || userLang === "es" || userLang === "pl" ? userLang : "en") as Lang;
 
-  const { list, members: _members, items, loading, refresh: _refresh } = useListDetail(listId);
+  const { list, members, items, loading } = useListDetail(listId);
 
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [storeItem, setStoreItem] = useState<Item | null>(null);
@@ -36,6 +39,12 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [showChecked, setShowChecked] = useState(false);
   const [pendingIds] = useState<Set<string>>(new Set());
   const [failedIds] = useState<Set<string>>(new Set());
+  const [showMembers, setShowMembers] = useState(false);
+  const [showListSettings, setShowListSettings] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+
+  const activeMembers = members.filter(m => m.status === "active");
 
   // Split items into unchecked and checked
   const uncheckedItems = useMemo(() => items.filter((i) => !i.checked), [items]);
@@ -101,24 +110,6 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     }
   };
 
-  // Build member avatars
-  const memberAvatars = useMemo(() => {
-    const seen = new Set<string>();
-    const avatars: { name: string; color: string }[] = [];
-
-    for (const item of items) {
-      if (item.added_by && !seen.has(item.added_by)) {
-        seen.add(item.added_by);
-        avatars.push({
-          name: item.added_by_name || "?",
-          color: "#8b949e",
-        });
-      }
-    }
-
-    return avatars.slice(0, 5);
-  }, [items]);
-
   const countryFlag = list ? getCountryFlag(user?.country ?? "") : "";
 
   // Render a grid of ItemCards
@@ -182,41 +173,39 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           </svg>
         </button>
 
-        {/* List name + flag */}
+        {/* List name (tappable to edit) */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-text truncate">
-              {list?.name ?? t(lang, "addProduct")}
+          {editingName ? (
+            <input
+              autoFocus
+              defaultValue={list?.name ?? ""}
+              onBlur={() => { setEditingName(false); }}
+              onKeyDown={e => { if (e.key === "Enter") { setEditingName(false); } if (e.key === "Escape") setEditingName(false); }}
+              className="text-lg font-bold text-text bg-card border border-accent/30 rounded-lg px-2 py-1 outline-none w-full"
+            />
+          ) : (
+            <h1 onClick={() => setEditingName(true)} className="text-lg font-bold text-text truncate cursor-pointer">
+              {list?.name ?? "..."} {countryFlag}
             </h1>
-            {countryFlag && <span className="text-base shrink-0">{countryFlag}</span>}
-          </div>
+          )}
         </div>
 
-        {/* Member avatars */}
-        {memberAvatars.length > 0 && (
-          <div className="flex -space-x-2 shrink-0">
-            {memberAvatars.map((m, i) => (
-              <div
-                key={i}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-bg"
-                style={{ backgroundColor: m.color }}
-                title={m.name}
-              >
-                {m.name.charAt(0).toUpperCase()}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Members button */}
+        <button
+          onClick={() => setShowMembers(true)}
+          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer active:brightness-90"
+          style={{ background: "rgba(240,136,62,0.1)", border: "none" }}
+        >
+          <span className="text-sm">👥</span>
+          <span className="text-xs font-semibold text-accent">{activeMembers.length}</span>
+        </button>
 
         {/* Settings button */}
         <button
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-text-soft active:bg-card transition-colors cursor-pointer"
-          aria-label={t(lang, "settings")}
+          onClick={() => setShowListSettings(true)}
+          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-card border border-border-light text-text-soft active:bg-accent/10 cursor-pointer"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          ⚙️
         </button>
       </header>
 
@@ -369,6 +358,74 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         onDelete={handleDelete}
         onShowStore={setStoreItem}
       />
+
+      {/* Members modal */}
+      <Modal open={showMembers} onClose={() => setShowMembers(false)}>
+        <h3 className="text-lg font-bold mb-4">👥 {t(lang, "people")}</h3>
+        {activeMembers.map((m, i) => (
+          <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">
+            <Avatar name={m.user_id.slice(0, 4)} index={i} size={32} />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{m.user_id === user?.id ? user.name : m.user_id.slice(0, 6)}</div>
+              <div className="text-text-muted text-xs">
+                {m.user_id === user?.id && <>{getLangFlag(user.lang)} {getLangName(user.lang)} · {getCountryFlag(user.country)}</>}
+              </div>
+            </div>
+            {m.user_id === user?.id && (
+              <span className="text-[10px] font-semibold text-accent px-2 py-1 rounded-lg" style={{ background: "rgba(240,136,62,0.1)" }}>You</span>
+            )}
+          </div>
+        ))}
+        <div className="mt-4 rounded-xl p-4 text-center" style={{ background: "rgba(240,136,62,0.06)", border: "1px solid rgba(240,136,62,0.2)" }}>
+          <div className="text-text-muted text-xs mb-1.5">{t(lang, "shareCode")}</div>
+          <div className="text-2xl font-extrabold font-mono tracking-widest text-accent">{list?.code ?? ""}</div>
+        </div>
+        <button
+          onClick={() => {
+            try { navigator.clipboard.writeText(list?.code ?? ""); } catch { /* fallback */ try { const ta = document.createElement("textarea"); ta.value = list?.code ?? ""; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } catch {} }
+            setCopied(true); setTimeout(() => setCopied(false), 2000);
+          }}
+          className="w-full mt-3 py-3 rounded-xl font-semibold cursor-pointer active:brightness-90 text-white"
+          style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+        >
+          {copied ? `✓ ${t(lang, "copied")}` : `📋 ${t(lang, "copyCode")}`}
+        </button>
+        <button onClick={() => setShowMembers(false)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
+      </Modal>
+
+      {/* List settings modal */}
+      <Modal open={showListSettings} onClose={() => setShowListSettings(false)}>
+        <h3 className="text-lg font-bold mb-4">⚙️ {t(lang, "settings")}</h3>
+        <div className="mb-4">
+          <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 block">{t(lang, "name")}</label>
+          <input
+            defaultValue={list?.name ?? ""}
+            className="w-full py-3 px-4 bg-bg border border-border-light rounded-xl text-text outline-none focus:border-accent"
+          />
+        </div>
+        <div className="rounded-xl p-4 text-center" style={{ background: "rgba(240,136,62,0.06)", border: "1px solid rgba(240,136,62,0.2)" }}>
+          <div className="text-text-muted text-xs mb-1.5">{t(lang, "shareCode")}</div>
+          <div className="text-2xl font-extrabold font-mono tracking-widest text-accent">{list?.code ?? ""}</div>
+        </div>
+        <button
+          onClick={() => {
+            try { navigator.clipboard.writeText(list?.code ?? ""); } catch { try { const ta = document.createElement("textarea"); ta.value = list?.code ?? ""; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } catch {} }
+            setCopied(true); setTimeout(() => setCopied(false), 2000);
+          }}
+          className="w-full mt-3 py-3 rounded-xl font-semibold cursor-pointer active:brightness-90 text-white"
+          style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+        >
+          {copied ? `✓ ${t(lang, "copied")}` : `📋 ${t(lang, "copyCode")}`}
+        </button>
+        <button
+          onClick={async () => { try { await deleteList(listId); } catch {} setShowListSettings(false); onNavigate("lists"); }}
+          className="w-full mt-3 py-3 rounded-xl font-semibold text-sm cursor-pointer"
+          style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+        >
+          🚪 {t(lang, "leave")}
+        </button>
+        <button onClick={() => setShowListSettings(false)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
+      </Modal>
     </div>
   );
 }

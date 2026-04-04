@@ -34,9 +34,10 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const [showJoin, setShowJoin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
-  const [_editListId, setEditListId] = useState<string | null>(null);
+  const [editListId, setEditListId] = useState<string | null>(null);
   const [profileName, setProfileName] = useState(user?.name ?? "");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState(false);
 
   const handleCreated = (listId: string) => {
     refresh();
@@ -221,6 +222,39 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
         onClose={() => setShowJoin(false)}
         onJoined={handleJoined}
       />
+
+      {/* Edit List Modal (from swipe) */}
+      {editListId && (() => {
+        const editList = lists.find(l => l.id === editListId);
+        if (!editList) return null;
+        return (
+          <Modal open={true} onClose={() => setEditListId(null)}>
+            <h3 className="text-lg font-bold mb-4">⚙️ {editList.name}</h3>
+            <div className="rounded-xl p-4 text-center mb-3" style={{ background: "rgba(240,136,62,0.06)", border: "1px solid rgba(240,136,62,0.2)" }}>
+              <div className="text-text-muted text-xs mb-1.5">{t(lang, "shareCode")}</div>
+              <div className="text-2xl font-extrabold font-mono tracking-widest text-accent">{editList.code}</div>
+            </div>
+            <button
+              onClick={() => {
+                try { navigator.clipboard.writeText(editList.code); } catch { try { const ta = document.createElement("textarea"); ta.value = editList.code; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } catch {} }
+                setCopied(true); setTimeout(() => setCopied(false), 2000);
+              }}
+              className="w-full py-3 rounded-xl font-semibold cursor-pointer active:brightness-90 text-white"
+              style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+            >
+              {copied ? `✓ ${t(lang, "copied")}` : `📋 ${t(lang, "copyCode")}`}
+            </button>
+            <button
+              onClick={() => { handleDelete(editListId); setEditListId(null); }}
+              className="w-full mt-3 py-3 rounded-xl font-semibold text-sm cursor-pointer"
+              style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+            >
+              🚪 {t(lang, "leave")}
+            </button>
+            <button onClick={() => setEditListId(null)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
+          </Modal>
+        );
+      })()}
 
       {/* Settings Modal */}
       <Modal open={showSettings} onClose={() => setShowSettings(false)}>
