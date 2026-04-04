@@ -47,6 +47,7 @@ export default function AdminPage(_: AdminPageProps) {
   const [currentBuild, setCurrentBuild] = useState<string | null>(null);
   const [buildLog, setBuildLog] = useState<string[]>([]);
   const buildAbort = useRef(false);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [rmCollapsed, setRmCollapsed] = useState<Record<string, boolean>>({});
   const [dictRows, setDictRows] = useState<DictRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -65,6 +66,18 @@ export default function AdminPage(_: AdminPageProps) {
   const [, forceUpdate] = useState(0);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+
+  const deleteUser = async (userId: string) => {
+    if (IS_DEMO) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      showToast("User deleted (demo)");
+      return;
+    }
+    const { error } = await supabase.from("users").delete().eq("id", userId);
+    if (error) { showToast(`Error: ${error.message}`); return; }
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    showToast("User deleted");
+  };
 
   // Fetch data based on tab
   const fetchDictionary = useCallback(async () => {
@@ -600,18 +613,36 @@ export default function AdminPage(_: AdminPageProps) {
                   {users.map(u => {
                     const flag = COUNTRIES.find(c => c.code === u.country)?.flag || "🌍";
                     const langFlag = LANGS.find(l => l.code === u.lang)?.flag || "";
+                    const isConfirming = confirmDeleteUser === u.id;
                     return (
                       <div key={u.id} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
                           {u.name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-sm">{u.name}</div>
-                          <div className="text-text-muted text-xs">{langFlag} {u.lang} · {flag} {u.country}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm truncate">{u.name}</div>
+                          <div className="text-text-muted text-xs truncate">{langFlag} {u.lang} · {flag} {u.country}</div>
+                          <div className="text-text-muted text-[10px]">{new Date(u.created_at).toLocaleDateString()}</div>
                         </div>
-                        <div className="text-text-muted text-[10px]">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </div>
+                        <button
+                          onClick={() => {
+                            if (isConfirming) {
+                              deleteUser(u.id);
+                              setConfirmDeleteUser(null);
+                            } else {
+                              setConfirmDeleteUser(u.id);
+                              setTimeout(() => setConfirmDeleteUser(prev => prev === u.id ? null : prev), 3000);
+                            }
+                          }}
+                          className="px-2 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer shrink-0"
+                          style={{
+                            background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                            color: isConfirming ? "#fff" : "#ff5c5c",
+                            border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                          }}
+                        >
+                          {isConfirming ? "⚠️ Confirm" : "🗑️"}
+                        </button>
                       </div>
                     );
                   })}

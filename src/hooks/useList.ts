@@ -375,3 +375,7 @@ export async function rejectMember(listId: string, userId: string): Promise<void
     .eq("user_id", userId);
   if (error) throw error;
 }
+
+// Remove an active member from a list (same implementation as rejectMember,
+// kept as a separate export to make intent explicit at call sites)
+export const removeMember = rejectMember;

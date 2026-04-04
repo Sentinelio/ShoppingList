@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail, deleteList, approveMember, rejectMember, renameList } from "../hooks/useList";
+import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
@@ -38,12 +38,22 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
   const [storeItem, setStoreItem] = useState<Item | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  const [showChecked, setShowChecked] = useState(false);
+  const collapsedKey = `babelcart_collapsed_${listId}`;
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(collapsedKey);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  const [showChecked, setShowChecked] = useState<boolean>(() => {
+    try { return localStorage.getItem(`${collapsedKey}_done`) === "1"; } catch { return false; }
+  });
   const [confirmClear, setConfirmClear] = useState(false);
   const [pendingIds] = useState<Set<string>>(new Set());
   const [failedIds] = useState<Set<string>>(new Set());
   const [showMembers, setShowMembers] = useState(false);
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<string | null>(null);
   const [showListSettings, setShowListSettings] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -91,11 +101,17 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) {
-        next.delete(cat);
-      } else {
-        next.add(cat);
-      }
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      try { localStorage.setItem(collapsedKey, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const toggleShowChecked = () => {
+    setShowChecked((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(`${collapsedKey}_done`, next ? "1" : "0"); } catch { /* ignore */ }
       return next;
     });
   };
@@ -318,7 +334,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
               <div className="mt-3">
                 <div className="flex items-center sticky top-0 z-10 bg-bg">
                 <button
-                  onClick={() => setShowChecked(!showChecked)}
+                  onClick={toggleShowChecked}
                   className="flex-1 flex items-center gap-2 px-4 py-2.5 cursor-pointer active:bg-card transition-colors"
                 >
                   <span className="text-base">&#9989;</span>
@@ -418,21 +434,49 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       {/* Members modal */}
       <Modal open={showMembers} onClose={() => setShowMembers(false)}>
         <h3 className="text-lg font-bold mb-4">👥 {t(lang, "people")}</h3>
-        {activeMembers.map((m, i) => (
-          <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">
-            <Avatar name={m.user_name || m.user_id.slice(0, 4)} index={i} size={32} />
-            <div className="flex-1">
-              <div className="font-semibold text-sm">{m.user_name || m.user_id.slice(0, 6)}</div>
-              <div className="text-text-muted text-xs">
-                {m.user_lang && <>{getLangFlag(m.user_lang)} {getLangName(m.user_lang)}</>}
-                {m.user_country && <> · {getCountryFlag(m.user_country)}</>}
+        {activeMembers.map((m, i) => {
+          const isMe = m.user_id === user?.id;
+          const isCreator = user?.id === list?.created_by;
+          const canRemove = isCreator && !isMe;
+          const isConfirming = confirmRemoveMember === m.user_id;
+          return (
+            <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">
+              <Avatar name={m.user_name || m.user_id.slice(0, 4)} index={i} size={32} />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm truncate">{m.user_name || m.user_id.slice(0, 6)}</div>
+                <div className="text-text-muted text-xs">
+                  {m.user_lang && <>{getLangFlag(m.user_lang)} {getLangName(m.user_lang)}</>}
+                  {m.user_country && <> · {getCountryFlag(m.user_country)}</>}
+                </div>
               </div>
+              {isMe && (
+                <span className="text-[10px] font-semibold text-accent px-2 py-1 rounded-lg" style={{ background: "rgba(240,136,62,0.1)" }}>You</span>
+              )}
+              {canRemove && (
+                <button
+                  onClick={() => {
+                    if (isConfirming) {
+                      setMembers(prev => prev.filter(x => x.user_id !== m.user_id));
+                      setConfirmRemoveMember(null);
+                      removeMember(listId, m.user_id).catch(() => { /* realtime will sync */ });
+                    } else {
+                      setConfirmRemoveMember(m.user_id);
+                      setTimeout(() => setConfirmRemoveMember(prev => prev === m.user_id ? null : prev), 3000);
+                    }
+                  }}
+                  className="px-2 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer shrink-0"
+                  style={{
+                    background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                    color: isConfirming ? "#fff" : "#ff5c5c",
+                    border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                  }}
+                >
+                  {isConfirming ? "⚠️ Confirm" : "Remove"}
+                </button>
+              )}
             </div>
-            {m.user_id === user?.id && (
-              <span className="text-[10px] font-semibold text-accent px-2 py-1 rounded-lg" style={{ background: "rgba(240,136,62,0.1)" }}>You</span>
-            )}
-          </div>
-        ))}
+          );
+        })}
         <div className="mt-4 rounded-xl p-4 text-center" style={{ background: "rgba(240,136,62,0.06)", border: "1px solid rgba(240,136,62,0.2)" }}>
           <div className="text-text-muted text-xs mb-1.5">{t(lang, "shareCode")}</div>
           <div className="text-2xl font-extrabold font-mono tracking-widest text-accent">{list?.code ?? ""}</div>
