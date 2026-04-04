@@ -120,14 +120,14 @@ export function demoGetItems(listId: string): Item[] {
 
 export function demoAddItem(params: {
   listId: string; original: string; translations: Record<string, string>;
-  category: string; qty: string; unit: string; note: string;
+  category: string; qty: string; unit: string; note: string; photo?: string | null;
   addedBy: string; addedByName: string;
 }): Item {
   const db = load();
   const item: Item = {
     id: uuid(), list_id: params.listId, original: params.original,
     translations: params.translations, category: params.category,
-    qty: params.qty, unit: params.unit, note: params.note,
+    qty: params.qty, unit: params.unit, note: params.note, photo: params.photo || null,
     checked: false, added_by: params.addedBy, added_by_name: params.addedByName,
     created_at: new Date().toISOString(),
   };

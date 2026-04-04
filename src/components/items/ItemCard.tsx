@@ -102,10 +102,14 @@ export default function ItemCard({
         </span>
       )}
 
-      {/* Center: emoji */}
-      <span className="select-none" style={{ fontSize: 48, lineHeight: 1 }}>
-        {emoji}
-      </span>
+      {/* Center: photo or emoji */}
+      {item.photo ? (
+        <img src={item.photo} className="rounded-xl object-cover" style={{ width: 52, height: 52 }} alt="" />
+      ) : (
+        <span className="select-none" style={{ fontSize: 48, lineHeight: 1 }}>
+          {emoji}
+        </span>
+      )}
 
       {/* Product name */}
       <p

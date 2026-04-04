@@ -226,6 +226,7 @@ export default function AddItemBar({
         qty: finalQty,
         unit: finalUnit,
         note,
+        photo,
         addedBy: userId,
         addedByName: userName,
       });

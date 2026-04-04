@@ -9,6 +9,7 @@ export interface AddItemParams {
   qty: string;
   unit: string;
   note: string;
+  photo?: string | null;
   addedBy: string;
   addedByName: string;
 }
@@ -28,6 +29,7 @@ export async function addItem(params: AddItemParams): Promise<Item> {
       qty: params.qty,
       unit: params.unit,
       note: params.note,
+      photo: params.photo || null,
       added_by: params.addedBy,
       added_by_name: params.addedByName,
     })
@@ -40,7 +42,7 @@ export async function addItem(params: AddItemParams): Promise<Item> {
 
 export async function updateItem(
   itemId: string,
-  updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "checked">>,
+  updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "photo" | "checked">>,
 ): Promise<Item> {
   if (IS_DEMO) {
     const result = demoUpdateItem(itemId, updates);
@@ -113,14 +115,4 @@ export async function checkDuplicate(
   );
 
   return match ?? null;
-}
-
-export function useItems() {
-  return {
-    addItem,
-    updateItem,
-    toggleItem,
-    deleteItem,
-    checkDuplicate,
-  };
 }

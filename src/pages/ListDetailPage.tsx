@@ -93,7 +93,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const handleUpdate = async (
     itemId: string,
-    updates: Partial<Pick<Item, "qty" | "unit" | "note">>,
+    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo">>,
   ) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
     try { await updateItem(itemId, updates); } catch { /* realtime will sync */ }

@@ -50,6 +50,7 @@ export interface Item {
   qty: string;
   unit: string;
   note: string;
+  photo: string | null;
   checked: boolean;
   added_by: string;
   added_by_name: string;
