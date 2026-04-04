@@ -49,6 +49,7 @@ export default function AdminPage(_: AdminPageProps) {
   const buildAbort = useRef(false);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
+  const [confirmClearDict, setConfirmClearDict] = useState<"all" | "filtered" | null>(null);
   const [rmCollapsed, setRmCollapsed] = useState<Record<string, boolean>>({});
   const [dictRows, setDictRows] = useState<DictRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -90,6 +91,20 @@ export default function AdminPage(_: AdminPageProps) {
     if (error) { showToast(`Error: ${error.message}`); return; }
     setLists(prev => prev.filter(l => l.id !== listId));
     showToast("List deleted");
+  };
+
+  const clearDictionary = async (onlyCategory?: string) => {
+    if (IS_DEMO) {
+      showToast("Demo mode — local dictionary only");
+      return;
+    }
+    const q = supabase.from("dictionary").delete();
+    const { error } = await (onlyCategory
+      ? q.eq("category", onlyCategory)
+      : q.neq("key", ""));
+    if (error) { showToast(`Error: ${error.message}`); return; }
+    showToast(onlyCategory ? `Cleared category '${onlyCategory}'` : "Dictionary cleared");
+    fetchDictionary();
   };
 
   // Fetch data based on tab
@@ -298,7 +313,53 @@ export default function AdminPage(_: AdminPageProps) {
               </button>
             </div>
 
-            <div className="text-text-muted text-xs mb-2">{filteredDict.length} entries</div>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <div className="text-text-muted text-xs">{filteredDict.length} entries</div>
+              <div className="flex gap-1.5">
+                {/* Clear filtered (by category) */}
+                {catFilter && (
+                  <button
+                    onClick={() => {
+                      if (confirmClearDict === "filtered") {
+                        clearDictionary(catFilter);
+                        setConfirmClearDict(null);
+                      } else {
+                        setConfirmClearDict("filtered");
+                        setTimeout(() => setConfirmClearDict(prev => prev === "filtered" ? null : prev), 3000);
+                      }
+                    }}
+                    className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
+                    style={{
+                      background: confirmClearDict === "filtered" ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                      color: confirmClearDict === "filtered" ? "#fff" : "#ff5c5c",
+                      border: confirmClearDict === "filtered" ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                    }}
+                  >
+                    {confirmClearDict === "filtered" ? "⚠️ Confirm" : `🗑️ Clear ${catFilter}`}
+                  </button>
+                )}
+                {/* Clear all */}
+                <button
+                  onClick={() => {
+                    if (confirmClearDict === "all") {
+                      clearDictionary();
+                      setConfirmClearDict(null);
+                    } else {
+                      setConfirmClearDict("all");
+                      setTimeout(() => setConfirmClearDict(prev => prev === "all" ? null : prev), 3000);
+                    }
+                  }}
+                  className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
+                  style={{
+                    background: confirmClearDict === "all" ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                    color: confirmClearDict === "all" ? "#fff" : "#ff5c5c",
+                    border: confirmClearDict === "all" ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                  }}
+                >
+                  {confirmClearDict === "all" ? "⚠️ Confirm all" : "🗑️ Clear all"}
+                </button>
+              </div>
+            </div>
 
             {/* New entry form */}
             {newEntry && (
