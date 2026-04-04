@@ -121,6 +121,7 @@ export function demoGetItems(listId: string): Item[] {
 export function demoAddItem(params: {
   listId: string; original: string; translations: Record<string, string>;
   category: string; qty: string; unit: string; note: string; photo?: string | null;
+  important?: boolean;
   addedBy: string; addedByName: string;
 }): Item {
   const db = load();
@@ -128,6 +129,7 @@ export function demoAddItem(params: {
     id: uuid(), list_id: params.listId, original: params.original,
     translations: params.translations, category: params.category,
     qty: params.qty, unit: params.unit, note: params.note, photo: params.photo || null,
+    important: params.important || false,
     checked: false, added_by: params.addedBy, added_by_name: params.addedByName,
     created_at: new Date().toISOString(),
   };

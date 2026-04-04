@@ -236,7 +236,7 @@ export function useListDetail(listId: string | undefined) {
     };
   }, [listId]);
 
-  return { list, members, items, setItems, loading, refresh };
+  return { list, members, setMembers, items, setItems, loading, refresh };
 }
 
 // ── mutations ───────────────────────────────────────────
@@ -289,6 +289,17 @@ export async function joinList(code: string, userId: string): Promise<List> {
   if (memberError) throw memberError;
 
   return list;
+}
+
+export async function renameList(listId: string, name: string): Promise<void> {
+  if (IS_DEMO) {
+    const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"lists":[]}');
+    const idx = (db.lists ?? []).findIndex((l: { id: string }) => l.id === listId);
+    if (idx >= 0) { db.lists[idx].name = name; localStorage.setItem('polyglot_demo_db', JSON.stringify(db)); }
+    return;
+  }
+  const { error } = await supabase.from("lists").update({ name }).eq("id", listId);
+  if (error) throw error;
 }
 
 export async function deleteList(listId: string): Promise<void> {

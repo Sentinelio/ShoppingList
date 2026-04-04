@@ -55,6 +55,7 @@ export default function AddItemBar({
   const [photo, setPhoto] = useState<string | null>(null);
   const [showPhotoInput, setShowPhotoInput] = useState(false);
   const [photoUrlInput, setPhotoUrlInput] = useState("");
+  const [important, setImportant] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
@@ -65,6 +66,7 @@ export default function AddItemBar({
     setUnit("");
     setNote("");
     setPhoto(null);
+    setImportant(false);
     setExpanded(false);
     setShowPhotoInput(false);
     setPhotoUrlInput("");
@@ -149,6 +151,7 @@ export default function AddItemBar({
         unit: finalUnit,
         note,
         photo,
+        important,
         addedBy: userId,
         addedByName: userName,
       });
@@ -241,6 +244,18 @@ export default function AddItemBar({
               placeholder={t(lang, "notePlaceholder")}
               className="flex-1 bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
             />
+
+            {/* Importance toggle */}
+            <button
+              type="button"
+              onClick={() => setImportant(!important)}
+              className={`shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                important ? "bg-red-500/20 border-red-500/40" : "bg-bg border-border text-text-soft active:bg-card"
+              }`}
+              aria-label="Mark as important"
+            >
+              <span style={{ fontSize: 16 }}>{important ? "🔴" : "⚪"}</span>
+            </button>
 
             {/* Photo URL button */}
             <button

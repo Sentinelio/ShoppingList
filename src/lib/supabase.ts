@@ -51,6 +51,7 @@ export interface Item {
   unit: string;
   note: string;
   photo: string | null;
+  important: boolean;
   checked: boolean;
   added_by: string;
   added_by_name: string;

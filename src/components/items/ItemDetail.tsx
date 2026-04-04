@@ -12,7 +12,7 @@ interface ItemDetailProps {
   userLang: string;
   shelfLang: string;
   countryFlag?: string;
-  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo">>) => void;
+  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>) => void;
   onDelete: (itemId: string) => void;
   onShowStore: (item: Item) => void;
   lang?: string;
@@ -286,6 +286,21 @@ export default function ItemDetail({
             </div>
           </div>
         )}
+
+        {/* Importance toggle */}
+        <button
+          type="button"
+          onClick={() => onUpdate(item.id, { important: !item.important })}
+          className="w-full h-11 rounded-xl font-medium flex items-center justify-center gap-2 transition-all cursor-pointer border"
+          style={{
+            background: item.important ? "rgba(255, 92, 92, 0.15)" : "var(--color-bg)",
+            borderColor: item.important ? "rgba(255, 92, 92, 0.4)" : "var(--color-border-light)",
+            color: item.important ? "#ff5c5c" : "var(--color-text-soft)",
+          }}
+        >
+          <span>{item.important ? "🔴" : "⚪"}</span>
+          <span style={{ fontSize: 14 }}>{item.important ? "Important" : "Mark as important"}</span>
+        </button>
 
         {/* Show in store button */}
         <button

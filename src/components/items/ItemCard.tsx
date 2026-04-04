@@ -37,11 +37,11 @@ export default function ItemCard({
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center rounded-2xl cursor-pointer active:scale-[0.97] transition-transform"
+      className={`relative flex flex-col items-center justify-center rounded-2xl cursor-pointer active:scale-[0.97] transition-transform ${item.important ? "babelcart-important" : ""}`}
       style={{
         padding: "14px 6px 10px",
-        backgroundColor: `${catColor}26`,
-        border: `1px solid ${catColor}40`,
+        backgroundColor: item.important ? undefined : `${catColor}26`,
+        border: `1px solid ${item.important ? "rgba(255,92,92,0.5)" : `${catColor}40`}`,
         opacity: isPending ? 0.6 : 1,
       }}
       onClick={() => onClick(item)}

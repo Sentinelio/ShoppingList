@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail, deleteList, approveMember, rejectMember } from "../hooks/useList";
+import { useListDetail, deleteList, approveMember, rejectMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
@@ -32,7 +32,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const userLang = user?.lang ?? "en";
   const lang = userLang;
 
-  const { list, members, items, setItems, loading, refresh } = useListDetail(listId);
+  const { list, members, setMembers, items, setItems, loading, refresh } = useListDetail(listId);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
@@ -94,7 +94,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const handleUpdate = async (
     itemId: string,
-    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo">>,
+    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>,
   ) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
     try { await updateItem(itemId, updates); } catch { /* realtime will sync */ }
@@ -175,8 +175,23 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
             <input
               autoFocus
               defaultValue={list?.name ?? ""}
-              onBlur={() => { setEditingName(false); }}
-              onKeyDown={e => { if (e.key === "Enter") { setEditingName(false); } if (e.key === "Escape") setEditingName(false); }}
+              onBlur={async (e) => {
+                const newName = e.target.value.trim();
+                if (newName && newName !== list?.name) {
+                  try { await renameList(listId, newName); refresh(); } catch { /* optimistic */ }
+                }
+                setEditingName(false);
+              }}
+              onKeyDown={async e => {
+                if (e.key === "Enter") {
+                  const newName = (e.target as HTMLInputElement).value.trim();
+                  if (newName && newName !== list?.name) {
+                    try { await renameList(listId, newName); refresh(); } catch { /* optimistic */ }
+                  }
+                  setEditingName(false);
+                }
+                if (e.key === "Escape") setEditingName(false);
+              }}
               className="text-lg font-bold text-text bg-card border border-accent/30 rounded-lg px-2 py-1 outline-none w-full"
             />
           ) : (
@@ -428,14 +443,24 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                   <div className="text-text-muted text-xs">{t(lang, "waitingApproval")}</div>
                 </div>
                 <button
-                  onClick={async () => { await approveMember(listId, m.user_id); refresh(); }}
+                  onClick={async () => {
+                    // Optimistic: update status immediately
+                    setMembers(prev => prev.map(x => x.user_id === m.user_id ? { ...x, status: "active" as const } : x));
+                    try { await approveMember(listId, m.user_id); } catch { /* realtime will sync */ }
+                    refresh();
+                  }}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
                 >
                   {t(lang, "accept")}
                 </button>
                 <button
-                  onClick={async () => { await rejectMember(listId, m.user_id); refresh(); }}
+                  onClick={async () => {
+                    // Optimistic: remove immediately
+                    setMembers(prev => prev.filter(x => x.user_id !== m.user_id));
+                    try { await rejectMember(listId, m.user_id); } catch { /* realtime will sync */ }
+                    refresh();
+                  }}
                   className="px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
                 >

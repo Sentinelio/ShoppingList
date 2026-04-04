@@ -10,6 +10,7 @@ export interface AddItemParams {
   unit: string;
   note: string;
   photo?: string | null;
+  important?: boolean;
   addedBy: string;
   addedByName: string;
 }
@@ -31,12 +32,14 @@ export async function addItem(params: AddItemParams): Promise<Item> {
     added_by_name: params.addedByName,
   };
   if (params.photo) row.photo = params.photo;
+  if (params.important) row.important = params.important;
 
   let { data, error } = await supabase.from("items").insert(row).select().single();
 
-  // If insert fails with photo, retry without it (column may not exist)
-  if (error && params.photo) {
+  // If insert fails with photo/important, retry without optional columns
+  if (error && (params.photo || params.important)) {
     delete row.photo;
+    delete row.important;
     const retry = await supabase.from("items").insert(row).select().single();
     data = retry.data;
     error = retry.error;
@@ -48,7 +51,7 @@ export async function addItem(params: AddItemParams): Promise<Item> {
 
 export async function updateItem(
   itemId: string,
-  updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "photo" | "checked">>,
+  updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "photo" | "important" | "checked">>,
 ): Promise<Item> {
   if (IS_DEMO) {
     const result = demoUpdateItem(itemId, updates);
