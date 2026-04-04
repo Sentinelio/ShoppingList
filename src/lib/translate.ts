@@ -139,10 +139,11 @@ export async function translateProduct(
 
     if (error) throw error;
 
-    const result: TranslateResult = {
-      translations: fnData.translations ?? {},
-      category: fnData.category ?? local?.category ?? 'other',
-    };
+    // Handle both formats: {translations, category} or {t, c}
+    const translations = fnData.translations ?? fnData.t ?? {};
+    const category = fnData.category ?? fnData.c ?? local?.category ?? 'other';
+
+    const result: TranslateResult = { translations, category };
 
     // Save to dictionary for future lookups
     try {
