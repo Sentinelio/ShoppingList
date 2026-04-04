@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
+import { ALL_LANGUAGES } from "../data/allLanguages";
+import { getEnabledLangs, enableLang, disableLang } from "../lib/langConfig";
 import { COUNTRIES } from "../data/countries";
 import { CATEGORIES, CATEGORY_ORDER } from "../data/categories";
 import { LOCAL_DICTIONARY } from "../data/localDictionary";
@@ -442,103 +444,88 @@ export default function AdminPage({ onBack }: AdminPageProps) {
         )}
 
         {/* ── Languages ── */}
-        {tab === "languages" && (
+        {tab === "languages" && (() => {
+          const enabled = getEnabledLangs();
+          const enabledLangs = ALL_LANGUAGES.filter(l => enabled.includes(l.code));
+          const availableLangs = ALL_LANGUAGES.filter(l => !enabled.includes(l.code));
+
+          return (
           <div>
-            {/* UI Languages */}
-            <div className="mb-6">
-              <h3 className="text-sm font-bold text-text-soft mb-2">UI Languages (i18n) — hardcoded</h3>
-              <p className="text-text-muted text-[10px] mb-2">These require code changes to add new UI translations</p>
-              {[
-                { code: "en", name: "English", flag: "🇬🇧" },
-                { code: "es", name: "Español", flag: "🇪🇸" },
-                { code: "pl", name: "Polski", flag: "🇵🇱" },
-              ].map(l => (
-                <div key={l.code} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3 mb-1.5">
-                  <span className="text-xl">{l.flag}</span>
-                  <div className="flex-1">
-                    <span className="font-semibold text-sm">{l.name}</span>
-                    <span className="text-text-muted text-xs ml-2">{l.code}</span>
+            {/* Enabled Languages */}
+            <h3 className="text-sm font-bold mb-3">Active Languages ({enabledLangs.length})</h3>
+            <p className="text-text-muted text-[10px] mb-3">These languages are available in the app. Toggle to enable/disable.</p>
+
+            <div className="space-y-3 mb-6">
+              {enabledLangs.map(lang => {
+                const isCore = lang.code === "en";
+                const hasUIStrings = lang.code === "en" || lang.code === "es" || lang.code === "pl";
+                const dictCoverage = dictRows.filter(d => d.translations[lang.code]).length;
+                const localCoverage = LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[lang.code]).length;
+                return (
+                  <div key={lang.code} className="bg-card rounded-xl border border-border overflow-hidden">
+                    {/* Language header */}
+                    <div className="flex items-center gap-3 p-3">
+                      <span className="text-2xl">{lang.flag}</span>
+                      <div className="flex-1">
+                        <div className="font-bold text-sm">{lang.name} <span className="text-text-muted text-xs">{lang.code}</span></div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {hasUIStrings && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>UI ✓</span>}
+                          <span className="text-[9px] text-text-muted">{dictCoverage + localCoverage} dict</span>
+                        </div>
+                      </div>
+                      {!isCore && (
+                        <button
+                          onClick={() => { disableLang(lang.code); window.location.reload(); }}
+                          className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
+                          style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+                        >
+                          Disable
+                        </button>
+                      )}
+                    </div>
+                    {/* Countries */}
+                    <div className="flex flex-wrap gap-1.5 px-3 pb-3">
+                      {lang.countries.map(c => (
+                        <span key={c.code} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-bg border border-border-light">
+                          <span>{c.flag}</span> {c.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>✓</span>
+                );
+              })}
+            </div>
+
+            {/* Available Languages */}
+            <h3 className="text-sm font-bold mb-2">Add Language ({availableLangs.length} available)</h3>
+            <p className="text-text-muted text-[10px] mb-3">Enable a language to add its countries to the app</p>
+
+            <div className="space-y-1.5">
+              {availableLangs.map(lang => (
+                <div key={lang.code} className="flex items-center gap-3 bg-card rounded-xl p-3 border border-border">
+                  <span className="text-xl">{lang.flag}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm">{lang.name} <span className="text-text-muted text-xs">{lang.code}</span></div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {lang.countries.slice(0, 5).map(c => (
+                        <span key={c.code} className="text-[10px] text-text-muted">{c.flag} {c.name}</span>
+                      ))}
+                      {lang.countries.length > 5 && <span className="text-[10px] text-text-muted">+{lang.countries.length - 5}</span>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { enableLang(lang.code); window.location.reload(); }}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                    style={{ background: "linear-gradient(135deg, #f09848, #e07028)", color: "white" }}
+                  >
+                    + Add
+                  </button>
                 </div>
               ))}
             </div>
-
-            {/* Translation Languages */}
-            <div className="mb-6">
-              <h3 className="text-sm font-bold text-text-soft mb-2">Translation Languages ({LANGS.length})</h3>
-              <p className="text-text-muted text-[10px] mb-2">Products are translated into these languages. Edit in src/data/langs.ts</p>
-              <div className="space-y-1.5">
-                {LANGS.map(l => {
-                  const dictCoverage = dictRows.filter(d => d.translations[l.code]).length;
-                  const localCoverage = LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[l.code]).length;
-                  const total = dictCoverage + localCoverage;
-                  const maxTotal = dictRows.length + LOCAL_DICTIONARY.length;
-                  const pct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
-                  return (
-                    <div key={l.code} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
-                      <span className="text-xl">{l.flag}</span>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">{l.name} <span className="text-text-muted text-xs">{l.code}</span></div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                            <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-[10px] text-text-muted">{total} ({pct}%)</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Countries */}
-            <div>
-              <h3 className="text-sm font-bold text-text-soft mb-2">Countries ({COUNTRIES.length})</h3>
-              <p className="text-text-muted text-[10px] mb-2">Country determines shelf language. Edit in src/data/countries.ts</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Flag</th>
-                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Country</th>
-                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Code</th>
-                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Shelf Lang</th>
-                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Supported?</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {COUNTRIES.map(c => {
-                      const langSupported = LANGS.some(l => l.code === c.lang);
-                      return (
-                        <tr key={c.code} className="border-b border-border">
-                          <td className="py-1.5 px-1 text-lg">{c.flag}</td>
-                          <td className="py-1.5 px-1 font-medium">{c.name}</td>
-                          <td className="py-1.5 px-1 text-text-muted">{c.code}</td>
-                          <td className="py-1.5 px-1 text-accent font-medium">{c.lang}</td>
-                          <td className="py-1.5 px-1">
-                            {langSupported ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>✓ yes</span>
-                            ) : (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(255,92,92,0.1)", color: "#ff5c5c" }}>✕ no dict</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-3 p-3 rounded-xl border border-border-light" style={{ background: "rgba(240,136,62,0.05)" }}>
-                <p className="text-[11px] text-text-soft">
-                  <strong className="text-accent">Note:</strong> Countries with "✕ no dict" use the shelf language for Store Mode phrases only.
-                  Product translations fall back to English. To add full support, add the language to LANGS and rebuild the dictionary.
-                </p>
-              </div>
-            </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Users ── */}
         {tab === "users" && !loading && (

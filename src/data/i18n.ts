@@ -247,7 +247,17 @@ export const strings = {
 
 export type Translations = typeof strings.en;
 
+// Dynamic t() — checks hardcoded strings first, then localStorage cache
+import { getUITranslation } from "../lib/langConfig";
+
 export function t(lang: string, key: TranslationKey): string {
-  const l = (lang === "en" || lang === "es" || lang === "pl" ? lang : "en") as Lang;
-  return strings[l][key] ?? strings.en[key] ?? key;
+  // Hardcoded languages
+  if (lang === "en" || lang === "es" || lang === "pl") {
+    return strings[lang as Lang][key] ?? strings.en[key] ?? key;
+  }
+  // Dynamic languages — check cached translations
+  const cached = getUITranslation(lang, key);
+  if (cached) return cached;
+  // Fallback to English
+  return strings.en[key] ?? key;
 }
