@@ -226,6 +226,7 @@ export default function AddItemBar({
   };
 
   return (
+    <>
     <div
       className="sticky bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
@@ -317,99 +318,24 @@ export default function AddItemBar({
               className="flex-1 bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
             />
 
-            {/* Photo button + menu */}
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowPhotoMenu(!showPhotoMenu)}
-                className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
-                  photo ? "bg-accent/20 border-accent/30" : "bg-bg border-border text-text-soft active:bg-card"
-                }`}
-                aria-label="Add photo"
-              >
-                <span style={{ fontSize: 16 }}>{photo ? "✅" : "📷"}</span>
-              </button>
-
-              {/* Backdrop to close menu */}
-              {showPhotoMenu && (
-                <div className="fixed inset-0 z-30" onClick={() => { setShowPhotoMenu(false); setShowUrlInput(false); }} />
-              )}
-
-              {/* Photo dropdown menu */}
-              {showPhotoMenu && (
-                <div className="absolute bottom-11 right-0 w-52 bg-card border border-border-light rounded-xl shadow-lg z-40 overflow-hidden">
-                  {/* Paste from clipboard */}
-                  <button
-                    type="button"
-                    onClick={handlePasteImage}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left"
-                  >
-                    <span>📋</span> Paste image
-                  </button>
-
-                  {/* Upload from device */}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left border-t border-border"
-                  >
-                    <span>📁</span> Upload from device
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-
-                  {/* URL input */}
-                  {!showUrlInput ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowUrlInput(true)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left border-t border-border"
-                    >
-                      <span>🔗</span> Paste URL
-                    </button>
-                  ) : (
-                    <div className="px-3 py-2.5 border-t border-border">
-                      <div className="flex gap-1.5">
-                        <input
-                          type="url"
-                          value={photoUrlInput}
-                          onChange={e => setPhotoUrlInput(e.target.value)}
-                          placeholder="https://..."
-                          autoFocus
-                          onKeyDown={e => { if (e.key === "Enter") handleUrlImage(); if (e.key === "Escape") { setShowUrlInput(false); setPhotoUrlInput(""); } }}
-                          className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent min-w-0"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleUrlImage}
-                          className="px-2 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer"
-                          style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
-                        >
-                          OK
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Remove photo (if one is set) */}
-                  {photo && (
-                    <button
-                      type="button"
-                      onClick={() => { setPhoto(null); setShowPhotoMenu(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left border-t border-border"
-                      style={{ color: "#ff5c5c" }}
-                    >
-                      <span>🗑️</span> Remove photo
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* Photo button */}
+            <button
+              type="button"
+              onClick={() => setShowPhotoMenu(true)}
+              className={`shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                photo ? "bg-accent/20 border-accent/30" : "bg-bg border-border text-text-soft active:bg-card"
+              }`}
+              aria-label="Add photo"
+            >
+              <span style={{ fontSize: 16 }}>{photo ? "✅" : "📷"}</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
           </div>
 
           {/* Action buttons */}
@@ -438,5 +364,84 @@ export default function AddItemBar({
         </>
       )}
     </div>
+
+    {/* Photo menu — fixed bottom sheet */}
+    {showPhotoMenu && (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => { setShowPhotoMenu(false); setShowUrlInput(false); setPhotoUrlInput(""); }}>
+        <div className="bg-card w-full max-w-[460px] rounded-t-2xl border-t border-border-light" onClick={e => e.stopPropagation()}>
+          <div className="w-10 h-1 bg-border-light rounded-full mx-auto mt-3 mb-2" />
+
+          <button
+            type="button"
+            onClick={handlePasteImage}
+            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-text active:bg-bg transition-colors cursor-pointer"
+          >
+            <span className="text-lg">📋</span> Paste image from clipboard
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { fileInputRef.current?.click(); setShowPhotoMenu(false); }}
+            className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-text active:bg-bg transition-colors cursor-pointer border-t border-border"
+          >
+            <span className="text-lg">📁</span> Upload from device
+          </button>
+
+          {!showUrlInput ? (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="w-full flex items-center gap-3 px-5 py-3.5 text-sm text-text active:bg-bg transition-colors cursor-pointer border-t border-border"
+            >
+              <span className="text-lg">🔗</span> Paste image URL
+            </button>
+          ) : (
+            <div className="px-5 py-3.5 border-t border-border">
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={photoUrlInput}
+                  onChange={e => setPhotoUrlInput(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === "Enter") handleUrlImage(); if (e.key === "Escape") { setShowUrlInput(false); setPhotoUrlInput(""); } }}
+                  className="flex-1 bg-bg border border-border-light rounded-xl px-3 py-2.5 text-sm text-text outline-none focus:border-accent min-w-0"
+                />
+                <button
+                  type="button"
+                  onClick={handleUrlImage}
+                  disabled={!photoUrlInput.trim()}
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          )}
+
+          {photo && (
+            <button
+              type="button"
+              onClick={() => { setPhoto(null); setShowPhotoMenu(false); }}
+              className="w-full flex items-center gap-3 px-5 py-3.5 text-sm active:bg-bg transition-colors cursor-pointer border-t border-border"
+              style={{ color: "#ff5c5c" }}
+            >
+              <span className="text-lg">🗑️</span> Remove photo
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => { setShowPhotoMenu(false); setShowUrlInput(false); setPhotoUrlInput(""); }}
+            className="w-full py-3.5 text-sm text-text-muted font-medium active:bg-bg transition-colors cursor-pointer border-t border-border"
+            style={{ paddingBottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
