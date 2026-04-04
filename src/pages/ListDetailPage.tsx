@@ -38,6 +38,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [storeItem, setStoreItem] = useState<Item | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [showChecked, setShowChecked] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [pendingIds] = useState<Set<string>>(new Set());
   const [failedIds] = useState<Set<string>>(new Set());
   const [showMembers, setShowMembers] = useState(false);
@@ -282,9 +283,10 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
             {/* Checked / Done section */}
             {checkedItems.length > 0 && (
               <div className="mt-3">
+                <div className="flex items-center sticky top-0 z-10 bg-bg">
                 <button
                   onClick={() => setShowChecked(!showChecked)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 bg-bg sticky top-0 z-10 cursor-pointer active:bg-card transition-colors"
+                  className="flex-1 flex items-center gap-2 px-4 py-2.5 cursor-pointer active:bg-card transition-colors"
                 >
                   <span className="text-base">&#9989;</span>
                   <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">
@@ -318,6 +320,29 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </button>
+                {showChecked && (
+                  <button
+                    onClick={() => {
+                      if (confirmClear) {
+                        checkedItems.forEach(i => handleDelete(i.id));
+                        setConfirmClear(false);
+                        setShowChecked(false);
+                      } else {
+                        setConfirmClear(true);
+                        setTimeout(() => setConfirmClear(false), 3000);
+                      }
+                    }}
+                    className="shrink-0 px-3 py-1.5 mr-3 rounded-lg text-[11px] font-semibold cursor-pointer transition-all"
+                    style={{
+                      background: confirmClear ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                      color: confirmClear ? "#fff" : "#ff5c5c",
+                      border: confirmClear ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                    }}
+                  >
+                    {confirmClear ? "⚠️ Confirm?" : "🗑️"}
+                  </button>
+                )}
+                </div>
 
                 {showChecked && (
                   <div className="mt-1">
