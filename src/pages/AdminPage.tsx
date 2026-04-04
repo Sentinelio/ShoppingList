@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
@@ -8,7 +8,6 @@ import { strings } from "../data/i18n";
 import { COUNTRIES } from "../data/countries";
 import { CATEGORIES, CATEGORY_ORDER } from "../data/categories";
 import { LOCAL_DICTIONARY } from "../data/localDictionary";
-import { STORE_TYPES } from "../data/storeTypes";
 import {
   getAllStoreTypesWithCategories,
   addCustomStoreType,
@@ -17,9 +16,9 @@ import {
   removeCustomCategory,
   type StoreTypeWithCategories,
 } from "../lib/customStoreConfig";
-import { SEED_CATEGORIES, TOTAL_SEED_PRODUCTS } from "../data/seedCategories";
+import { SEED_CATEGORIES } from "../data/seedCategories";
 
-type Tab = "dictionary" | "categories" | "languages" | "users" | "lists" | "stats" | "builder" | "roadmap";
+type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap";
 
 interface DictRow {
   key: string;
@@ -52,16 +51,13 @@ export default function AdminPage(_: AdminPageProps) {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
   const [tab, setTab] = useState<Tab>("stats");
-  // Builder state
-  const [building, setBuilding] = useState(false);
-  const [builtIds, setBuiltIds] = useState<string[]>([]);
-  const [currentBuild, setCurrentBuild] = useState<string | null>(null);
-  const [buildLog, setBuildLog] = useState<string[]>([]);
-  const buildAbort = useRef(false);
+  const [, setBuiltIds] = useState<string[]>([]);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [confirmClearDict, setConfirmClearDict] = useState<"all" | "filtered" | null>(null);
   const [collapsedStores, setCollapsedStores] = useState<Set<string>>(new Set());
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [buildingCategory, setBuildingCategory] = useState<string | null>(null);
   const [storeCatVersion, setStoreCatVersion] = useState(0); // bumps to force re-read of localStorage
   const [addingStore, setAddingStore] = useState(false);
   const [addingCatFor, setAddingCatFor] = useState<string | null>(null);
@@ -82,12 +78,9 @@ export default function AdminPage(_: AdminPageProps) {
   const [listItems, setListItems] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [catFilter, setCatFilter] = useState("");
+  const [catFilter] = useState("");
   const [editingEntry, setEditingEntry] = useState<DictRow | null>(null);
-  const [newEntry, setNewEntry] = useState(false);
-  const [newKey, setNewKey] = useState("");
-  const [newCat, setNewCat] = useState("other");
-  const [newTranslations, setNewTranslations] = useState<Record<string, string>>({});
+  const [, setNewEntry] = useState(false);
   const [toast, setToast] = useState("");
   const [, forceUpdate] = useState(0);
 
@@ -129,6 +122,43 @@ export default function AdminPage(_: AdminPageProps) {
     if (error) { showToast(`Error: ${error.message}`); return; }
     showToast(onlyCategory ? `Cleared category '${onlyCategory}'` : "Dictionary cleared");
     fetchDictionary();
+  };
+
+  const buildOneCategory = async (categoryId: string) => {
+    const seed = SEED_CATEGORIES.find(s => s.category === categoryId);
+    if (!seed) { showToast("No seed config for this category"); return; }
+    if (IS_DEMO) { showToast("Connect Supabase first"); return; }
+
+    setBuildingCategory(categoryId);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/seed-dictionary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseKey}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({
+          count: seed.count,
+          prompt: seed.prompt,
+          category: seed.category,
+          storeType: seed.storeType,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`✅ ${seed.name}: ${data.inserted} products added`);
+        setBuiltIds(prev => [...prev, seed.id]);
+        fetchDictionary();
+      } else {
+        showToast(`❌ ${data.error}`);
+      }
+    } catch (err) {
+      showToast(`❌ ${err}`);
+    }
+    setBuildingCategory(null);
   };
 
   // Fetch data based on tab
@@ -181,7 +211,7 @@ export default function AdminPage(_: AdminPageProps) {
   }, []);
 
   useEffect(() => {
-    if (tab === "dictionary") fetchDictionary();
+    if (tab === "catalog") fetchDictionary();
     if (tab === "users") fetchUsers();
     if (tab === "lists") fetchLists();
     if (tab === "stats") { fetchDictionary(); fetchUsers(); fetchLists(); }
@@ -214,19 +244,13 @@ export default function AdminPage(_: AdminPageProps) {
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: "stats", label: "Stats", icon: "📊" },
-    { key: "dictionary", label: "Dictionary", icon: "📖" },
-    { key: "categories", label: "Categories", icon: "🏷️" },
+    { key: "catalog", label: "Catalog", icon: "📦" },
     { key: "languages", label: "Languages", icon: "🌍" },
     { key: "users", label: "Users", icon: "👥" },
     { key: "lists", label: "Lists", icon: "📝" },
-    { key: "builder", label: "Builder", icon: "🧠" },
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
   ];
 
-  const allLangs = [...new Set([
-    ...LANGS.map(l => l.code),
-    ...dictRows.flatMap(d => Object.keys(d.translations)),
-  ])].sort();
 
   return (
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
@@ -307,10 +331,10 @@ export default function AdminPage(_: AdminPageProps) {
           </div>
         )}
 
-        {/* ── Dictionary ── */}
-        {tab === "dictionary" && !loading && (
+        {/* ── Catalog (Stores + Categories + Dictionary + Builder unified) ── */}
+        {tab === "catalog" && (
           <div>
-            {/* Search + filter + add */}
+            {/* Search bar + global clear */}
             <div className="flex gap-2 mb-3">
               <input
                 value={search}
@@ -318,221 +342,57 @@ export default function AdminPage(_: AdminPageProps) {
                 placeholder="Search products..."
                 className="flex-1 bg-card border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
               />
-              <select
-                value={catFilter}
-                onChange={e => setCatFilter(e.target.value)}
-                className="bg-card border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none appearance-none cursor-pointer"
-              >
-                <option value="">All</option>
-                {CATEGORY_ORDER.map(c => (
-                  <option key={c} value={c}>{CATEGORIES[c]?.emoji} {CATEGORIES[c]?.en}</option>
-                ))}
-              </select>
               <button
-                onClick={() => { setNewEntry(true); setNewKey(""); setNewCat("other"); setNewTranslations({}); }}
-                className="px-3 py-2 rounded-lg text-xs font-semibold text-white cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                onClick={() => {
+                  if (confirmClearDict === "all") {
+                    clearDictionary();
+                    setConfirmClearDict(null);
+                  } else {
+                    setConfirmClearDict("all");
+                    setTimeout(() => setConfirmClearDict(prev => prev === "all" ? null : prev), 3000);
+                  }
+                }}
+                className="px-2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer shrink-0"
+                style={{
+                  background: confirmClearDict === "all" ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                  color: confirmClearDict === "all" ? "#fff" : "#ff5c5c",
+                  border: confirmClearDict === "all" ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                }}
               >
-                + Add
+                {confirmClearDict === "all" ? "⚠️ Confirm" : "🗑️ Clear"}
               </button>
             </div>
 
-            <div className="flex items-center justify-between mb-2 gap-2">
-              <div className="text-text-muted text-xs">{filteredDict.length} entries</div>
-              <div className="flex gap-1.5">
-                {/* Clear filtered (by category) */}
-                {catFilter && (
-                  <button
-                    onClick={() => {
-                      if (confirmClearDict === "filtered") {
-                        clearDictionary(catFilter);
-                        setConfirmClearDict(null);
-                      } else {
-                        setConfirmClearDict("filtered");
-                        setTimeout(() => setConfirmClearDict(prev => prev === "filtered" ? null : prev), 3000);
-                      }
-                    }}
-                    className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
-                    style={{
-                      background: confirmClearDict === "filtered" ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                      color: confirmClearDict === "filtered" ? "#fff" : "#ff5c5c",
-                      border: confirmClearDict === "filtered" ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                    }}
-                  >
-                    {confirmClearDict === "filtered" ? "⚠️ Confirm" : `🗑️ Clear ${catFilter}`}
-                  </button>
-                )}
-                {/* Clear all */}
-                <button
-                  onClick={() => {
-                    if (confirmClearDict === "all") {
-                      clearDictionary();
-                      setConfirmClearDict(null);
-                    } else {
-                      setConfirmClearDict("all");
-                      setTimeout(() => setConfirmClearDict(prev => prev === "all" ? null : prev), 3000);
-                    }
-                  }}
-                  className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
-                  style={{
-                    background: confirmClearDict === "all" ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                    color: confirmClearDict === "all" ? "#fff" : "#ff5c5c",
-                    border: confirmClearDict === "all" ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                  }}
-                >
-                  {confirmClearDict === "all" ? "⚠️ Confirm all" : "🗑️ Clear all"}
-                </button>
-              </div>
-            </div>
-
-            {/* New entry form */}
-            {newEntry && (
-              <div className="bg-card rounded-xl p-4 border border-accent/30 mb-3">
-                <h4 className="text-sm font-bold mb-2">New dictionary entry</h4>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    value={newKey}
-                    onChange={e => setNewKey(e.target.value)}
-                    placeholder="Product key (e.g. toothbrush)"
-                    className="flex-1 bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none"
-                  />
-                  <select
-                    value={newCat}
-                    onChange={e => setNewCat(e.target.value)}
-                    className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none appearance-none cursor-pointer"
-                  >
-                    {CATEGORY_ORDER.map(c => (
-                      <option key={c} value={c}>{CATEGORIES[c]?.emoji} {c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  {allLangs.slice(0, 14).map(lc => (
-                    <div key={lc} className="flex items-center gap-1">
-                      <span className="text-xs text-text-muted w-6">{lc}</span>
-                      <input
-                        value={newTranslations[lc] || ""}
-                        onChange={e => setNewTranslations(p => ({ ...p, [lc]: e.target.value }))}
-                        placeholder={lc}
-                        className="flex-1 bg-bg border border-border-light rounded px-2 py-1 text-xs text-text outline-none"
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setNewEntry(false)} className="px-3 py-1.5 rounded-lg text-xs text-text-soft border border-border-light cursor-pointer">Cancel</button>
-                  <button
-                    onClick={() => { if (newKey.trim()) saveEntry(newKey, newTranslations, newCat); }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer"
-                    style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Dictionary table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-1 text-text-muted font-semibold">Key</th>
-                    <th className="text-left py-2 px-1 text-text-muted font-semibold">Cat</th>
-                    {allLangs.slice(0, 8).map(lc => (
-                      <th key={lc} className="text-left py-2 px-1 text-text-muted font-semibold">{lc}</th>
-                    ))}
-                    <th className="text-right py-2 px-1 text-text-muted font-semibold w-16">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDict.slice(0, 100).map(row => (
-                    <tr key={row.key} className="border-b border-border hover:bg-card/50">
-                      <td className="py-1.5 px-1 font-medium text-accent">{row.key}</td>
-                      <td className="py-1.5 px-1">
-                        <span className="text-sm">{CATEGORIES[row.category]?.emoji || "🛒"}</span>
-                      </td>
-                      {allLangs.slice(0, 8).map(lc => (
-                        <td key={lc} className="py-1.5 px-1 text-text-soft">
-                          {row.translations[lc] || <span className="text-text-muted">—</span>}
-                        </td>
-                      ))}
-                      <td className="py-1.5 px-1 text-right">
-                        <button
-                          onClick={() => setEditingEntry(row)}
-                          className="text-accent cursor-pointer mr-2"
-                        >✏️</button>
-                        <button
-                          onClick={() => { if (confirm("Delete?")) deleteEntry(row.key); }}
-                          className="text-danger cursor-pointer"
-                        >🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredDict.length > 100 && (
-                <div className="text-text-muted text-xs text-center py-2">Showing 100 of {filteredDict.length}</div>
-              )}
-            </div>
-
-            {/* Edit modal */}
-            {editingEntry && (
-              <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setEditingEntry(null)}>
-                <div className="bg-card rounded-t-2xl p-5 pb-7 w-full max-w-[500px] max-h-[80vh] overflow-auto border-t border-border-light" onClick={e => e.stopPropagation()}>
-                  <h3 className="text-base font-bold mb-3">Edit: {editingEntry.key}</h3>
-                  <div className="mb-3">
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1 block">Category</label>
-                    <select
-                      value={editingEntry.category}
-                      onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
-                      className="w-full bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none appearance-none cursor-pointer"
-                    >
-                      {CATEGORY_ORDER.map(c => (
-                        <option key={c} value={c}>{CATEGORIES[c]?.emoji} {c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2 mb-4">
-                    {allLangs.map(lc => {
-                      const flag = LANGS.find(l => l.code === lc)?.flag || "";
-                      return (
-                        <div key={lc} className="flex items-center gap-2">
-                          <span className="text-sm w-6">{flag}</span>
-                          <span className="text-xs text-text-muted w-6">{lc}</span>
-                          <input
-                            value={editingEntry.translations[lc] || ""}
-                            onChange={e => setEditingEntry({
-                              ...editingEntry,
-                              translations: { ...editingEntry.translations, [lc]: e.target.value }
-                            })}
-                            className="flex-1 bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
-                          />
+            {/* Search results (flat list) */}
+            {search && (
+              <div className="mb-4">
+                <div className="text-text-muted text-xs mb-2">{filteredDict.length} results</div>
+                <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                  {filteredDict.slice(0, 50).map(row => {
+                    const catData = CATEGORIES[row.category] ?? CATEGORIES.other;
+                    return (
+                      <div key={row.key} className="bg-card rounded-lg p-2 border border-border flex items-center gap-2">
+                        <span className="text-base shrink-0">{catData.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold truncate">{row.key}</div>
+                          <div className="text-text-muted text-[10px] truncate">
+                            {Object.entries(row.translations).slice(0, 3).map(([l, v]) => `${l}:${v}`).join(" · ")}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setEditingEntry(null)} className="flex-1 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer">Cancel</button>
-                    <button
-                      onClick={() => saveEntry(editingEntry.key, editingEntry.translations, editingEntry.category)}
-                      className="flex-1 py-3 rounded-xl font-semibold text-white cursor-pointer"
-                      style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
-                    >
-                      Save
-                    </button>
-                  </div>
+                        <button onClick={() => setEditingEntry(row)} className="text-accent text-xs cursor-pointer px-1">✏️</button>
+                        <button onClick={() => deleteEntry(row.key)} className="text-danger text-xs cursor-pointer px-1">🗑️</button>
+                      </div>
+                    );
+                  })}
+                  {filteredDict.length > 50 && (
+                    <div className="text-text-muted text-xs text-center py-2">Showing 50 of {filteredDict.length}</div>
+                  )}
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        {/* ── Categories ── */}
-        {tab === "categories" && (
-          <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-text-muted text-xs">{storeTypesWithCats.length} store types · {storeTypesWithCats.reduce((a, s) => a + s.categories.length, 0)} categories</p>
+              <p className="text-text-muted text-xs">{storeTypesWithCats.length} store types · {storeTypesWithCats.reduce((a, s) => a + s.categories.length, 0)} categories · {dictRows.length} products</p>
               <button
                 onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
                 className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
@@ -683,28 +543,74 @@ export default function AdminPage(_: AdminPageProps) {
                     {!isCollapsed && st.categories.length > 0 && (
                       <div className="border-t border-border">
                         {st.categories.map(c => {
-                          const dictCount = dictRows.filter(d => d.category === c.id).length;
+                          const dictItems = dictRows.filter(d => d.category === c.id);
                           const localCount = LOCAL_DICTIONARY.filter(d => d.cat === c.id).length;
-                          const total = dictCount + localCount;
+                          const total = dictItems.length + localCount;
+                          const seed = SEED_CATEGORIES.find(s => s.category === c.id);
+                          const isExpanded = expandedCategory === c.id;
+                          const isBuilding = buildingCategory === c.id;
                           return (
-                            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border last:border-b-0">
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: `${c.color}20` }}>
-                                {c.emoji}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
-                                <div className="text-text-muted text-[10px] truncate" style={{ color: c.color }}>{c.color}</div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <div className="text-sm font-bold" style={{ color: c.color }}>{total}</div>
-                                <div className="text-[9px] text-text-muted">products</div>
-                              </div>
-                              {c.custom && (
+                            <div key={c.id} className="border-b border-border last:border-b-0">
+                              <div className="flex items-center gap-2 px-3 py-2.5">
                                 <button
-                                  onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
-                                  className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
-                                  style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
-                                >✕</button>
+                                  onClick={() => setExpandedCategory(isExpanded ? null : c.id)}
+                                  className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-left"
+                                >
+                                  <span className="text-[9px] text-text-muted shrink-0" style={{ transform: isExpanded ? "rotate(90deg)" : "", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
+                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: `${c.color}20` }}>
+                                    {c.emoji}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
+                                    <div className="text-[9px]" style={{ color: c.color }}>{total} products</div>
+                                  </div>
+                                </button>
+                                {seed && (
+                                  <button
+                                    onClick={() => buildOneCategory(c.id)}
+                                    disabled={isBuilding}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer disabled:opacity-50 shrink-0"
+                                    style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
+                                  >
+                                    {isBuilding ? "⏳" : "🧠"}
+                                  </button>
+                                )}
+                                {c.custom && (
+                                  <button
+                                    onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
+                                    className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
+                                    style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+                                  >✕</button>
+                                )}
+                              </div>
+
+                              {/* Products in this category */}
+                              {isExpanded && (
+                                <div className="bg-bg/50 border-t border-border">
+                                  {dictItems.length === 0 ? (
+                                    <div className="text-center text-text-muted text-[11px] py-4">
+                                      No products yet{seed ? ". Click 🧠 to generate." : ""}
+                                    </div>
+                                  ) : (
+                                    <div className="max-h-60 overflow-y-auto">
+                                      {dictItems.slice(0, 50).map(row => (
+                                        <div key={row.key} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-b-0">
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-[11px] font-medium truncate">{row.key}</div>
+                                            <div className="text-text-muted text-[9px] truncate">
+                                              {Object.entries(row.translations).slice(0, 4).map(([l, v]) => `${l}:${v}`).join(" · ")}
+                                            </div>
+                                          </div>
+                                          <button onClick={() => setEditingEntry(row)} className="text-accent text-[11px] cursor-pointer px-1 shrink-0">✏️</button>
+                                          <button onClick={() => deleteEntry(row.key)} className="text-danger text-[11px] cursor-pointer px-1 shrink-0">🗑️</button>
+                                        </div>
+                                      ))}
+                                      {dictItems.length > 50 && (
+                                        <div className="text-text-muted text-[10px] text-center py-1.5">{dictItems.length - 50} more...</div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
@@ -960,144 +866,6 @@ export default function AdminPage(_: AdminPageProps) {
             )}
           </div>
         )}
-        {/* ── Builder ── */}
-        {tab === "builder" && (
-          <div>
-            <div className="bg-card rounded-xl p-4 border border-border mb-4">
-              <h3 className="text-sm font-bold mb-1">🧠 Dictionary Builder</h3>
-              <p className="text-text-muted text-xs mb-3">
-                Generate ~{TOTAL_SEED_PRODUCTS} product translations across {STORE_TYPES.length} store types using Claude AI.
-                Each category is generated in a separate API call.
-              </p>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-accent rounded-full transition-all"
-                    style={{ width: `${(builtIds.length / SEED_CATEGORIES.length) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs text-text-muted shrink-0">
-                  {builtIds.length}/{SEED_CATEGORIES.length} categories
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    if (IS_DEMO) { showToast("Connect Supabase first"); return; }
-                    setBuilding(true);
-                    buildAbort.current = false;
-                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-                    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-                    const remaining = SEED_CATEGORIES.filter(c => !builtIds.includes(c.id));
-                    for (const cat of remaining) {
-                      if (buildAbort.current) break;
-                      setCurrentBuild(cat.id);
-                      setBuildLog(prev => [...prev, `Building: ${cat.name} (${cat.count} products)...`]);
-                      try {
-                        const res = await fetch(`${supabaseUrl}/functions/v1/seed-dictionary`, {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${supabaseKey}`,
-                            "apikey": supabaseKey,
-                          },
-                          body: JSON.stringify({
-                            count: cat.count,
-                            prompt: cat.prompt,
-                            category: cat.category,
-                            storeType: cat.storeType,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (res.ok) {
-                          setBuildLog(prev => [...prev, `  ✅ ${cat.name}: ${data.inserted} products inserted`]);
-                          setBuiltIds(prev => [...prev, cat.id]);
-                        } else {
-                          setBuildLog(prev => [...prev, `  ❌ ${cat.name}: ${data.error}`]);
-                        }
-                      } catch (err) {
-                        setBuildLog(prev => [...prev, `  ❌ ${cat.name}: ${err}`]);
-                      }
-                      // Small delay to avoid rate limiting
-                      await new Promise(r => setTimeout(r, 1500));
-                    }
-                    setBuilding(false);
-                    setCurrentBuild(null);
-                    fetchDictionary();
-                  }}
-                  disabled={building}
-                  className="flex-1 py-3 rounded-xl font-semibold text-sm text-white cursor-pointer disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
-                >
-                  {building ? `⏳ Building ${currentBuild ?? ""}...` : builtIds.length >= SEED_CATEGORIES.length ? "✅ Complete" : "🚀 Build Dictionary"}
-                </button>
-                {building && (
-                  <button
-                    onClick={() => { buildAbort.current = true; }}
-                    className="px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer"
-                    style={{ background: "rgba(255,92,92,0.1)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
-                  >
-                    Stop
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Store types overview */}
-            <h3 className="text-sm font-bold mb-2">Store Types ({STORE_TYPES.length})</h3>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {STORE_TYPES.map(st => {
-                const cats = SEED_CATEGORIES.filter(c => c.storeType === st.id);
-                const totalProducts = cats.reduce((a, c) => a + c.count, 0);
-                const builtCount = cats.filter(c => builtIds.includes(c.id)).length;
-                return (
-                  <div key={st.id} className="bg-card rounded-xl p-3 border border-border">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">{st.emoji}</span>
-                      <span className="text-xs font-bold">{st.en}</span>
-                    </div>
-                    <div className="text-text-muted text-[10px]">
-                      {cats.length} categories · {totalProducts} products · {builtCount}/{cats.length} built
-                    </div>
-                    <div className="h-1.5 bg-border rounded-full overflow-hidden mt-1.5">
-                      <div className="h-full rounded-full" style={{ width: `${cats.length > 0 ? (builtCount / cats.length) * 100 : 0}%`, background: builtCount === cats.length ? "#3dd68c" : "#f0883e" }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Categories detail */}
-            <h3 className="text-sm font-bold mb-2">All Categories ({SEED_CATEGORIES.length})</h3>
-            <div className="space-y-1.5 mb-4">
-              {SEED_CATEGORIES.map(cat => {
-                const st = STORE_TYPES.find(s => s.id === cat.storeType);
-                const built = builtIds.includes(cat.id);
-                return (
-                  <div key={cat.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${built ? "bg-card/50 opacity-60" : "bg-card"} border border-border`}>
-                    <span>{st?.emoji || "🛒"}</span>
-                    <span className="font-medium flex-1">{cat.name}</span>
-                    <span className="text-text-muted">{cat.count} products</span>
-                    <span className={built ? "text-[#3dd68c]" : "text-text-muted"}>{built ? "✅" : "○"}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Build log */}
-            {buildLog.length > 0 && (
-              <div className="bg-card rounded-xl p-3 border border-border">
-                <h4 className="text-xs font-bold text-text-muted mb-2">Build Log</h4>
-                <div className="max-h-48 overflow-y-auto text-[11px] font-mono text-text-soft space-y-0.5">
-                  {buildLog.map((line, i) => (
-                    <div key={i}>{line}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        {/* ── Roadmap ── */}
         {tab === "roadmap" && (
           <div>
             <h3 className="text-lg font-bold mb-1">🗺️ BabelCart — Roadmap</h3>
@@ -1138,6 +906,56 @@ export default function AdminPage(_: AdminPageProps) {
           </div>
         )}
       </div>
+
+      {/* Dictionary edit modal (shared across tabs) */}
+      {editingEntry && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setEditingEntry(null)}>
+          <div className="bg-card rounded-t-2xl p-5 pb-7 w-full max-w-[500px] max-h-[85vh] overflow-auto border-t border-border-light" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold mb-3">Edit: {editingEntry.key}</h3>
+            <div className="mb-3">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1 block">Category</label>
+              <select
+                value={editingEntry.category}
+                onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
+                className="w-full bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none appearance-none cursor-pointer"
+              >
+                {CATEGORY_ORDER.map(c => (
+                  <option key={c} value={c}>{CATEGORIES[c]?.emoji} {CATEGORIES[c]?.en}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2 mb-4">
+              {[...new Set([...LANGS.map(l => l.code), ...Object.keys(editingEntry.translations)])].map(lc => {
+                const flagDef = LANGS.find(l => l.code === lc);
+                return (
+                  <div key={lc} className="flex items-center gap-2">
+                    <span className="text-sm w-6">{flagDef?.flag || ""}</span>
+                    <span className="text-xs text-text-muted w-6">{lc}</span>
+                    <input
+                      value={editingEntry.translations[lc] || ""}
+                      onChange={e => setEditingEntry({
+                        ...editingEntry,
+                        translations: { ...editingEntry.translations, [lc]: e.target.value }
+                      })}
+                      className="flex-1 bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditingEntry(null)} className="flex-1 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer">Cancel</button>
+              <button
+                onClick={() => saveEntry(editingEntry.key, editingEntry.translations, editingEntry.category)}
+                className="flex-1 py-3 rounded-xl font-semibold text-white cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
