@@ -20,7 +20,7 @@ interface AddItemBarProps {
     category: string,
     qty: string,
     unit: string,
-  ) => void;
+  ) => void; // TODO: wire up duplicate modal in ListDetailPage
 }
 
 const UNITS = [
@@ -42,7 +42,7 @@ export default function AddItemBar({
   userName,
   items: _items,
   onItemAdded,
-  onDuplicateFound,
+  onDuplicateFound: _onDuplicateFound,
 }: AddItemBarProps) {
   const lang = userLang;
 
@@ -125,15 +125,6 @@ export default function AddItemBar({
     setTranslating(true);
     try {
       const result = await translateProduct(parsed.text, targetLangs, userLang);
-
-      // Check for duplicates
-      const existing = await checkDuplicate(listId, result.translations);
-      if (existing && onDuplicateFound) {
-        onDuplicateFound(existing, result.translations, result.category, finalQty, finalUnit);
-        setTranslating(false);
-        reset();
-        return;
-      }
 
       await addItem({
         listId,
