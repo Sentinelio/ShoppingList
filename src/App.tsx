@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { IS_DEMO } from './lib/supabase'
 import SetupWizard from './components/setup/SetupWizard'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
 import SettingsPage from './pages/SettingsPage'
+import AdminPage from './pages/AdminPage'
 
-type Page = 'setup' | 'lists' | 'list-detail' | 'settings'
+type Page = 'setup' | 'lists' | 'list-detail' | 'settings' | 'admin'
 
 interface Route {
   page: Page
@@ -15,7 +16,19 @@ interface Route {
 
 function App() {
   const { user, loading, logout } = useAuth()
-  const [route, setRoute] = useState<Route>({ page: 'lists' })
+  const [route, setRoute] = useState<Route>(() => {
+    if (window.location.hash === '#admin') return { page: 'admin' }
+    return { page: 'lists' }
+  })
+
+  // Listen for hash changes
+  useEffect(() => {
+    const handler = () => {
+      if (window.location.hash === '#admin') setRoute({ page: 'admin' })
+    }
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
 
   const handleResetDebug = () => {
     localStorage.removeItem('polyglot_user_id')
@@ -24,8 +37,15 @@ function App() {
   }
 
   const navigate = useCallback((page: string, params?: Record<string, string>) => {
+    if (page === 'admin') window.location.hash = '#admin'
+    else window.location.hash = ''
     setRoute({ page: page as Page, params })
   }, [])
+
+  // Admin page — accessible without auth
+  if (route.page === 'admin') {
+    return <AdminPage onBack={() => { window.location.hash = ''; setRoute({ page: 'lists' }); }} />
+  }
 
   if (loading) {
     return (
