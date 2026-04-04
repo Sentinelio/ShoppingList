@@ -55,7 +55,21 @@ export default function AdminPage(_: AdminPageProps) {
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [confirmClearDict, setConfirmClearDict] = useState<"all" | "filtered" | null>(null);
-  const [collapsedStores, setCollapsedStores] = useState<Set<string>>(new Set());
+  const [collapsedStores, setCollapsedStores] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("babelcart_admin_collapsed_stores");
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  const toggleStoreCollapse = (id: string) => {
+    setCollapsedStores(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem("babelcart_admin_collapsed_stores", JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [buildingCategory, setBuildingCategory] = useState<string | null>(null);
   const [storeCatVersion, setStoreCatVersion] = useState(0); // bumps to force re-read of localStorage
@@ -392,8 +406,7 @@ export default function AdminPage(_: AdminPageProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-text-muted text-xs">{storeTypesWithCats.length} store types · {storeTypesWithCats.reduce((a, s) => a + s.categories.length, 0)} categories · {dictRows.length} products</p>
+            <div className="flex justify-end mb-3">
               <button
                 onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
                 className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
@@ -455,11 +468,7 @@ export default function AdminPage(_: AdminPageProps) {
                     {/* Store type header */}
                     <div className="flex items-center gap-2 p-3">
                       <button
-                        onClick={() => setCollapsedStores(prev => {
-                          const next = new Set(prev);
-                          if (next.has(st.id)) next.delete(st.id); else next.add(st.id);
-                          return next;
-                        })}
+                        onClick={() => toggleStoreCollapse(st.id)}
                         className="flex items-center gap-2 flex-1 cursor-pointer text-left"
                       >
                         <span className="text-[10px] text-text-muted" style={{ transform: isCollapsed ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
@@ -467,7 +476,6 @@ export default function AdminPage(_: AdminPageProps) {
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-sm truncate">{(st as unknown as Record<string, string>)[lang] || st.en}</div>
                         </div>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bg text-text-muted">{st.categories.length}</span>
                       </button>
                       <button
                         onClick={() => { setAddingCatFor(st.id); setNewCatForm({ emoji: "📦", color: "#8b949e", name: "" }); }}
@@ -545,42 +553,45 @@ export default function AdminPage(_: AdminPageProps) {
                       <div className="border-t border-border">
                         {st.categories.map(c => {
                           const dictItems = dictRows.filter(d => d.category === c.id);
-                          const localCount = LOCAL_DICTIONARY.filter(d => d.cat === c.id).length;
-                          const total = dictItems.length + localCount;
                           const seed = SEED_CATEGORIES.find(s => s.category === c.id);
                           const isExpanded = expandedCategory === c.id;
                           const isBuilding = buildingCategory === c.id;
                           return (
                             <div key={c.id} className="border-b border-border last:border-b-0">
-                              <div className="flex items-center gap-2 px-3 py-2.5">
-                                <button
-                                  onClick={() => setExpandedCategory(isExpanded ? null : c.id)}
-                                  className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-left"
-                                >
-                                  <span className="text-[9px] text-text-muted shrink-0" style={{ transform: isExpanded ? "rotate(90deg)" : "", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
-                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: `${c.color}20` }}>
-                                    {c.emoji}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
-                                    <div className="text-[9px]" style={{ color: c.color }}>{total} products</div>
-                                  </div>
-                                </button>
-                                {seed && (
+                              <div className="px-3 py-2.5">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <button
+                                    onClick={() => setExpandedCategory(isExpanded ? null : c.id)}
+                                    className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-left"
+                                  >
+                                    <span className="text-[9px] text-text-muted shrink-0" style={{ transform: isExpanded ? "rotate(90deg)" : "", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: `${c.color}20` }}>
+                                      {c.emoji}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
+                                    </div>
+                                  </button>
+                                  {c.custom && (
+                                    <button
+                                      onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
+                                      className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
+                                      style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+                                      title="Delete this custom category"
+                                    >✕</button>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
                                   <button
                                     onClick={() => buildOneCategory(c.id)}
-                                    disabled={isBuilding}
-                                    className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer disabled:opacity-50 shrink-0"
+                                    disabled={isBuilding || !seed}
+                                    className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                                     style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
-                                    title="Build products with AI"
                                   >
-                                    {isBuilding ? "⏳" : "🧠"}
+                                    {isBuilding ? "⏳ Generating..." : "🧠 Generate items"}
                                   </button>
-                                )}
-                                {dictItems.length > 0 && (
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                    onClick={() => {
                                       if (confirmClearCat === c.id) {
                                         clearDictionary(c.id);
                                         setConfirmClearCat(null);
@@ -589,25 +600,17 @@ export default function AdminPage(_: AdminPageProps) {
                                         setTimeout(() => setConfirmClearCat(prev => prev === c.id ? null : prev), 3000);
                                       }
                                     }}
-                                    className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer shrink-0"
+                                    disabled={dictItems.length === 0}
+                                    className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                                     style={{
                                       background: confirmClearCat === c.id ? "#b71c1c" : "rgba(255,176,61,0.1)",
                                       color: confirmClearCat === c.id ? "#fff" : "#ffb03d",
                                       border: confirmClearCat === c.id ? "1px solid #b71c1c" : "1px solid rgba(255,176,61,0.2)",
                                     }}
-                                    title="Clear all products in this category"
                                   >
-                                    {confirmClearCat === c.id ? "⚠️" : "🧹"}
+                                    {confirmClearCat === c.id ? "⚠️ Confirm clear" : "🧹 Clear items"}
                                   </button>
-                                )}
-                                {c.custom && (
-                                  <button
-                                    onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
-                                    className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
-                                    style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
-                                    title="Delete this custom category"
-                                  >✕</button>
-                                )}
+                                </div>
                               </div>
 
                               {/* Products in this category */}
