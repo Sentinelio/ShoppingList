@@ -133,11 +133,13 @@ export async function translateProduct(
 
   // 3. Supabase Edge Function (Claude API)
   try {
+    console.log('[BabelCart] Calling translate for:', text);
     const { data: fnData, error } = await supabase.functions.invoke('translate', {
       body: { text, langs: targetLangs },
     });
+    console.log('[BabelCart] Edge Function response:', JSON.stringify({ data: fnData, error }));
 
-    if (error) throw error;
+    if (error) throw new Error(`Edge Function error: ${JSON.stringify(error)}`);
 
     // Handle both formats: {translations, category} or {t, c}
     const translations = fnData.translations ?? fnData.t ?? {};
@@ -157,7 +159,8 @@ export async function translateProduct(
     }
 
     return result;
-  } catch {
+  } catch (err) {
+    console.error('[BabelCart] Translation failed:', err);
     const translations: Record<string, string> = { [userLang]: text, en: text };
     return { translations, category: local?.category ?? 'other' };
   }
