@@ -41,8 +41,9 @@ export default function ItemCard({
       style={{
         padding: "14px 6px 10px",
         backgroundColor: `${catColor}26`,
-        border: `1px solid ${catColor}40`,
+        border: item.important ? "none" : `1px solid ${catColor}40`,
         opacity: isPending ? 0.6 : 1,
+        boxShadow: "none",
         ["--babelcart-cat-bg" as string]: `${catColor}26`,
       }}
       onClick={() => onClick(item)}

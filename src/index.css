@@ -51,7 +51,7 @@ input, textarea, select {
   border-radius: 2px;
 }
 
-/* Important item: background pulses from category color to red */
+/* Important item: background pulses from category color to red — no glow */
 @keyframes babelcart-pulse-red {
   0%, 100% {
     background-color: var(--babelcart-cat-bg, rgba(255, 60, 60, 0.15));
@@ -62,4 +62,6 @@ input, textarea, select {
 }
 .babelcart-important {
   animation: babelcart-pulse-red 1.1s ease-in-out infinite;
+  box-shadow: none !important;
+  filter: none !important;
 }
