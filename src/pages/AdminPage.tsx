@@ -444,60 +444,97 @@ export default function AdminPage({ onBack }: AdminPageProps) {
         {/* ── Languages ── */}
         {tab === "languages" && (
           <div>
-            <p className="text-text-muted text-xs mb-3">Supported UI languages and translation targets</p>
-            <div className="space-y-2 mb-6">
-              <h3 className="text-sm font-bold text-text-soft">UI Languages (i18n)</h3>
+            {/* UI Languages */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-text-soft mb-2">UI Languages (i18n) — hardcoded</h3>
+              <p className="text-text-muted text-[10px] mb-2">These require code changes to add new UI translations</p>
               {[
-                { code: "en", name: "English", flag: "🇬🇧", status: "complete" },
-                { code: "es", name: "Español", flag: "🇪🇸", status: "complete" },
-                { code: "pl", name: "Polski", flag: "🇵🇱", status: "complete" },
+                { code: "en", name: "English", flag: "🇬🇧" },
+                { code: "es", name: "Español", flag: "🇪🇸" },
+                { code: "pl", name: "Polski", flag: "🇵🇱" },
               ].map(l => (
-                <div key={l.code} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
-                  <span className="text-2xl">{l.flag}</span>
+                <div key={l.code} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3 mb-1.5">
+                  <span className="text-xl">{l.flag}</span>
                   <div className="flex-1">
-                    <div className="font-semibold text-sm">{l.name}</div>
-                    <div className="text-text-muted text-xs">{l.code}</div>
+                    <span className="font-semibold text-sm">{l.name}</span>
+                    <span className="text-text-muted text-xs ml-2">{l.code}</span>
                   </div>
-                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>
-                    ✓ Complete
-                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>✓</span>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold text-text-soft">Translation Languages</h3>
-              {LANGS.map(l => {
-                const dictCoverage = dictRows.filter(d => d.translations[l.code]).length;
-                const localCoverage = LOCAL_DICTIONARY.filter(d => (d as any)[l.code]).length;
-                const total = dictCoverage + localCoverage;
-                return (
-                  <div key={l.code} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
-                    <span className="text-2xl">{l.flag}</span>
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm">{l.name}</div>
-                      <div className="text-text-muted text-xs">{l.code} · {total} translations</div>
+            {/* Translation Languages */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-text-soft mb-2">Translation Languages ({LANGS.length})</h3>
+              <p className="text-text-muted text-[10px] mb-2">Products are translated into these languages. Edit in src/data/langs.ts</p>
+              <div className="space-y-1.5">
+                {LANGS.map(l => {
+                  const dictCoverage = dictRows.filter(d => d.translations[l.code]).length;
+                  const localCoverage = LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[l.code]).length;
+                  const total = dictCoverage + localCoverage;
+                  const maxTotal = dictRows.length + LOCAL_DICTIONARY.length;
+                  const pct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
+                  return (
+                    <div key={l.code} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
+                      <span className="text-xl">{l.flag}</span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm">{l.name} <span className="text-text-muted text-xs">{l.code}</span></div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                            <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-text-muted">{total} ({pct}%)</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-20 h-2 bg-border rounded-full overflow-hidden">
-                      <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(100, (total / Math.max(1, dictRows.length + LOCAL_DICTIONARY.length)) * 100)}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="mt-6 space-y-2">
-              <h3 className="text-sm font-bold text-text-soft">Countries</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {COUNTRIES.map(c => (
-                  <div key={c.code} className="bg-card rounded-lg p-2 border border-border flex items-center gap-2">
-                    <span className="text-lg">{c.flag}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium truncate">{c.name}</div>
-                      <div className="text-[10px] text-text-muted">Shelf: {c.lang}</div>
-                    </div>
-                  </div>
-                ))}
+            {/* Countries */}
+            <div>
+              <h3 className="text-sm font-bold text-text-soft mb-2">Countries ({COUNTRIES.length})</h3>
+              <p className="text-text-muted text-[10px] mb-2">Country determines shelf language. Edit in src/data/countries.ts</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Flag</th>
+                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Country</th>
+                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Code</th>
+                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Shelf Lang</th>
+                      <th className="text-left py-2 px-1 text-text-muted font-semibold">Supported?</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {COUNTRIES.map(c => {
+                      const langSupported = LANGS.some(l => l.code === c.lang);
+                      return (
+                        <tr key={c.code} className="border-b border-border">
+                          <td className="py-1.5 px-1 text-lg">{c.flag}</td>
+                          <td className="py-1.5 px-1 font-medium">{c.name}</td>
+                          <td className="py-1.5 px-1 text-text-muted">{c.code}</td>
+                          <td className="py-1.5 px-1 text-accent font-medium">{c.lang}</td>
+                          <td className="py-1.5 px-1">
+                            {langSupported ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>✓ yes</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(255,92,92,0.1)", color: "#ff5c5c" }}>✕ no dict</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 p-3 rounded-xl border border-border-light" style={{ background: "rgba(240,136,62,0.05)" }}>
+                <p className="text-[11px] text-text-soft">
+                  <strong className="text-accent">Note:</strong> Countries with "✕ no dict" use the shelf language for Store Mode phrases only.
+                  Product translations fall back to English. To add full support, add the language to LANGS and rebuild the dictionary.
+                </p>
               </div>
             </div>
           </div>
