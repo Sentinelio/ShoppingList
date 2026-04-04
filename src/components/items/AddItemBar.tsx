@@ -94,6 +94,7 @@ export default function AddItemBar({
   };
 
   const handlePasteImage = async () => {
+    // Method 1: Clipboard API (desktop browsers)
     try {
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -107,8 +108,32 @@ export default function AddItemBar({
           return;
         }
       }
-    } catch { /* clipboard API not available or no image */ }
-    setShowPhotoMenu(false);
+    } catch { /* Clipboard API not available */ }
+
+    // Method 2: Prompt user to paste via a temporary input
+    // Create a contentEditable div that accepts pasted images
+    const pasteDiv = document.createElement("div");
+    pasteDiv.contentEditable = "true";
+    pasteDiv.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:200px;height:100px;background:#161b24;border:2px dashed #f0883e;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#8b92a8;font-size:14px;font-family:inherit;outline:none;";
+    pasteDiv.textContent = "Tap & Paste here";
+    pasteDiv.addEventListener("paste", async (e: Event) => {
+      const clipEvent = e as ClipboardEvent;
+      clipEvent.preventDefault();
+      const files = clipEvent.clipboardData?.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith("image/")) {
+          const b64 = await resizeImage(file);
+          setPhoto(b64);
+        }
+      }
+      pasteDiv.remove();
+      setShowPhotoMenu(false);
+    });
+    document.body.appendChild(pasteDiv);
+    pasteDiv.focus();
+    // Auto-remove after 10 seconds
+    setTimeout(() => pasteDiv.remove(), 10000);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,25 +146,14 @@ export default function AddItemBar({
     setShowPhotoMenu(false);
   };
 
-  const handleUrlImage = async () => {
+  const handleUrlImage = () => {
     const url = photoUrlInput.trim();
     if (!url) return;
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const file = new File([blob], "url.jpg", { type: blob.type });
-      const b64 = await resizeImage(file);
-      setPhoto(b64);
-      setShowUrlInput(false);
-      setPhotoUrlInput("");
-      setShowPhotoMenu(false);
-    } catch {
-      // CORS or network error — try using the URL directly
-      setPhoto(url);
-      setShowUrlInput(false);
-      setPhotoUrlInput("");
-      setShowPhotoMenu(false);
-    }
+    // Use URL directly — fetching would fail due to CORS on most images
+    setPhoto(url);
+    setShowUrlInput(false);
+    setPhotoUrlInput("");
+    setShowPhotoMenu(false);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
