@@ -7,8 +7,11 @@ import { t } from "../data/i18n";
 import type { Lang } from "../data/i18n";
 import type { List, ListMember, Item } from "../lib/supabase";
 import SwipeRow from "../components/ui/SwipeRow";
+import Modal from "../components/ui/Modal";
 import CreateListModal from "../components/lists/CreateListModal";
 import JoinListModal from "../components/lists/JoinListModal";
+import { LANGS } from "../data/langs";
+import { COUNTRIES } from "../data/countries";
 
 interface ListsPageProps {
   onNavigate: (page: string, params?: Record<string, string>) => void;
@@ -23,13 +26,17 @@ interface ListCardInfo {
 }
 
 export default function ListsPage({ onNavigate }: ListsPageProps) {
-  const { user } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const lang = (user?.lang ?? "en") as Lang;
   const { lists, loading, refresh } = useLists(user?.id);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(false);
   const [_editListId, setEditListId] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState(user?.name ?? "");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const handleCreated = (listId: string) => {
     refresh();
@@ -92,7 +99,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
             </button>
             <button
               type="button"
-              onClick={() => onNavigate("settings")}
+              onClick={() => { setShowSettings(true); setProfileName(user?.name ?? ""); }}
               className="h-9 w-9 flex items-center justify-center rounded-lg text-text-soft active:bg-card transition-colors cursor-pointer"
               aria-label={t(lang, "settings")}
             >
@@ -214,6 +221,136 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
         onClose={() => setShowJoin(false)}
         onJoined={handleJoined}
       />
+
+      {/* Settings Modal */}
+      <Modal open={showSettings} onClose={() => setShowSettings(false)}>
+        <h3 className="text-lg font-bold mb-4">⚙️ {t(lang, "settings")}</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 block">{t(lang, "name")}</label>
+            <input
+              value={profileName}
+              onChange={e => setProfileName(e.target.value)}
+              onBlur={() => { if (profileName.trim() && profileName.trim() !== user?.name) updateUser({ name: profileName.trim() }); }}
+              className="w-full py-3 px-4 bg-bg border border-border-light rounded-xl text-text outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 block">{t(lang, "language")}</label>
+              <div className="relative">
+                <select
+                  value={user?.lang ?? "en"}
+                  onChange={e => updateUser({ lang: e.target.value })}
+                  className="w-full py-3 px-4 bg-bg border border-border-light rounded-xl text-text outline-none focus:border-accent appearance-none cursor-pointer text-sm"
+                >
+                  {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">▾</div>
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 block">{t(lang, "country")}</label>
+              <div className="relative">
+                <select
+                  value={user?.country ?? "PL"}
+                  onChange={e => updateUser({ country: e.target.value })}
+                  className="w-full py-3 px-4 bg-bg border border-border-light rounded-xl text-text outline-none focus:border-accent appearance-none cursor-pointer text-sm"
+                >
+                  {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">▾</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
+        <button onClick={() => { setShowSettings(false); setShowRoadmap(true); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🗺️ Roadmap</button>
+        <div className="mt-4 p-3 rounded-xl" style={{ background: "rgba(255,92,92,0.05)", border: "1px solid rgba(255,92,92,0.15)" }}>
+          <button
+            onClick={() => { localStorage.clear(); logout(); window.location.reload(); }}
+            className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer"
+            style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
+          >
+            🔄 {t(lang, "logout")}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Roadmap Modal */}
+      <Modal open={showRoadmap} onClose={() => setShowRoadmap(false)}>
+        <h3 className="text-lg font-bold mb-1">🗺️ BabelCart — Roadmap</h3>
+        <p className="text-text-muted text-xs mb-4">One list, every language.</p>
+        {[
+          { title: "✅ MVP", color: "#3dd68c", items: [
+            [true, "Multilingual shared lists"],
+            [true, "Auto-translation via Claude API"],
+            [true, "Your language + shelf language"],
+            [true, "Invite by code + approval flow"],
+            [true, "Swipe-to-delete with 2-step confirm"],
+            [true, "122 product emojis (multi-language)"],
+            [true, "Local dictionary — 100+ products instant"],
+            [true, "Quantities and units (2kg, 1L, 6×)"],
+            [true, "Duplicate detection + merge quantities"],
+            [true, "Store Mode — show product to staff"],
+            [true, "Pre-translated phrases for stores"],
+            [true, "3-column visual grid layout"],
+            [true, "Category grouping by aisle"],
+            [true, "i18n in en/es/pl"],
+            [true, "Setup wizard with country + language"],
+          ]},
+          { title: "🔴 Next", color: "#ff5c5c", items: [
+            [false, "Expanded dictionary (700+ products)"],
+            [false, "Autocomplete from previous products"],
+            [false, "Clear all completed at once"],
+            [false, "Shopping mode (big shelf name, huge checkbox)"],
+            [false, "Export bilingual list for WhatsApp"],
+            [false, "Bulk add — paste from WhatsApp"],
+            [false, "Search within a list"],
+            [false, "Fuzzy dictionary (plurals, typos)"],
+          ]},
+          { title: "🟡 v2.1", color: "#e8c364", items: [
+            [false, "Voice input (Web Speech API)"],
+            [false, "Assign items to people"],
+            [false, "Predictive suggestions"],
+            [false, "Non-food categories (DIY, pharmacy, electronics)"],
+            [false, "Store-type lists (IKEA, pharmacy, hardware)"],
+            [false, "Move/copy items between lists"],
+            [false, "i18n in fr/de/it/pt"],
+            [false, "PWA — install from browser"],
+          ]},
+          { title: "🔵 v3", color: "#6c8aff", items: [
+            [false, "Offline mode (service worker + cache)"],
+            [false, "Real-time sync (WebSocket)"],
+            [false, "Push notifications"],
+            [false, "Recipe → translated shopping list"],
+            [false, "Barcode scanner"],
+            [false, "Image recognition → product"],
+            [false, "Price tracking by store"],
+            [false, "Dietary labels (gluten-free, vegan)"],
+            [false, "Budget mode"],
+            [false, "Google Play + App Store"],
+          ]},
+        ].map((section, si) => (
+          <div key={si} className="mb-3">
+            <button
+              onClick={() => setCollapsed(p => ({ ...p, [`rm-${si}`]: !p[`rm-${si}`] }))}
+              className="flex items-center gap-2 w-full text-left cursor-pointer mb-1"
+            >
+              <span className="text-[9px]" style={{ transform: collapsed[`rm-${si}`] ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
+              <span className="text-xs font-bold" style={{ color: section.color }}>{section.title}</span>
+              <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: section.color, background: `${section.color}15` }}>{section.items.length}</span>
+            </button>
+            {!collapsed[`rm-${si}`] && section.items.map(([done, text], i) => (
+              <div key={i} className="flex items-start gap-2 py-0.5 text-[13px]" style={{ color: done ? "#555d74" : "#8b92a8" }}>
+                <span className="text-[11px] mt-0.5 shrink-0">{done ? "✅" : "○"}</span>
+                <span style={{ textDecoration: done ? "line-through" : "none" }}>{text as string}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+        <button onClick={() => setShowRoadmap(false)} className="w-full mt-3 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
+      </Modal>
     </div>
   );
 }
