@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail, deleteList } from "../hooks/useList";
+import { useListDetail, deleteList, approveMember, rejectMember } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { t, type Lang } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
@@ -45,6 +45,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [editingName, setEditingName] = useState(false);
 
   const activeMembers = members.filter(m => m.status === "active");
+  const pendingMembers = members.filter(m => m.status === "pending");
 
   // Split items into unchecked and checked
   const uncheckedItems = useMemo(() => items.filter((i) => !i.checked), [items]);
@@ -193,11 +194,16 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         {/* Members button */}
         <button
           onClick={() => setShowMembers(true)}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer active:brightness-90"
+          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer active:brightness-90 relative"
           style={{ background: "rgba(240,136,62,0.1)", border: "none" }}
         >
           <span className="text-sm">👥</span>
           <span className="text-xs font-semibold text-accent">{activeMembers.length}</span>
+          {pendingMembers.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-danger flex items-center justify-center text-[10px] font-bold text-white border-2 border-bg px-1">
+              {pendingMembers.length}
+            </span>
+          )}
         </button>
 
         {/* Settings button */}
@@ -390,7 +396,39 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         >
           {copied ? `✓ ${t(lang, "copied")}` : `📋 ${t(lang, "copyCode")}`}
         </button>
-        <button onClick={() => setShowMembers(false)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
+        {/* Pending requests */}
+        {pendingMembers.length > 0 && (
+          <div className="mt-4">
+            <div className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2">
+              {t(lang, "pendingReqs")} ({pendingMembers.length})
+            </div>
+            {pendingMembers.map((m, i) => (
+              <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">
+                <Avatar name={m.user_id.slice(0, 4)} index={activeMembers.length + i} size={32} />
+                <div className="flex-1">
+                  <div className="font-semibold text-sm">{m.user_id.slice(0, 8)}</div>
+                  <div className="text-text-muted text-xs">{t(lang, "waitingApproval")}</div>
+                </div>
+                <button
+                  onClick={async () => { await approveMember(listId, m.user_id); window.location.reload(); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                  style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
+                >
+                  {t(lang, "accept")}
+                </button>
+                <button
+                  onClick={async () => { await rejectMember(listId, m.user_id); window.location.reload(); }}
+                  className="px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                  style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={() => setShowMembers(false)} className="w-full mt-3 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
       </Modal>
 
       {/* List settings modal */}

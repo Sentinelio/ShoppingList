@@ -229,3 +229,33 @@ export async function leaveList(listId: string, userId: string): Promise<void> {
     .eq("user_id", userId);
   if (error) throw error;
 }
+
+export async function approveMember(listId: string, userId: string): Promise<void> {
+  if (IS_DEMO) {
+    const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"list_members":[]}');
+    const idx = (db.list_members ?? []).findIndex((m: any) => m.list_id === listId && m.user_id === userId);
+    if (idx >= 0) { db.list_members[idx].status = 'active'; localStorage.setItem('polyglot_demo_db', JSON.stringify(db)); }
+    return;
+  }
+  const { error } = await supabase
+    .from("list_members")
+    .update({ status: "active" })
+    .eq("list_id", listId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function rejectMember(listId: string, userId: string): Promise<void> {
+  if (IS_DEMO) {
+    const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"list_members":[]}');
+    db.list_members = (db.list_members ?? []).filter((m: any) => !(m.list_id === listId && m.user_id === userId));
+    localStorage.setItem('polyglot_demo_db', JSON.stringify(db));
+    return;
+  }
+  const { error } = await supabase
+    .from("list_members")
+    .delete()
+    .eq("list_id", listId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
