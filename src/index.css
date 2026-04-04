@@ -51,13 +51,13 @@ input, textarea, select {
   border-radius: 2px;
 }
 
-/* Important item: background pulses slowly from category color to dark red */
+/* Important item: background pulses slowly with a muted red */
 @keyframes babelcart-pulse-red {
   0%, 100% {
-    background-color: var(--babelcart-cat-bg, rgba(139, 0, 0, 0.2));
+    background-color: var(--babelcart-cat-bg, rgba(180, 50, 50, 0.12));
   }
   50% {
-    background-color: rgba(139, 0, 0, 0.75);
+    background-color: rgba(180, 50, 50, 0.42);
   }
 }
 .babelcart-important {

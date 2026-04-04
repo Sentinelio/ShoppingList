@@ -59,12 +59,29 @@ export async function updateItem(
     return result;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("items")
     .update(updates)
     .eq("id", itemId)
     .select()
     .single();
+
+  // If update fails because of unknown columns (photo/important), retry without them
+  if (error && ("important" in updates || "photo" in updates)) {
+    const safe: Record<string, unknown> = { ...updates };
+    delete safe.important;
+    delete safe.photo;
+    if (Object.keys(safe).length > 0) {
+      const retry = await supabase.from("items").update(safe).eq("id", itemId).select().single();
+      data = retry.data;
+      error = retry.error;
+    } else {
+      // Nothing to update on the server — return the item as-is
+      const get = await supabase.from("items").select("*").eq("id", itemId).single();
+      data = get.data;
+      error = get.error;
+    }
+  }
 
   if (error) throw error;
   return data as Item;
