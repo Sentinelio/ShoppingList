@@ -105,7 +105,7 @@ export default function SettingsPage({ onNavigate }: SettingsPageProps) {
           <div className="text-[10px] text-text-muted mb-2">🔄 {t(lang, "logout")}</div>
           <button
             onClick={() => {
-              localStorage.clear();
+              localStorage.removeItem('polyglot_user_id');
               logout();
               window.location.reload();
             }}

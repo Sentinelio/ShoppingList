@@ -18,7 +18,7 @@ function App() {
   const [route, setRoute] = useState<Route>({ page: 'lists' })
 
   const handleResetDebug = () => {
-    localStorage.clear()
+    localStorage.removeItem('polyglot_user_id')
     logout()
     window.location.reload()
   }

@@ -302,7 +302,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
         <button onClick={() => { setShowSettings(false); setShowRoadmap(true); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🗺️ Roadmap</button>
         <div className="mt-4 p-3 rounded-xl" style={{ background: "rgba(255,92,92,0.05)", border: "1px solid rgba(255,92,92,0.15)" }}>
           <button
-            onClick={() => { localStorage.clear(); logout(); window.location.reload(); }}
+            onClick={() => { localStorage.removeItem('polyglot_user_id'); logout(); window.location.reload(); }}
             className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer"
             style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
           >
