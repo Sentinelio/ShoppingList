@@ -21,6 +21,8 @@ interface ItemDetailProps {
 function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (photo: string | null) => void }) {
   const [editing, setEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const saveUrl = () => {
     const url = urlInput.trim();
@@ -30,14 +32,46 @@ function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (ph
     setEditing(false);
   };
 
+  const handleDelete = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+    } else {
+      onUpdate(null);
+      setConfirmDelete(false);
+    }
+  };
+
+  // Fullscreen photo viewer
+  if (fullscreen && photo) {
+    return (
+      <div
+        className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+        onClick={() => setFullscreen(false)}
+      >
+        <button
+          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-lg cursor-pointer z-10"
+          onClick={() => setFullscreen(false)}
+        >✕</button>
+        <img
+          src={photo}
+          className="max-w-full max-h-full object-contain"
+          style={{ touchAction: "pinch-zoom" }}
+          alt=""
+        />
+      </div>
+    );
+  }
+
   if (photo) {
     return (
       <div className="relative">
         <img
           src={photo}
-          className="w-full rounded-xl object-cover border border-border-light"
+          className="w-full rounded-xl object-cover border border-border-light cursor-pointer active:opacity-90"
           style={{ maxHeight: 200 }}
           alt=""
+          onClick={() => setFullscreen(true)}
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
         <div className="absolute top-2 right-2 flex gap-1.5">
@@ -46,9 +80,10 @@ function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (ph
             className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-sm cursor-pointer active:bg-black/80"
           >✏️</button>
           <button
-            onClick={() => onUpdate(null)}
-            className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-sm cursor-pointer active:bg-black/80"
-          >✕</button>
+            onClick={handleDelete}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-sm cursor-pointer active:bg-black/80"
+            style={{ background: confirmDelete ? "#b71c1c" : "rgba(0,0,0,0.6)", color: "white" }}
+          >{confirmDelete ? "⚠️" : "✕"}</button>
         </div>
         {editing && (
           <div className="mt-2 flex gap-2">

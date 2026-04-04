@@ -77,11 +77,18 @@ export default function StoreMode({
 
       {/* Product area — centered */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {emoji && (
+        {item.photo ? (
+          <img
+            src={item.photo}
+            className="mb-4 rounded-2xl object-contain border border-border-light"
+            style={{ maxWidth: "80%", maxHeight: "35vh" }}
+            alt=""
+          />
+        ) : emoji ? (
           <span className="mb-3" style={{ fontSize: 56, lineHeight: 1 }}>
             {emoji}
           </span>
-        )}
+        ) : null}
 
         <h1
           className="text-center font-bold text-text leading-tight"
