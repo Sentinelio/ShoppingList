@@ -63,6 +63,7 @@ export default function AdminPage(_: AdminPageProps) {
   const [addingCatFor, setAddingCatFor] = useState<string | null>(null);
   const [newStoreForm, setNewStoreForm] = useState({ emoji: "🛒", name: "" });
   const [newCatForm, setNewCatForm] = useState({ emoji: "📦", color: "#8b949e", name: "" });
+  const [confirmClearCat, setConfirmClearCat] = useState<string | null>(null);
 
   const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `item_${Date.now()}`;
 
@@ -571,8 +572,32 @@ export default function AdminPage(_: AdminPageProps) {
                                     disabled={isBuilding}
                                     className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer disabled:opacity-50 shrink-0"
                                     style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
+                                    title="Build products with AI"
                                   >
                                     {isBuilding ? "⏳" : "🧠"}
+                                  </button>
+                                )}
+                                {dictItems.length > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirmClearCat === c.id) {
+                                        clearDictionary(c.id);
+                                        setConfirmClearCat(null);
+                                      } else {
+                                        setConfirmClearCat(c.id);
+                                        setTimeout(() => setConfirmClearCat(prev => prev === c.id ? null : prev), 3000);
+                                      }
+                                    }}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer shrink-0"
+                                    style={{
+                                      background: confirmClearCat === c.id ? "#b71c1c" : "rgba(255,176,61,0.1)",
+                                      color: confirmClearCat === c.id ? "#fff" : "#ffb03d",
+                                      border: confirmClearCat === c.id ? "1px solid #b71c1c" : "1px solid rgba(255,176,61,0.2)",
+                                    }}
+                                    title="Clear all products in this category"
+                                  >
+                                    {confirmClearCat === c.id ? "⚠️" : "🧹"}
                                   </button>
                                 )}
                                 {c.custom && (
@@ -580,6 +605,7 @@ export default function AdminPage(_: AdminPageProps) {
                                     onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
                                     className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
                                     style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+                                    title="Delete this custom category"
                                   >✕</button>
                                 )}
                               </div>
