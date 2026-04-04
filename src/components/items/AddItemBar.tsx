@@ -52,7 +52,12 @@ export default function AddItemBar({
   const [note, setNote] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false);
+  const [photoUrlInput, setPhotoUrlInput] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
 
@@ -61,7 +66,80 @@ export default function AddItemBar({
     setQty("");
     setUnit("");
     setNote("");
+    setPhoto(null);
     setExpanded(false);
+    setShowPhotoMenu(false);
+    setShowUrlInput(false);
+    setPhotoUrlInput("");
+  };
+
+  const resizeImage = (file: File, maxSize = 300): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > maxSize) { h = h * maxSize / w; w = maxSize; } }
+          else { if (h > maxSize) { w = w * maxSize / h; h = maxSize; } }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePasteImage = async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find(t => t.startsWith("image/"));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const file = new File([blob], "paste.jpg", { type: imageType });
+          const b64 = await resizeImage(file);
+          setPhoto(b64);
+          setShowPhotoMenu(false);
+          return;
+        }
+      }
+    } catch { /* clipboard API not available or no image */ }
+    setShowPhotoMenu(false);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      const b64 = await resizeImage(f);
+      setPhoto(b64);
+    }
+    e.target.value = "";
+    setShowPhotoMenu(false);
+  };
+
+  const handleUrlImage = async () => {
+    const url = photoUrlInput.trim();
+    if (!url) return;
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const file = new File([blob], "url.jpg", { type: blob.type });
+      const b64 = await resizeImage(file);
+      setPhoto(b64);
+      setShowUrlInput(false);
+      setPhotoUrlInput("");
+      setShowPhotoMenu(false);
+    } catch {
+      // CORS or network error — try using the URL directly
+      setPhoto(url);
+      setShowUrlInput(false);
+      setPhotoUrlInput("");
+      setShowPhotoMenu(false);
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -191,6 +269,19 @@ export default function AddItemBar({
       {/* Expanded fields */}
       {expanded && (
         <>
+          {/* Photo preview */}
+          {photo && (
+            <div className="px-4 pt-2 flex items-center gap-2">
+              <img src={photo} className="w-12 h-12 rounded-lg object-cover border border-border-light" />
+              <button
+                type="button"
+                onClick={() => setPhoto(null)}
+                className="text-[10px] text-text-muted cursor-pointer active:text-danger"
+              >
+                ✕ Remove
+              </button>
+            </div>
+          )}
           <div className="flex gap-2 items-center px-4 pt-2">
             {/* Qty */}
             <input
@@ -226,14 +317,99 @@ export default function AddItemBar({
               className="flex-1 bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
             />
 
-            {/* Photo button (placeholder) */}
-            <button
-              type="button"
-              className="shrink-0 w-9 h-9 rounded-lg bg-bg border border-border flex items-center justify-center text-text-soft active:bg-card transition-colors cursor-pointer"
-              aria-label="Add photo"
-            >
-              <span style={{ fontSize: 16 }}>{"\uD83D\uDCF7"}</span>
-            </button>
+            {/* Photo button + menu */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowPhotoMenu(!showPhotoMenu)}
+                className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                  photo ? "bg-accent/20 border-accent/30" : "bg-bg border-border text-text-soft active:bg-card"
+                }`}
+                aria-label="Add photo"
+              >
+                <span style={{ fontSize: 16 }}>{photo ? "✅" : "📷"}</span>
+              </button>
+
+              {/* Backdrop to close menu */}
+              {showPhotoMenu && (
+                <div className="fixed inset-0 z-30" onClick={() => { setShowPhotoMenu(false); setShowUrlInput(false); }} />
+              )}
+
+              {/* Photo dropdown menu */}
+              {showPhotoMenu && (
+                <div className="absolute bottom-11 right-0 w-52 bg-card border border-border-light rounded-xl shadow-lg z-40 overflow-hidden">
+                  {/* Paste from clipboard */}
+                  <button
+                    type="button"
+                    onClick={handlePasteImage}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left"
+                  >
+                    <span>📋</span> Paste image
+                  </button>
+
+                  {/* Upload from device */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left border-t border-border"
+                  >
+                    <span>📁</span> Upload from device
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+
+                  {/* URL input */}
+                  {!showUrlInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(true)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-text hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left border-t border-border"
+                    >
+                      <span>🔗</span> Paste URL
+                    </button>
+                  ) : (
+                    <div className="px-3 py-2.5 border-t border-border">
+                      <div className="flex gap-1.5">
+                        <input
+                          type="url"
+                          value={photoUrlInput}
+                          onChange={e => setPhotoUrlInput(e.target.value)}
+                          placeholder="https://..."
+                          autoFocus
+                          onKeyDown={e => { if (e.key === "Enter") handleUrlImage(); if (e.key === "Escape") { setShowUrlInput(false); setPhotoUrlInput(""); } }}
+                          className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent min-w-0"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleUrlImage}
+                          className="px-2 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer"
+                          style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                        >
+                          OK
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remove photo (if one is set) */}
+                  {photo && (
+                    <button
+                      type="button"
+                      onClick={() => { setPhoto(null); setShowPhotoMenu(false); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-bg active:bg-bg transition-colors cursor-pointer text-left border-t border-border"
+                      style={{ color: "#ff5c5c" }}
+                    >
+                      <span>🗑️</span> Remove photo
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Action buttons */}
