@@ -34,7 +34,8 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const { list, members, items, setItems, loading, refresh } = useListDetail(listId);
 
-  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
   const [storeItem, setStoreItem] = useState<Item | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [showChecked, setShowChecked] = useState(false);
@@ -101,7 +102,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const handleDelete = async (itemId: string) => {
     setItems(prev => prev.filter(i => i.id !== itemId));
-    setEditingItem(null);
+    setEditingItemId(null);
     try { await deleteItem(itemId); } catch { /* realtime will sync */ }
   };
 
@@ -122,7 +123,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
             isPending={pendingIds.has(item.id)}
             isFailed={failedIds.has(item.id)}
             onToggle={handleToggle}
-            onClick={setEditingItem}
+            onClick={(item) => setEditingItemId(item.id)}
           />
         </div>
       ))}
@@ -373,7 +374,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       <ItemDetail
         item={editingItem}
         open={editingItem !== null}
-        onClose={() => setEditingItem(null)}
+        onClose={() => setEditingItemId(null)}
         userLang={userLang}
         shelfLang={shelfLang}
         countryFlag={countryFlag}

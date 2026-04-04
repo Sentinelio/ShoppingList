@@ -73,7 +73,7 @@ export default function AddItemBar({
     setPhotoUrlInput("");
   };
 
-  const resizeImage = (file: File, maxSize = 300): Promise<string> => {
+  const resizeImage = (file: File, maxSize = 250): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -85,7 +85,11 @@ export default function AddItemBar({
           else { if (h > maxSize) { w = w * maxSize / h; h = maxSize; } }
           canvas.width = w; canvas.height = h;
           canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL("image/jpeg", 0.7));
+          let result = canvas.toDataURL("image/webp", 0.6);
+          if (!result.startsWith("data:image/webp")) {
+            result = canvas.toDataURL("image/jpeg", 0.5);
+          }
+          resolve(result);
         };
         img.src = e.target?.result as string;
       };

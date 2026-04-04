@@ -24,7 +24,7 @@ function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (ph
   const [showUrl, setShowUrl] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const resize = (file: File, max = 400): Promise<string> =>
+  const resize = (file: File, max = 250): Promise<string> =>
     new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -36,7 +36,12 @@ function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (ph
           else { if (h > max) { w = w * max / h; h = max; } }
           c.width = w; c.height = h;
           c.getContext("2d")!.drawImage(img, 0, 0, w, h);
-          resolve(c.toDataURL("image/jpeg", 0.7));
+          // Try WebP first (smaller), fallback to JPEG
+          let result = c.toDataURL("image/webp", 0.6);
+          if (!result.startsWith("data:image/webp")) {
+            result = c.toDataURL("image/jpeg", 0.5);
+          }
+          resolve(result);
         };
         img.src = e.target?.result as string;
       };
