@@ -370,11 +370,12 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         <h3 className="text-lg font-bold mb-4">👥 {t(lang, "people")}</h3>
         {activeMembers.map((m, i) => (
           <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">
-            <Avatar name={m.user_id.slice(0, 4)} index={i} size={32} />
+            <Avatar name={m.user_name || m.user_id.slice(0, 4)} index={i} size={32} />
             <div className="flex-1">
-              <div className="font-semibold text-sm">{m.user_id === user?.id ? user.name : m.user_id.slice(0, 6)}</div>
+              <div className="font-semibold text-sm">{m.user_name || m.user_id.slice(0, 6)}</div>
               <div className="text-text-muted text-xs">
-                {m.user_id === user?.id && <>{getLangFlag(user.lang)} {getLangName(user.lang)} · {getCountryFlag(user.country)}</>}
+                {m.user_lang && <>{getLangFlag(m.user_lang)} {getLangName(m.user_lang)}</>}
+                {m.user_country && <> · {getCountryFlag(m.user_country)}</>}
               </div>
             </div>
             {m.user_id === user?.id && (
@@ -404,9 +405,9 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
             </div>
             {pendingMembers.map((m, i) => (
               <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">
-                <Avatar name={m.user_id.slice(0, 4)} index={activeMembers.length + i} size={32} />
+                <Avatar name={m.user_name || m.user_id.slice(0, 4)} index={activeMembers.length + i} size={32} />
                 <div className="flex-1">
-                  <div className="font-semibold text-sm">{m.user_id.slice(0, 8)}</div>
+                  <div className="font-semibold text-sm">{m.user_name || m.user_id.slice(0, 8)}</div>
                   <div className="text-text-muted text-xs">{t(lang, "waitingApproval")}</div>
                 </div>
                 <button

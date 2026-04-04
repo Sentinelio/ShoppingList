@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useLists, deleteList } from "../hooks/useList";
+import { useLists, deleteList, useMyPendingRequests, cancelJoinRequest } from "../hooks/useList";
 import { IS_DEMO } from "../lib/supabase";
 import { demoGetMembers, demoGetItems } from "../lib/demoStore";
 import { t } from "../data/i18n";
@@ -29,6 +29,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const { user, updateUser, logout } = useAuth();
   const lang = (user?.lang ?? "en") as Lang;
   const { lists, loading, refresh } = useLists(user?.id);
+  const { requests: pendingRequests, refresh: refreshPending } = useMyPendingRequests(user?.id);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -46,6 +47,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
 
   const handleJoined = () => {
     refresh();
+    refreshPending();
   };
 
   const handleDelete = async (listId: string) => {
@@ -195,6 +197,33 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                   </div>
                 </button>
               </SwipeRow>
+            ))}
+          </div>
+        )}
+
+        {/* My pending join requests */}
+        {pendingRequests.length > 0 && (
+          <div className="mt-4">
+            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 px-1 flex items-center gap-2">
+              <span>⏳ {t(lang, "pendingReqs")} ({pendingRequests.length})</span>
+            </div>
+            {pendingRequests.map(pr => (
+              <div key={pr.list_id} className="bg-card rounded-xl border border-border p-3.5 mb-2 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: "rgba(240,136,62,0.1)" }}>
+                  ⏳
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm">{pr.list_name}</div>
+                  <div className="text-text-muted text-xs mt-0.5">{t(lang, "waitingOwner")}</div>
+                </div>
+                <button
+                  onClick={async () => { await cancelJoinRequest(pr.list_id, user?.id ?? ""); refreshPending(); }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                  style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
+                >
+                  ✕ {t(lang, "cancel")}
+                </button>
+              </div>
             ))}
           </div>
         )}

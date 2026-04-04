@@ -35,6 +35,10 @@ export interface ListMember {
   role: 'owner' | 'member';
   status: 'active' | 'pending' | 'rejected';
   joined_at: string;
+  // Enriched from users table join
+  user_name?: string;
+  user_lang?: string;
+  user_country?: string;
 }
 
 export interface Item {
