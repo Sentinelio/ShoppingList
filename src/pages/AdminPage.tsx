@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
 import { ALL_LANGUAGES } from "../data/allLanguages";
@@ -8,6 +8,14 @@ import { COUNTRIES } from "../data/countries";
 import { CATEGORIES, CATEGORY_ORDER } from "../data/categories";
 import { LOCAL_DICTIONARY } from "../data/localDictionary";
 import { STORE_TYPES } from "../data/storeTypes";
+import {
+  getAllStoreTypesWithCategories,
+  addCustomStoreType,
+  addCustomCategory,
+  removeCustomStoreType,
+  removeCustomCategory,
+  type StoreTypeWithCategories,
+} from "../lib/customStoreConfig";
 import { SEED_CATEGORIES, TOTAL_SEED_PRODUCTS } from "../data/seedCategories";
 
 type Tab = "dictionary" | "categories" | "languages" | "users" | "lists" | "stats" | "builder" | "roadmap";
@@ -50,6 +58,17 @@ export default function AdminPage(_: AdminPageProps) {
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [confirmClearDict, setConfirmClearDict] = useState<"all" | "filtered" | null>(null);
+  const [collapsedStores, setCollapsedStores] = useState<Set<string>>(new Set());
+  const [storeCatVersion, setStoreCatVersion] = useState(0); // bumps to force re-read of localStorage
+  const [addingStore, setAddingStore] = useState(false);
+  const [addingCatFor, setAddingCatFor] = useState<string | null>(null);
+  const [newStoreForm, setNewStoreForm] = useState({ id: "", emoji: "🛒", en: "", es: "", pl: "" });
+  const [newCatForm, setNewCatForm] = useState({ id: "", emoji: "📦", color: "#8b949e", en: "", es: "", pl: "" });
+
+  const storeTypesWithCats = useMemo(() => {
+    void storeCatVersion; // dependency
+    return getAllStoreTypesWithCategories();
+  }, [storeCatVersion]);
   const [rmCollapsed, setRmCollapsed] = useState<Record<string, boolean>>({});
   const [dictRows, setDictRows] = useState<DictRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -506,30 +525,167 @@ export default function AdminPage(_: AdminPageProps) {
 
         {/* ── Categories ── */}
         {tab === "categories" && (
-          <div className="space-y-2">
-            <p className="text-text-muted text-xs mb-3">Current categories used for product classification</p>
-            {CATEGORY_ORDER.map(cat => {
-              const c = CATEGORIES[cat];
-              if (!c) return null;
-              const dictCount = dictRows.filter(d => d.category === cat).length;
-              const localCount = LOCAL_DICTIONARY.filter(d => d.cat === cat).length;
-              return (
-                <div key={cat} className="bg-card rounded-xl p-4 border border-border flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background: `${c.color}20` }}>
-                    {c.emoji}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-sm">{c.en}</div>
-                    <div className="text-text-muted text-xs">{c.es} · {c.pl}</div>
-                    <div className="text-text-muted text-[10px] mt-0.5">Key: {cat} · Color: {c.color}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold" style={{ color: c.color }}>{dictCount + localCount}</div>
-                    <div className="text-[10px] text-text-muted">products</div>
-                  </div>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-text-muted text-xs">{storeTypesWithCats.length} store types · {storeTypesWithCats.reduce((a, s) => a + s.categories.length, 0)} categories</p>
+              <button
+                onClick={() => { setAddingStore(true); setNewStoreForm({ id: "", emoji: "🛒", en: "", es: "", pl: "" }); }}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+              >
+                + Store type
+              </button>
+            </div>
+
+            {/* Add store type form */}
+            {addingStore && (
+              <div className="bg-card rounded-xl p-3 border border-accent/30 mb-3 space-y-2">
+                <div className="text-xs font-bold mb-1">New store type</div>
+                <div className="flex gap-2">
+                  <input value={newStoreForm.emoji} onChange={e => setNewStoreForm(p => ({ ...p, emoji: e.target.value }))} placeholder="🛒" className="w-14 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none text-center" />
+                  <input value={newStoreForm.id} onChange={e => setNewStoreForm(p => ({ ...p, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") }))} placeholder="id (e.g. bookstore)" className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-2 text-sm text-text outline-none font-mono" />
                 </div>
-              );
-            })}
+                <div className="grid grid-cols-3 gap-2">
+                  <input value={newStoreForm.en} onChange={e => setNewStoreForm(p => ({ ...p, en: e.target.value }))} placeholder="English" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                  <input value={newStoreForm.es} onChange={e => setNewStoreForm(p => ({ ...p, es: e.target.value }))} placeholder="Español" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                  <input value={newStoreForm.pl} onChange={e => setNewStoreForm(p => ({ ...p, pl: e.target.value }))} placeholder="Polski" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (!newStoreForm.id.trim() || !newStoreForm.en.trim()) return;
+                      addCustomStoreType({
+                        id: newStoreForm.id.trim(),
+                        emoji: newStoreForm.emoji.trim() || "🛒",
+                        en: newStoreForm.en.trim(),
+                        es: newStoreForm.es.trim() || newStoreForm.en.trim(),
+                        pl: newStoreForm.pl.trim() || newStoreForm.en.trim(),
+                      });
+                      setStoreCatVersion(v => v + 1);
+                      setAddingStore(false);
+                      showToast("Store type added");
+                    }}
+                    className="flex-1 py-2 rounded-lg text-xs font-semibold text-white cursor-pointer"
+                    style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                  >Save</button>
+                  <button onClick={() => setAddingStore(false)} className="px-3 py-2 rounded-lg text-xs text-text-muted border border-border-light cursor-pointer">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Store types with categories */}
+            <div className="space-y-2">
+              {storeTypesWithCats.map((st: StoreTypeWithCategories) => {
+                const isCollapsed = collapsedStores.has(st.id);
+                return (
+                  <div key={st.id} className="bg-card rounded-xl border border-border overflow-hidden">
+                    {/* Store type header */}
+                    <div className="flex items-center gap-2 p-3">
+                      <button
+                        onClick={() => setCollapsedStores(prev => {
+                          const next = new Set(prev);
+                          if (next.has(st.id)) next.delete(st.id); else next.add(st.id);
+                          return next;
+                        })}
+                        className="flex items-center gap-2 flex-1 cursor-pointer text-left"
+                      >
+                        <span className="text-[10px] text-text-muted" style={{ transform: isCollapsed ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
+                        <span className="text-xl">{st.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm truncate">{st.en}</div>
+                          <div className="text-text-muted text-[10px] truncate">{st.es} · {st.pl}</div>
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bg text-text-muted">{st.categories.length}</span>
+                      </button>
+                      <button
+                        onClick={() => { setAddingCatFor(st.id); setNewCatForm({ id: "", emoji: "📦", color: "#8b949e", en: "", es: "", pl: "" }); }}
+                        className="px-2 py-1 rounded-lg text-[10px] font-semibold text-accent cursor-pointer"
+                        style={{ background: "rgba(240,136,62,0.1)", border: "1px solid rgba(240,136,62,0.2)" }}
+                      >+ Cat</button>
+                      {st.custom && (
+                        <button
+                          onClick={() => { removeCustomStoreType(st.id); setStoreCatVersion(v => v + 1); showToast("Store type removed"); }}
+                          className="w-6 h-6 rounded-lg text-[11px] cursor-pointer flex items-center justify-center"
+                          style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+                        >✕</button>
+                      )}
+                    </div>
+
+                    {/* Add category form */}
+                    {addingCatFor === st.id && (
+                      <div className="px-3 pb-3 space-y-2 border-t border-border pt-3">
+                        <div className="text-[10px] font-bold text-text-muted">New category in {st.en}</div>
+                        <div className="flex gap-2">
+                          <input value={newCatForm.emoji} onChange={e => setNewCatForm(p => ({ ...p, emoji: e.target.value }))} placeholder="📦" className="w-12 bg-bg border border-border-light rounded-lg px-1 py-2 text-sm text-text outline-none text-center" />
+                          <input value={newCatForm.color} onChange={e => setNewCatForm(p => ({ ...p, color: e.target.value }))} placeholder="#8b949e" className="w-20 bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none font-mono" />
+                          <input value={newCatForm.id} onChange={e => setNewCatForm(p => ({ ...p, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") }))} placeholder="id" className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none font-mono" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input value={newCatForm.en} onChange={e => setNewCatForm(p => ({ ...p, en: e.target.value }))} placeholder="English" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                          <input value={newCatForm.es} onChange={e => setNewCatForm(p => ({ ...p, es: e.target.value }))} placeholder="Español" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                          <input value={newCatForm.pl} onChange={e => setNewCatForm(p => ({ ...p, pl: e.target.value }))} placeholder="Polski" className="bg-bg border border-border-light rounded-lg px-2 py-2 text-xs text-text outline-none" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (!newCatForm.id.trim() || !newCatForm.en.trim()) return;
+                              addCustomCategory({
+                                id: newCatForm.id.trim(),
+                                emoji: newCatForm.emoji.trim() || "📦",
+                                color: newCatForm.color.trim() || "#8b949e",
+                                en: newCatForm.en.trim(),
+                                es: newCatForm.es.trim() || newCatForm.en.trim(),
+                                pl: newCatForm.pl.trim() || newCatForm.en.trim(),
+                                storeType: st.id,
+                              });
+                              setStoreCatVersion(v => v + 1);
+                              setAddingCatFor(null);
+                              showToast("Category added");
+                            }}
+                            className="flex-1 py-2 rounded-lg text-xs font-semibold text-white cursor-pointer"
+                            style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                          >Save</button>
+                          <button onClick={() => setAddingCatFor(null)} className="px-3 py-2 rounded-lg text-xs text-text-muted border border-border-light cursor-pointer">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Categories list */}
+                    {!isCollapsed && st.categories.length > 0 && (
+                      <div className="border-t border-border">
+                        {st.categories.map(c => {
+                          const dictCount = dictRows.filter(d => d.category === c.id).length;
+                          const localCount = LOCAL_DICTIONARY.filter(d => d.cat === c.id).length;
+                          const total = dictCount + localCount;
+                          return (
+                            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border last:border-b-0">
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: `${c.color}20` }}>
+                                {c.emoji}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold text-text truncate">{c.en}</div>
+                                <div className="text-text-muted text-[10px] truncate">{c.es} · {c.pl} · <span className="font-mono">{c.id}</span></div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-sm font-bold" style={{ color: c.color }}>{total}</div>
+                                <div className="text-[9px] text-text-muted">products</div>
+                              </div>
+                              {c.custom && (
+                                <button
+                                  onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
+                                  className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
+                                  style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+                                >✕</button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
