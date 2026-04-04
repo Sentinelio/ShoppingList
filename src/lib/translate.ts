@@ -131,15 +131,30 @@ export async function translateProduct(
     }
   } catch { /* continue to API */ }
 
-  // 3. Supabase Edge Function (Claude API)
-  try {
-    console.log('[BabelCart] Calling translate for:', text);
-    const { data: fnData, error } = await supabase.functions.invoke('translate', {
-      body: { text, langs: targetLangs },
-    });
-    console.log('[BabelCart] Edge Function response:', JSON.stringify({ data: fnData, error }));
+  // 3. Supabase Edge Function (Claude API) — using direct fetch for reliability
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const fnUrl = `${supabaseUrl}/functions/v1/translate`;
 
-    if (error) throw new Error(`Edge Function error: ${JSON.stringify(error)}`);
+  try {
+    console.log('[BabelCart] Calling Edge Function:', fnUrl);
+    const response = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+        'apikey': supabaseKey,
+      },
+      body: JSON.stringify({ text, langs: targetLangs }),
+    });
+
+    console.log('[BabelCart] Response status:', response.status);
+    const fnData = await response.json();
+    console.log('[BabelCart] Response data:', JSON.stringify(fnData));
+
+    if (!response.ok) {
+      throw new Error(`Edge Function ${response.status}: ${JSON.stringify(fnData)}`);
+    }
 
     // Handle both formats: {translations, category} or {t, c}
     const translations = fnData.translations ?? fnData.t ?? {};

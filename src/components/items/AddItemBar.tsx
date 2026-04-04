@@ -123,7 +123,7 @@ export default function AddItemBar({
 
     setTranslating(true);
     try {
-      const result = await translateProduct(parsed.text, targetLangs);
+      const result = await translateProduct(parsed.text, targetLangs, userLang);
 
       // Check for duplicates
       const existing = await checkDuplicate(listId, result.translations);
