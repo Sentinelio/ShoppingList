@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
+import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
@@ -109,6 +110,10 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>,
   ) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
+    // Persist important locally as a fallback (works even if DB column is missing)
+    if ("important" in updates && typeof updates.important === "boolean") {
+      setLocallyImportant(itemId, updates.important);
+    }
     try { await updateItem(itemId, updates); } catch { /* realtime will sync */ }
   };
 

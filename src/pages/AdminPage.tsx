@@ -167,7 +167,10 @@ export default function AdminPage({ onBack }: AdminPageProps) {
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
       {/* Header */}
       <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex items-center gap-3">
-        <button onClick={onBack} className="text-text-soft text-lg cursor-pointer active:text-text">←</button>
+        <button
+          onClick={() => { if (tab !== "stats") setTab("stats"); else onBack(); }}
+          className="text-text-soft text-lg cursor-pointer active:text-text"
+        >←</button>
         <h1 className="text-lg font-bold">🛠️ Admin Panel</h1>
         <span className="text-text-muted text-xs ml-auto">{IS_DEMO ? "Demo Mode" : "Supabase"}</span>
       </header>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase, IS_DEMO, type List, type ListMember, type Item } from "../lib/supabase";
+import { getAllLocallyImportant } from "../lib/importantStore";
 import {
   demoGetLists, demoCreateList, demoGetList, demoJoinList,
   demoDeleteList, demoLeaveList, demoGetMembers, demoGetItems, onDemoChange,
@@ -165,7 +166,11 @@ export function useListDetail(listId: string | undefined) {
         return { ...m, user_name: u?.name, user_lang: u?.lang, user_country: u?.country };
       });
       setMembers(demoMembers);
-      setItems(demoGetItems(listId));
+      const localImportant = getAllLocallyImportant();
+      setItems(demoGetItems(listId).map(i => ({
+        ...i,
+        important: i.important || localImportant.has(i.id),
+      })));
       setLoading(false);
       return;
     }
@@ -185,7 +190,13 @@ export function useListDetail(listId: string | undefined) {
         user_country: m.users?.country,
       })));
     }
-    if (!itemsRes.error && itemsRes.data) setItems(itemsRes.data as Item[]);
+    if (!itemsRes.error && itemsRes.data) {
+      const localImportant = getAllLocallyImportant();
+      setItems((itemsRes.data as Item[]).map(i => ({
+        ...i,
+        important: i.important || localImportant.has(i.id),
+      })));
+    }
 
     setLoading(false);
   }, [listId]);
@@ -210,15 +221,26 @@ export function useListDetail(listId: string | undefined) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "items", filter: `list_id=eq.${listId}` },
         (payload) => {
-          setItems((prev) => [...prev, payload.new as Item]);
+          const inserted = payload.new as Item;
+          const localImportant = getAllLocallyImportant();
+          setItems((prev) => [
+            ...prev,
+            { ...inserted, important: inserted.important || localImportant.has(inserted.id) },
+          ]);
         },
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "items", filter: `list_id=eq.${listId}` },
         (payload) => {
+          const updated = payload.new as Item;
+          const localImportant = getAllLocallyImportant();
           setItems((prev) =>
-            prev.map((item) => (item.id === (payload.new as Item).id ? (payload.new as Item) : item)),
+            prev.map((item) =>
+              item.id === updated.id
+                ? { ...updated, important: updated.important || localImportant.has(updated.id) }
+                : item
+            ),
           );
         },
       )
