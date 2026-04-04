@@ -99,7 +99,13 @@ export async function translateProduct(
   // 1. Local dictionary — only use if exact match
   const local = findInLocalDict(text);
   if (local?.exact && local.translations) {
-    return { translations: local.translations, category: local.category };
+    // Check if local dict covers ALL requested languages
+    const missingLangs = targetLangs.filter(l => !local.translations![l]);
+    if (missingLangs.length === 0) {
+      return { translations: local.translations, category: local.category };
+    }
+    // Local dict has partial coverage — continue to API for missing langs
+    // but keep the local translations as a base
   }
 
   // In demo mode without Supabase, skip API calls
@@ -127,7 +133,12 @@ export async function translateProduct(
           translations[lang] = dbEntry.translations[lang];
         }
       }
-      return { translations, category: dbEntry.category ?? 'other' };
+      // Only return if ALL requested languages are covered
+      const missingLangs = targetLangs.filter(l => !translations[l]);
+      if (missingLangs.length === 0) {
+        return { translations, category: dbEntry.category ?? 'other' };
+      }
+      // Partial coverage — continue to API but merge with what we have
     }
   } catch { /* continue to API */ }
 
@@ -157,8 +168,14 @@ export async function translateProduct(
     }
 
     // Handle both formats: {translations, category} or {t, c}
-    const translations = fnData.translations ?? fnData.t ?? {};
+    const apiTranslations = fnData.translations ?? fnData.t ?? {};
     const category = fnData.category ?? fnData.c ?? local?.category ?? 'other';
+
+    // Merge: local dict + DB + API (API wins for conflicts)
+    const translations: Record<string, string> = {
+      ...(local?.translations ?? {}),
+      ...apiTranslations,
+    };
 
     const result: TranslateResult = { translations, category };
 

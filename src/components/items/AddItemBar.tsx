@@ -4,6 +4,7 @@ import { translateProduct } from "../../lib/translate";
 import { addItem, checkDuplicate } from "../../hooks/useItems";
 import { t, type Lang } from "../../data/i18n";
 import type { Item } from "../../lib/supabase";
+import { getEnabledLangs } from "../../lib/langConfig";
 
 interface AddItemBarProps {
   listId: string;
@@ -53,7 +54,7 @@ export default function AddItemBar({
   const [translating, setTranslating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const targetLangs = [...new Set([userLang, shelfLang, "en"])];
+  const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
 
   const reset = () => {
     setInput("");
