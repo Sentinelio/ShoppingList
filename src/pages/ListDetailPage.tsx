@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
@@ -39,16 +39,23 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
   const [storeItem, setStoreItem] = useState<Item | null>(null);
   const collapsedKey = `babelcart_collapsed_${listId}`;
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [showChecked, setShowChecked] = useState<boolean>(false);
+
+  // Re-hydrate collapse state from localStorage whenever listId changes
+  useEffect(() => {
     try {
-      const raw = localStorage.getItem(collapsedKey);
-      if (raw) return new Set(JSON.parse(raw) as string[]);
-    } catch { /* ignore */ }
-    return new Set();
-  });
-  const [showChecked, setShowChecked] = useState<boolean>(() => {
-    try { return localStorage.getItem(`${collapsedKey}_done`) === "1"; } catch { return false; }
-  });
+      const raw = localStorage.getItem(`babelcart_collapsed_${listId}`);
+      setCollapsedCategories(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
+    } catch {
+      setCollapsedCategories(new Set());
+    }
+    try {
+      setShowChecked(localStorage.getItem(`babelcart_collapsed_${listId}_done`) === "1");
+    } catch {
+      setShowChecked(false);
+    }
+  }, [listId]);
   const [confirmClear, setConfirmClear] = useState(false);
   const [pendingIds] = useState<Set<string>>(new Set());
   const [failedIds] = useState<Set<string>>(new Set());
