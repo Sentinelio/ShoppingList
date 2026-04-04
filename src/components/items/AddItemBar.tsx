@@ -1,8 +1,8 @@
 import { useState, useRef, type FormEvent, type KeyboardEvent } from "react";
 import { parseQty } from "../../lib/qtyParser";
 import { translateProduct } from "../../lib/translate";
-import { addItem, checkDuplicate } from "../../hooks/useItems";
-import { t, type Lang } from "../../data/i18n";
+import { addItem } from "../../hooks/useItems";
+import { t } from "../../data/i18n";
 import type { Item } from "../../lib/supabase";
 import { getEnabledLangs } from "../../lib/langConfig";
 
@@ -44,7 +44,7 @@ export default function AddItemBar({
   onItemAdded,
   onDuplicateFound,
 }: AddItemBarProps) {
-  const lang = (userLang === "en" || userLang === "es" || userLang === "pl" ? userLang : "en") as Lang;
+  const lang = userLang;
 
   const [input, setInput] = useState("");
   const [qty, setQty] = useState("");

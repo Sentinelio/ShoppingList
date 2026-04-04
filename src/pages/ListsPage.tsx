@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useLists, deleteList, useMyPendingRequests, cancelJoinRequest } from "../hooks/useList";
 import { IS_DEMO } from "../lib/supabase";
+import { copyToClipboard } from "../lib/clipboard";
 import { demoGetMembers, demoGetItems } from "../lib/demoStore";
 import { t } from "../data/i18n";
 import type { Lang } from "../data/i18n";
@@ -263,8 +264,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
             </div>
             <button
               onClick={() => {
-                try { navigator.clipboard.writeText(editList.code); } catch { try { const ta = document.createElement("textarea"); ta.value = editList.code; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } catch {} }
-                setCopied(true); setTimeout(() => setCopied(false), 2000);
+                copyToClipboard(editList.code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
               }}
               className="w-full py-3 rounded-xl font-semibold cursor-pointer active:brightness-90 text-white"
               style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
@@ -326,10 +326,10 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
           </div>
         </div>
         <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
-        <button onClick={() => { setShowSettings(false); window.location.hash = '#admin'; window.location.reload(); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🛠️ Admin Panel</button>
+        <button onClick={() => { setShowSettings(false); onNavigate("admin"); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🛠️ Admin Panel</button>
         <div className="mt-4 p-3 rounded-xl" style={{ background: "rgba(255,92,92,0.05)", border: "1px solid rgba(255,92,92,0.15)" }}>
           <button
-            onClick={() => { localStorage.removeItem('polyglot_user_id'); logout(); window.location.reload(); }}
+            onClick={() => { logout(); }}
             className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer"
             style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
           >

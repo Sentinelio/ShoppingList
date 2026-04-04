@@ -62,6 +62,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
   const [newCat, setNewCat] = useState("other");
   const [newTranslations, setNewTranslations] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
+  const [, forceUpdate] = useState(0);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -536,7 +537,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                       </div>
                       {!isCore && (
                         <button
-                          onClick={() => { disableLang(lang.code); window.location.reload(); }}
+                          onClick={() => { disableLang(lang.code); forceUpdate(n => n + 1); }}
                           className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
                           style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
                         >
@@ -575,7 +576,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => { enableLang(lang.code); window.location.reload(); }}
+                    onClick={() => { enableLang(lang.code); forceUpdate(n => n + 1); }}
                     className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                     style={{ background: "linear-gradient(135deg, #f09848, #e07028)", color: "white" }}
                   >

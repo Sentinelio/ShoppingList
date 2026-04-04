@@ -105,9 +105,7 @@ export default function SettingsPage({ onNavigate }: SettingsPageProps) {
           <div className="text-[10px] text-text-muted mb-2">🔄 {t(lang, "logout")}</div>
           <button
             onClick={() => {
-              localStorage.removeItem('polyglot_user_id');
               logout();
-              window.location.reload();
             }}
             className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer transition-colors"
             style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}

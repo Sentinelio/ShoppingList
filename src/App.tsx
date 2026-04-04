@@ -31,9 +31,7 @@ function App() {
   }, [])
 
   const handleResetDebug = () => {
-    localStorage.removeItem('polyglot_user_id')
     logout()
-    window.location.reload()
   }
 
   const navigate = useCallback((page: string, params?: Record<string, string>) => {

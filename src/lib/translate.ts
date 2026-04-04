@@ -148,7 +148,6 @@ export async function translateProduct(
   const fnUrl = `${supabaseUrl}/functions/v1/translate`;
 
   try {
-    console.log('[BabelCart] Calling Edge Function:', fnUrl);
     const response = await fetch(fnUrl, {
       method: 'POST',
       headers: {
@@ -159,9 +158,7 @@ export async function translateProduct(
       body: JSON.stringify({ text, langs: targetLangs }),
     });
 
-    console.log('[BabelCart] Response status:', response.status);
     const fnData = await response.json();
-    console.log('[BabelCart] Response data:', JSON.stringify(fnData));
 
     if (!response.ok) {
       throw new Error(`Edge Function ${response.status}: ${JSON.stringify(fnData)}`);
@@ -191,8 +188,7 @@ export async function translateProduct(
     }
 
     return result;
-  } catch (err) {
-    console.error('[BabelCart] Translation failed:', err);
+  } catch {
     const translations: Record<string, string> = { [userLang]: text, en: text };
     return { translations, category: local?.category ?? 'other' };
   }

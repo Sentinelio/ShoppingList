@@ -3,7 +3,7 @@ import type { Item } from "../../lib/supabase";
 import Modal from "../ui/Modal";
 import ProductIcon from "../ui/ProductIcon";
 import { getLangFlag, getLangName } from "../../data/langs";
-import { t, type Lang } from "../../data/i18n";
+import { t } from "../../data/i18n";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -40,7 +40,7 @@ export default function ItemDetail({
   onDelete,
   onShowStore,
 }: ItemDetailProps) {
-  const lang = (userLang === "en" || userLang === "es" || userLang === "pl" ? userLang : "en") as Lang;
+  const lang = userLang;
 
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");

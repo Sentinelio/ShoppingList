@@ -2,10 +2,11 @@ import { useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { t, type Lang } from "../data/i18n";
+import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
 import { getLangFlag, getLangName } from "../data/langs";
+import { copyToClipboard } from "../lib/clipboard";
 import type { Item } from "../lib/supabase";
 import ItemCard from "../components/items/ItemCard";
 import AddItemBar from "../components/items/AddItemBar";
@@ -29,9 +30,9 @@ interface CategoryGroup {
 export default function ListDetailPage({ listId, onNavigate }: ListDetailPageProps) {
   const { user, shelfLang } = useAuth();
   const userLang = user?.lang ?? "en";
-  const lang = (userLang === "en" || userLang === "es" || userLang === "pl" ? userLang : "en") as Lang;
+  const lang = userLang;
 
-  const { list, members, items, setItems, loading } = useListDetail(listId);
+  const { list, members, items, setItems, loading, refresh } = useListDetail(listId);
 
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [storeItem, setStoreItem] = useState<Item | null>(null);
@@ -381,8 +382,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         </div>
         <button
           onClick={() => {
-            try { navigator.clipboard.writeText(list?.code ?? ""); } catch { /* fallback */ try { const ta = document.createElement("textarea"); ta.value = list?.code ?? ""; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } catch {} }
-            setCopied(true); setTimeout(() => setCopied(false), 2000);
+            copyToClipboard(list?.code ?? "").then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
           }}
           className="w-full mt-3 py-3 rounded-xl font-semibold cursor-pointer active:brightness-90 text-white"
           style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
@@ -403,14 +403,14 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                   <div className="text-text-muted text-xs">{t(lang, "waitingApproval")}</div>
                 </div>
                 <button
-                  onClick={async () => { await approveMember(listId, m.user_id); window.location.reload(); }}
+                  onClick={async () => { await approveMember(listId, m.user_id); refresh(); }}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
                 >
                   {t(lang, "accept")}
                 </button>
                 <button
-                  onClick={async () => { await rejectMember(listId, m.user_id); window.location.reload(); }}
+                  onClick={async () => { await rejectMember(listId, m.user_id); refresh(); }}
                   className="px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
                 >
@@ -440,8 +440,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         </div>
         <button
           onClick={() => {
-            try { navigator.clipboard.writeText(list?.code ?? ""); } catch { try { const ta = document.createElement("textarea"); ta.value = list?.code ?? ""; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); } catch {} }
-            setCopied(true); setTimeout(() => setCopied(false), 2000);
+            copyToClipboard(list?.code ?? "").then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
           }}
           className="w-full mt-3 py-3 rounded-xl font-semibold cursor-pointer active:brightness-90 text-white"
           style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
