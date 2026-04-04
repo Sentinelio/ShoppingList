@@ -34,10 +34,8 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showRoadmap, setShowRoadmap] = useState(false);
   const [editListId, setEditListId] = useState<string | null>(null);
   const [profileName, setProfileName] = useState(user?.name ?? "");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
 
   const handleCreated = (listId: string) => {
@@ -328,7 +326,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
           </div>
         </div>
         <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
-        <button onClick={() => { setShowSettings(false); setShowRoadmap(true); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🗺️ Roadmap</button>
+        <button onClick={() => { setShowSettings(false); window.location.hash = '#admin'; window.location.reload(); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🛠️ Admin Panel</button>
         <div className="mt-4 p-3 rounded-xl" style={{ background: "rgba(255,92,92,0.05)", border: "1px solid rgba(255,92,92,0.15)" }}>
           <button
             onClick={() => { localStorage.removeItem('polyglot_user_id'); logout(); window.location.reload(); }}
@@ -340,173 +338,6 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
         </div>
       </Modal>
 
-      {/* Roadmap Modal */}
-      <Modal open={showRoadmap} onClose={() => setShowRoadmap(false)}>
-        <h3 className="text-lg font-bold mb-1">🗺️ BabelCart — Roadmap</h3>
-        <p className="text-text-muted text-xs mb-3">Escribe en tu idioma. Compra en cualquier país.</p>
-
-        {/* Unbreakable rules */}
-        <div className="rounded-xl p-3 mb-4 border border-border-light" style={{ background: "rgba(255,255,255,0.03)" }}>
-          <button onClick={() => setCollapsed(p => ({ ...p, rules: !p.rules }))} className="flex items-center gap-2 w-full text-left cursor-pointer text-xs font-bold text-text">
-            <span className="text-[9px]" style={{ transform: collapsed.rules ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
-            🔒 REGLAS INQUEBRANTABLES
-            <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bg text-text-muted">7</span>
-          </button>
-          {!collapsed.rules && <div className="mt-2.5 space-y-1.5">
-            {[
-              ["🚫", "Cero anuncios. Nunca. Ni en free, ni en ningún tier. Estás en el pasillo del super, no en una valla publicitaria."],
-              ["🔐", "Cero venta de datos. Tus patrones de compra son tuyos. No somos Listonic."],
-              ["📤", "Export e import abiertos. Tus datos son tuyos. Si te vas, te llevas todo. Si vuelves, vuelves con todo."],
-              ["⚡", "Sin registro obligatorio. Nombre, idioma, país. 10 segundos y estás dentro. Sin email, sin contraseña."],
-              ["🌍", "Multilingüe de verdad. No es un añadido — es el core. Cada feature se diseña pensando en 5 idiomas, no en 1."],
-              ["🤝", "Lo básico es gratis para siempre. Compartir, traducir, añadir miembros — nunca detrás de un paywall."],
-              ["👁️", "Transparencia total. El roadmap está en la app. El usuario ve qué hay hecho, qué falta y hacia dónde vamos."],
-            ].map(([icon, text], i) => (
-              <div key={i} className="flex gap-2.5 text-xs text-text-soft leading-relaxed">
-                <span className="shrink-0">{icon}</span><span>{text}</span>
-              </div>
-            ))}
-          </div>}
-        </div>
-
-        {[
-          { title: "✅ MVP — Completado", color: "#3dd68c", items: [
-            [true, "Listas compartidas multilingües"],
-            [true, "Traducción automática vía Claude API"],
-            [true, "Tu idioma + idioma del estante (país)"],
-            [true, "Invitación por código + aprobación"],
-            [true, "Seguimiento de solicitudes + cancelar"],
-            [true, "Swipe-to-delete con confirmación 2 pasos"],
-            [true, "Aceptar/rechazar/eliminar miembros"],
-            [true, "Cambio de usuario para testing"],
-            [true, "Interfaz en 3 idiomas (en/es/pl)"],
-            [true, "Edición de perfil con propagación"],
-            [true, "122 iconos emoji (4 idiomas)"],
-            [true, "UI optimista — cero bloqueos"],
-            [true, "Fallo de traducción + reintentar"],
-            [true, "Cantidades y unidades (2kg, 1L, 6x)"],
-            [true, "Diccionario local — 96 productos instant"],
-            [true, "Duplicados cross-idioma + merge cantidades"],
-            [true, "Notas por item"],
-            [true, "Tarjeta expandible para añadir (nombre + qty + unidad + nota)"],
-            [true, "Editar qty/unidad/nota desde detalle"],
-            [true, "Capitalización automática primera letra"],
-            [true, "Modo Mostrar — pantalla completa para enseñar al dependiente"],
-            [true, "Frases pre-configuradas en Modo Mostrar (6 frases, 12 idiomas)"],
-            [true, "Roadmap interactivo dentro de la app"],
-            [true, "Reglas inquebrantables visibles en el roadmap"],
-            [true, "Confirmación 2 pasos al eliminar desde detalle"],
-            [true, "Setup explica 'país = idioma del estante'"],
-            [true, "Quién añadió visible en la lista (si otro miembro)"],
-            [true, "Badge solicitudes + items pendientes en tarjetas de lista"],
-            [true, "Cache de emoji (cero regex tras primer render)"],
-            [true, "Grid visual 3 columnas con cards de categoría"],
-            [true, "Categorías por pasillo con colores"],
-          ]},
-          { title: "🔴 MVP — Imprescindible para competir", color: "#ff5c5c", items: [
-            [false, "Diccionario 700 productos (500 comida + 200 hogar/farmacia/bricolaje)"],
-            [false, "Auto-categorización por pasillo (usando cat de API)"],
-            [false, "Autocompletado de productos anteriores (70% es repetitivo)"],
-            [false, "Vaciar todos los completados de golpe"],
-            [false, "Modo compra: estante GRANDE, tu idioma pequeño, checkbox enorme"],
-            [false, "Export bilingüe para WhatsApp (lista en 2 idiomas)"],
-            [true, "Añadir en bloque — pegar WhatsApp, separar en items"],
-            [false, "Verificar membresía al abrir/añadir/marcar"],
-            [false, "Diccionario fuzzy (plurales: uova→uovo, jajka→jajko)"],
-            [false, "Prioridad match diccionario (exacto > parcial > API)"],
-            [true, "Renombrar listas"],
-            [false, "Buscar dentro de una lista"],
-          ]},
-          { title: "🟡 v2.1 — Mejor experiencia", color: "#e8c364", items: [
-            [false, "Onboarding: 'Escribe en tu idioma, compra en cualquier país'"],
-            [false, "Lista demo sin registro"],
-            [false, "Input por voz multilingüe (Web Speech API — detecta idioma)"],
-            [false, "Asignar items a personas (cambia qué traducción es prioritaria)"],
-            [false, "Quién compró qué (checkedBy — paso 1 a dividir gastos)"],
-            [false, "Sugerencias predictivas en tu idioma ('¿Necesitas leche?')"],
-            [false, "Re-traducir items cuando se une nuevo miembro"],
-            [false, "Categorías no-alimentarias (🔨 bricolaje, 💊 farmacia, 🔌 electrónica, 🛋️ hogar)"],
-            [false, "Listas con tipo de tienda (super, IKEA, Leroy Merlin, farmacia)"],
-            [false, "Iconos emoji para categorías no-alimentarias"],
-            [false, "Mover/copiar items entre listas"],
-            [false, "Modo emergencia — buscar palabra y ver traducción al instante"],
-            [false, "Cantidades inteligentes ('medio kilo' → 0.5kg)"],
-            [false, "'Comprado' vs 'Ya no lo quiero' al marcar"],
-            [false, "Web Share API → compartir directo a WhatsApp/Telegram"],
-            [false, "Indicador 'X items nuevos' / última actualización"],
-            [false, "Aceptar todas las solicitudes a la vez"],
-            [false, "Unidades: cl, dl, boîtes, Stück, latas, sztuk"],
-            [false, "Interfaz en fr/de/it/pt"],
-            [false, "Accesibilidad: fuente grande / alto contraste"],
-            [false, "Notificación transferencia de propiedad"],
-            [false, "Strings de tiempo traducidos ('hace 5m')"],
-            [false, "PWA — instalar desde navegador, icono en home screen"],
-          ]},
-          { title: "🔵 v2.2 — Técnico + monetización", color: "#6c8aff", items: [
-            [false, "Monetización: Free (50 trad API/mes) + Pro €2/mes (ilimitado + modo compra)"],
-            [false, "Cache automático de traducciones API (cada traducción alimenta el diccionario)"],
-            [false, "Rate limit traducciones (máx 3 concurrentes)"],
-            [false, "Diccionario 2.000 productos (cache orgánico de usuarios reales)"],
-            [false, "Export/import completo (CSV + JSON) — te vas y vuelves con todo"],
-            [false, "Re-traducir al cambiar idioma propio"],
-            [false, "Publicar APK en Google Play (Capacitor/TWA)"],
-            [false, "Publicar en App Store iOS (Capacitor)"],
-          ]},
-          { title: "🟣 v3 — El sueño", color: "#c76dff", items: [
-            [false, "Modo offline (service worker + caché)"],
-            [false, "Sync real-time (WebSocket)"],
-            [false, "Notificaciones push"],
-            [false, "Diccionario 5.000+ productos en 15 idiomas (coste API → casi cero)"],
-            [false, "Múltiples tiendas (cada tienda = idioma de estante diferente)"],
-            [false, "Recetas → lista traducida (receta en FR, lista en PL para el estante)"],
-            [false, "Despensa multilingüe (diccionario vivo del hogar)"],
-            [false, "Escaneo código de barras"],
-            [false, "Reconocimiento de imagen → producto"],
-            [false, "Escanear ticket → items + precios"],
-            [false, "Layout por tienda (Biedronka vs Lidl)"],
-            [false, "Precios por tienda a lo largo del tiempo"],
-            [false, "Etiquetas dietéticas (sin gluten, vegano)"],
-            [false, "Alternativas (¿no hay X? prueba Y)"],
-            [false, "Modo presupuesto (límite + total)"],
-            [false, "Reparto de gastos (quién pagó qué)"],
-            [false, "Comentarios por item (mini-chat)"],
-            [false, "Plantillas recurrentes (compra semanal base)"],
-            [false, "Historial de compras por fecha"],
-            [false, "Sugerencia inteligente ('¿Leche? Llevas 8 días')"],
-            [false, "BabelCart for Teams — residencias/coliving (€5/mes)"],
-            [false, "API del diccionario — licenciar traducciones a terceros"],
-            [false, "Partnership supermercados — catálogos traducidos"],
-            [false, "App nativa (React Native / Flutter)"],
-            [false, "Tema claro/oscuro"],
-            [false, "Arrastrar para reordenar items"],
-          ]},
-        ].map((section, si) => {
-          let counter = 0;
-          return (
-          <div key={si} className="mb-3">
-            <button
-              onClick={() => setCollapsed(p => ({ ...p, [`rm-${si}`]: !p[`rm-${si}`] }))}
-              className="flex items-center gap-2 w-full text-left cursor-pointer mb-1"
-            >
-              <span className="text-[9px]" style={{ transform: collapsed[`rm-${si}`] ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
-              <span className="text-xs font-bold" style={{ color: section.color }}>{section.title}</span>
-              <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ color: section.color, background: `${section.color}15` }}>{section.items.length}</span>
-            </button>
-            {!collapsed[`rm-${si}`] && section.items.map(([done, text], i) => {
-              counter++;
-              return (
-              <div key={i} className="flex items-start gap-2 py-0.5 text-[13px]" style={{ color: done ? "#555d74" : "#8b92a8" }}>
-                <span className="text-[10px] min-w-[22px] text-right text-text-muted opacity-40 mt-0.5">{counter}</span>
-                <span className="text-[11px] mt-0.5 shrink-0">{done ? "✅" : "○"}</span>
-                <span style={{ textDecoration: done ? "line-through" : "none" }}>{text as string}</span>
-              </div>
-              );
-            })}
-          </div>
-          );
-        })}
-        <button onClick={() => setShowRoadmap(false)} className="w-full mt-3 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
-      </Modal>
     </div>
   );
 }

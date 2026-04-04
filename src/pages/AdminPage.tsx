@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
 import { ALL_LANGUAGES } from "../data/allLanguages";
-import { getEnabledLangs, enableLang, disableLang } from "../lib/langConfig";
+import { getEnabledLangs, enableLang, disableLang, getStoredUITranslations, saveUITranslations } from "../lib/langConfig";
+import { strings } from "../data/i18n";
 import { COUNTRIES } from "../data/countries";
 import { CATEGORIES, CATEGORY_ORDER } from "../data/categories";
 import { LOCAL_DICTIONARY } from "../data/localDictionary";
 import { STORE_TYPES } from "../data/storeTypes";
 import { SEED_CATEGORIES, TOTAL_SEED_PRODUCTS } from "../data/seedCategories";
 
-type Tab = "dictionary" | "categories" | "languages" | "users" | "lists" | "stats" | "builder";
+type Tab = "dictionary" | "categories" | "languages" | "users" | "lists" | "stats" | "builder" | "roadmap";
 
 interface DictRow {
   key: string;
@@ -46,6 +47,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
   const [currentBuild, setCurrentBuild] = useState<string | null>(null);
   const [buildLog, setBuildLog] = useState<string[]>([]);
   const buildAbort = useRef(false);
+  const [rmCollapsed, setRmCollapsed] = useState<Record<string, boolean>>({});
   const [dictRows, setDictRows] = useState<DictRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
@@ -152,6 +154,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
     { key: "users", label: "Users", icon: "👥" },
     { key: "lists", label: "Lists", icon: "📝" },
     { key: "builder", label: "Builder", icon: "🧠" },
+    { key: "roadmap", label: "Roadmap", icon: "🗺️" },
   ];
 
   const allLangs = [...new Set([
@@ -448,6 +451,40 @@ export default function AdminPage({ onBack }: AdminPageProps) {
           const enabled = getEnabledLangs();
           const enabledLangs = ALL_LANGUAGES.filter(l => enabled.includes(l.code));
           const availableLangs = ALL_LANGUAGES.filter(l => !enabled.includes(l.code));
+          const storedUI = getStoredUITranslations();
+          const hardcodedUI = ["en", "es", "pl"];
+
+          const generateUI = async (langCode: string) => {
+            const langName = ALL_LANGUAGES.find(l => l.code === langCode)?.name ?? langCode;
+            showToast(`Generating UI for ${langName}...`);
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+            const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+            try {
+              const res = await fetch(`${supabaseUrl}/functions/v1/translate-ui`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}`, "apikey": supabaseKey },
+                body: JSON.stringify({ strings: strings.en, targetLang: langCode, targetLangName: langName }),
+              });
+              const data = await res.json();
+              if (res.ok && data.translations) {
+                saveUITranslations(langCode, data.translations);
+                showToast(`✅ ${langName} UI ready! (${Object.keys(data.translations).length} strings)`);
+              } else {
+                showToast(`❌ ${data.error || "Failed"}`);
+              }
+            } catch (err) {
+              showToast(`❌ ${err}`);
+            }
+          };
+
+          const generateAllMissing = async () => {
+            const missing = enabled.filter(c => !hardcodedUI.includes(c) && !storedUI[c]);
+            if (missing.length === 0) { showToast("All languages have UI translations!"); return; }
+            for (const code of missing) {
+              await generateUI(code);
+              await new Promise(r => setTimeout(r, 1500));
+            }
+          };
 
           return (
           <div>
@@ -455,10 +492,24 @@ export default function AdminPage({ onBack }: AdminPageProps) {
             <h3 className="text-sm font-bold mb-3">Active Languages ({enabledLangs.length})</h3>
             <p className="text-text-muted text-[10px] mb-3">These languages are available in the app. Toggle to enable/disable.</p>
 
+            {/* Generate all missing UI */}
+            {enabled.some(c => !hardcodedUI.includes(c) && !storedUI[c]) && (
+              <button
+                onClick={generateAllMissing}
+                className="w-full mb-4 py-3 rounded-xl font-semibold text-sm text-white cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+              >
+                🌍 Generate UI translations for all languages
+              </button>
+            )}
+
             <div className="space-y-3 mb-6">
               {enabledLangs.map(lang => {
                 const isCore = lang.code === "en";
-                const hasUIStrings = lang.code === "en" || lang.code === "es" || lang.code === "pl";
+                const hasUI = hardcodedUI.includes(lang.code) || !!storedUI[lang.code];
+                const uiKeyCount = hardcodedUI.includes(lang.code)
+                  ? Object.keys(strings.en).length
+                  : (storedUI[lang.code] ? Object.keys(storedUI[lang.code]).length : 0);
                 const dictCoverage = dictRows.filter(d => d.translations[lang.code]).length;
                 const localCoverage = LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[lang.code]).length;
                 return (
@@ -468,8 +519,18 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                       <span className="text-2xl">{lang.flag}</span>
                       <div className="flex-1">
                         <div className="font-bold text-sm">{lang.name} <span className="text-text-muted text-xs">{lang.code}</span></div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {hasUIStrings && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>UI ✓</span>}
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {hasUI ? (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c" }}>UI ✓ {uiKeyCount} strings</span>
+                          ) : (
+                            <button
+                              onClick={() => generateUI(lang.code)}
+                              className="text-[9px] font-semibold px-1.5 py-0.5 rounded cursor-pointer"
+                              style={{ background: "rgba(240,136,62,0.1)", color: "#f0883e", border: "1px solid rgba(240,136,62,0.2)" }}
+                            >
+                              Generate UI →
+                            </button>
+                          )}
                           <span className="text-[9px] text-text-muted">{dictCoverage + localCoverage} dict</span>
                         </div>
                       </div>
@@ -479,7 +540,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                           className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
                           style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
                         >
-                          Disable
+                          ✕
                         </button>
                       )}
                     </div>
@@ -722,6 +783,46 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+        {/* ── Roadmap ── */}
+        {tab === "roadmap" && (
+          <div>
+            <h3 className="text-lg font-bold mb-1">🗺️ BabelCart — Roadmap</h3>
+            <p className="text-text-muted text-xs mb-3">Escribe en tu idioma. Compra en cualquier país.</p>
+            <div className="rounded-xl p-3 mb-4 border border-border-light" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <button onClick={() => setRmCollapsed(p => ({ ...p, rules: !p.rules }))} className="flex items-center gap-2 w-full text-left cursor-pointer text-xs font-bold text-text">
+                <span className="text-[9px]" style={{ transform: rmCollapsed.rules ? "" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
+                🔒 REGLAS INQUEBRANTABLES <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-bg text-text-muted">7</span>
+              </button>
+              {!rmCollapsed.rules && <div className="mt-2.5 space-y-1.5">
+                {[["🚫","Cero anuncios. Nunca."],["🔐","Cero venta de datos."],["📤","Export e import abiertos."],["⚡","Sin registro obligatorio."],["🌍","Multilingüe de verdad — es el core."],["🤝","Lo básico es gratis para siempre."],["👁️","Transparencia total. El roadmap está en la app."]].map(([i,t],j) => (
+                  <div key={j} className="flex gap-2 text-xs text-text-soft"><span className="shrink-0">{i}</span><span>{t}</span></div>
+                ))}
+              </div>}
+            </div>
+            {[
+              {title:"✅ MVP",color:"#3dd68c",items:[[true,"Listas compartidas multilingües"],[true,"Traducción automática vía Claude API"],[true,"Tu idioma + idioma del estante"],[true,"Invitación por código + aprobación"],[true,"Swipe-to-delete 2 pasos"],[true,"122 iconos emoji multilingüe"],[true,"Diccionario local 100+ productos"],[true,"Cantidades y unidades"],[true,"Duplicados cross-idioma + merge"],[true,"Modo Mostrar en tienda + frases"],[true,"Grid 3 columnas + categorías"],[true,"i18n en/es/pl"],[true,"Admin panel completo"],[true,"Dictionary Builder multitienda"],[true,"70 idiomas con auto-import países"],[true,"UI dinámica por idioma"]]},
+              {title:"🔴 Siguiente",color:"#ff5c5c",items:[[false,"Diccionario 1.500+ productos (12 tipos tienda)"],[false,"Autocompletado productos anteriores"],[false,"Vaciar completados"],[false,"Modo compra (estante GRANDE)"],[false,"Export WhatsApp bilingüe"],[false,"Bulk add desde WhatsApp"],[false,"Buscar en lista"],[false,"Diccionario fuzzy (plurales, typos)"]]},
+              {title:"🟡 v2.1",color:"#e8c364",items:[[false,"Input por voz multilingüe"],[false,"Asignar items a personas"],[false,"Sugerencias predictivas"],[false,"Categorías no-alimentarias"],[false,"Listas por tipo de tienda"],[false,"Mover/copiar items entre listas"],[false,"Modo emergencia (traducción instant)"],[false,"Web Share API"],[false,"PWA completa"]]},
+              {title:"🔵 v2.2",color:"#6c8aff",items:[[false,"Monetización Free + Pro €2/mes"],[false,"Cache orgánico de traducciones"],[false,"Diccionario 5.000+ productos"],[false,"Export/import CSV + JSON"],[false,"Google Play + App Store"]]},
+              {title:"🟣 v3 — El sueño",color:"#c76dff",items:[[false,"Modo offline"],[false,"Real-time sync"],[false,"Push notifications"],[false,"Recetas → lista traducida"],[false,"Escaneo código de barras"],[false,"Reconocimiento de imagen"],[false,"Precios por tienda"],[false,"Etiquetas dietéticas"],[false,"Modo presupuesto"],[false,"Reparto de gastos"],[false,"BabelCart for Teams"],[false,"API del diccionario"],[false,"App nativa"]]},
+            ].map((s,si) => {let c=0;return(
+              <div key={si} className="mb-3">
+                <button onClick={() => setRmCollapsed(p => ({...p,[`s${si}`]:!p[`s${si}`]}))} className="flex items-center gap-2 w-full text-left cursor-pointer mb-1">
+                  <span className="text-[9px]" style={{transform:rmCollapsed[`s${si}`]?"":"rotate(90deg)",transition:"transform 0.15s",display:"inline-block"}}>▶</span>
+                  <span className="text-xs font-bold" style={{color:s.color}}>{s.title}</span>
+                  <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{color:s.color,background:`${s.color}15`}}>{s.items.length}</span>
+                </button>
+                {!rmCollapsed[`s${si}`] && s.items.map(([d,t],i) => {c++;return(
+                  <div key={i} className="flex items-start gap-2 py-0.5 text-[13px]" style={{color:d?"#555d74":"#8b92a8"}}>
+                    <span className="text-[10px] min-w-[22px] text-right text-text-muted opacity-40 mt-0.5">{c}</span>
+                    <span className="text-[11px] mt-0.5 shrink-0">{d?"✅":"○"}</span>
+                    <span style={{textDecoration:d?"line-through":"none"}}>{t as string}</span>
+                  </div>
+                );})}
+              </div>
+            );})}
           </div>
         )}
       </div>
