@@ -48,6 +48,7 @@ export default function AdminPage(_: AdminPageProps) {
   const [buildLog, setBuildLog] = useState<string[]>([]);
   const buildAbort = useRef(false);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
+  const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [rmCollapsed, setRmCollapsed] = useState<Record<string, boolean>>({});
   const [dictRows, setDictRows] = useState<DictRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -77,6 +78,18 @@ export default function AdminPage(_: AdminPageProps) {
     if (error) { showToast(`Error: ${error.message}`); return; }
     setUsers(prev => prev.filter(u => u.id !== userId));
     showToast("User deleted");
+  };
+
+  const deleteListFromAdmin = async (listId: string) => {
+    if (IS_DEMO) {
+      setLists(prev => prev.filter(l => l.id !== listId));
+      showToast("List deleted (demo)");
+      return;
+    }
+    const { error } = await supabase.from("lists").delete().eq("id", listId);
+    if (error) { showToast(`Error: ${error.message}`); return; }
+    setLists(prev => prev.filter(l => l.id !== listId));
+    showToast("List deleted");
   };
 
   // Fetch data based on tab
@@ -661,19 +674,41 @@ export default function AdminPage(_: AdminPageProps) {
               <>
                 <p className="text-text-muted text-xs mb-3">{lists.length} lists</p>
                 <div className="space-y-2">
-                  {lists.map(l => (
-                    <div key={l.id} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-lg">📝</div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">{l.name}</div>
-                        <div className="text-text-muted text-xs font-mono">{l.code}</div>
+                  {lists.map(l => {
+                    const isConfirming = confirmDeleteList === l.id;
+                    return (
+                      <div key={l.id} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-lg shrink-0">📝</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm truncate">{l.name}</div>
+                          <div className="text-text-muted text-xs font-mono">{l.code}</div>
+                          <div className="text-[10px] text-text-muted mt-0.5">
+                            {listItems[l.id] || 0} items · {listMembers[l.id] || 0} members
+                            {l.created_at && ` · ${new Date(l.created_at).toLocaleDateString()}`}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (isConfirming) {
+                              deleteListFromAdmin(l.id);
+                              setConfirmDeleteList(null);
+                            } else {
+                              setConfirmDeleteList(l.id);
+                              setTimeout(() => setConfirmDeleteList(prev => prev === l.id ? null : prev), 3000);
+                            }
+                          }}
+                          className="px-2 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer shrink-0"
+                          style={{
+                            background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                            color: isConfirming ? "#fff" : "#ff5c5c",
+                            border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                          }}
+                        >
+                          {isConfirming ? "⚠️ Confirm" : "🗑️"}
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <div className="text-xs text-accent font-semibold">{listItems[l.id] || 0} items</div>
-                        <div className="text-[10px] text-text-muted">{listMembers[l.id] || 0} members</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -836,7 +871,7 @@ export default function AdminPage(_: AdminPageProps) {
               {title:"✅ MVP",color:"#3dd68c",items:[[true,"Listas compartidas multilingües"],[true,"Traducción automática vía Claude API"],[true,"Tu idioma + idioma del estante"],[true,"Invitación por código + aprobación"],[true,"Swipe-to-delete 2 pasos"],[true,"122 iconos emoji multilingüe"],[true,"Diccionario local 100+ productos"],[true,"Cantidades y unidades"],[true,"Duplicados cross-idioma + merge"],[true,"Modo Mostrar en tienda + frases"],[true,"Grid 3 columnas + categorías"],[true,"i18n en/es/pl"],[true,"Admin panel completo"],[true,"Dictionary Builder multitienda"],[true,"70 idiomas con auto-import países"],[true,"UI dinámica por idioma"]]},
               {title:"🔴 Siguiente",color:"#ff5c5c",items:[[false,"Diccionario 1.500+ productos (12 tipos tienda)"],[false,"Autocompletado productos anteriores"],[false,"Vaciar completados"],[false,"Modo compra (estante GRANDE)"],[false,"Export WhatsApp bilingüe"],[false,"Bulk add desde WhatsApp"],[false,"Buscar en lista"],[false,"Diccionario fuzzy (plurales, typos)"]]},
               {title:"🟡 v2.1",color:"#e8c364",items:[[false,"Input por voz multilingüe"],[false,"Asignar items a personas"],[false,"Sugerencias predictivas"],[false,"Categorías no-alimentarias"],[false,"Listas por tipo de tienda"],[false,"Mover/copiar items entre listas"],[false,"Modo emergencia (traducción instant)"],[false,"Web Share API"],[false,"PWA completa"]]},
-              {title:"🔵 v2.2",color:"#6c8aff",items:[[false,"Monetización Free + Pro €2/mes"],[false,"Cache orgánico de traducciones"],[false,"Diccionario 5.000+ productos"],[false,"Export/import CSV + JSON"],[false,"Google Play + App Store"],[false,"Admin: staging mode — aplicar cambios al instante o encolar para publicar juntos"],[false,"Admin: preview de la app antes de publicar cambios a todos los usuarios"],[false,"Admin: botón 'Apply changes' con toggle directo/batch"]]},
+              {title:"🔵 v2.2",color:"#6c8aff",items:[[false,"Monetización Free + Pro €2/mes"],[false,"Cache orgánico de traducciones"],[false,"Diccionario 5.000+ productos"],[false,"Export/import CSV + JSON"],[false,"Google Play + App Store"],[false,"Admin: staging mode — aplicar cambios al instante o encolar para publicar juntos"],[false,"Admin: preview de la app antes de publicar cambios a todos los usuarios"],[false,"Admin: botón 'Apply changes' con toggle directo/batch"],[false,"Admin: auto-borrado de listas inactivas (umbral configurable: 30/60/90/180 días)"],[false,"Admin: cron de limpieza nocturno para eliminar listas sin actividad"],[false,"Admin: aviso a los miembros antes de borrar una lista por inactividad"]]},
               {title:"🟣 v3 — El sueño",color:"#c76dff",items:[[false,"Modo offline"],[false,"Real-time sync"],[false,"Push notifications"],[false,"Recetas → lista traducida"],[false,"Escaneo código de barras"],[false,"Reconocimiento de imagen"],[false,"Precios por tienda"],[false,"Etiquetas dietéticas"],[false,"Modo presupuesto"],[false,"Reparto de gastos"],[false,"BabelCart for Teams"],[false,"API del diccionario"],[false,"App nativa"]]},
             ].map((s,si) => {let c=0;return(
               <div key={si} className="mb-3">
