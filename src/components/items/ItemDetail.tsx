@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import type { Item } from "../../lib/supabase";
 import Modal from "../ui/Modal";
 import ProductIcon from "../ui/ProductIcon";
@@ -19,127 +19,85 @@ interface ItemDetailProps {
 }
 
 function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (photo: string | null) => void }) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
-  const [showUrl, setShowUrl] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  const resize = (file: File, max = 250): Promise<string> =>
-    new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const c = document.createElement("canvas");
-          let w = img.width, h = img.height;
-          if (w > h) { if (w > max) { h = h * max / w; w = max; } }
-          else { if (h > max) { w = w * max / h; h = max; } }
-          c.width = w; c.height = h;
-          c.getContext("2d")!.drawImage(img, 0, 0, w, h);
-          // Try WebP first (smaller), fallback to JPEG
-          let result = c.toDataURL("image/webp", 0.6);
-          if (!result.startsWith("data:image/webp")) {
-            result = c.toDataURL("image/jpeg", 0.5);
-          }
-          resolve(result);
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) { onUpdate(await resize(f)); }
-    e.target.value = "";
-    setShowMenu(false);
-  };
-
-  const handlePaste = async () => {
-    try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const t = item.types.find(t => t.startsWith("image/"));
-        if (t) { const b = await item.getType(t); onUpdate(await resize(new File([b], "p.jpg", { type: t }))); setShowMenu(false); return; }
-      }
-    } catch { /* fallback below */ }
-    // Fallback: paste area
-    const div = document.createElement("div");
-    div.contentEditable = "true";
-    div.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:200px;height:80px;background:#161b24;border:2px dashed #f0883e;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#8b92a8;font-size:13px;outline:none;";
-    div.textContent = "Tap & Paste here";
-    div.addEventListener("paste", async (ev: Event) => {
-      const ce = ev as ClipboardEvent; ce.preventDefault();
-      const f = ce.clipboardData?.files?.[0];
-      if (f?.type.startsWith("image/")) onUpdate(await resize(f));
-      div.remove(); setShowMenu(false);
-    });
-    document.body.appendChild(div); div.focus();
-    setTimeout(() => div.remove(), 10000);
+  const saveUrl = () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    onUpdate(url);
+    setUrlInput("");
+    setEditing(false);
   };
 
   if (photo) {
     return (
       <div className="relative">
-        <img src={photo} className="w-full rounded-xl object-cover border border-border-light" style={{ maxHeight: 200 }} alt="" />
-        <div className="absolute top-2 right-2 flex gap-1">
-          <button onClick={() => setShowMenu(true)} className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs cursor-pointer">✏️</button>
-          <button onClick={() => onUpdate(null)} className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs cursor-pointer">✕</button>
+        <img
+          src={photo}
+          className="w-full rounded-xl object-cover border border-border-light"
+          style={{ maxHeight: 200 }}
+          alt=""
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+        <div className="absolute top-2 right-2 flex gap-1.5">
+          <button
+            onClick={() => { setEditing(true); setUrlInput(photo); }}
+            className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-sm cursor-pointer active:bg-black/80"
+          >✏️</button>
+          <button
+            onClick={() => onUpdate(null)}
+            className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center text-sm cursor-pointer active:bg-black/80"
+          >✕</button>
         </div>
-        {showMenu && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => { setShowMenu(false); setShowUrl(false); }}>
-            <div className="bg-card w-full max-w-[460px] rounded-t-2xl border-t border-border-light" onClick={e => e.stopPropagation()}>
-              <div className="w-10 h-1 bg-border-light rounded-full mx-auto mt-3 mb-1" />
-              <button onClick={handlePaste} className="w-full flex items-center gap-3 px-5 py-3 text-sm text-text active:bg-bg cursor-pointer">📋 Paste image</button>
-              <button onClick={() => { fileRef.current?.click(); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm text-text active:bg-bg cursor-pointer border-t border-border">📁 Upload from device</button>
-              {!showUrl ? (
-                <button onClick={() => setShowUrl(true)} className="w-full flex items-center gap-3 px-5 py-3 text-sm text-text active:bg-bg cursor-pointer border-t border-border">🔗 Paste URL</button>
-              ) : (
-                <div className="px-5 py-3 border-t border-border flex gap-2">
-                  <input value={urlInput} onChange={e => setUrlInput(e.target.value)} placeholder="https://..." autoFocus onKeyDown={e => { if (e.key === "Enter" && urlInput.trim()) { onUpdate(urlInput.trim()); setShowMenu(false); setShowUrl(false); setUrlInput(""); }}} className="flex-1 bg-bg border border-border-light rounded-xl px-3 py-2 text-sm text-text outline-none focus:border-accent min-w-0" />
-                  <button onClick={() => { if (urlInput.trim()) { onUpdate(urlInput.trim()); setShowMenu(false); setShowUrl(false); setUrlInput(""); }}} className="px-3 py-2 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>OK</button>
-                </div>
-              )}
-              <button onClick={() => { onUpdate(null); setShowMenu(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm active:bg-bg cursor-pointer border-t border-border" style={{ color: "#ff5c5c" }}>🗑️ Remove photo</button>
-              <button onClick={() => { setShowMenu(false); setShowUrl(false); }} className="w-full py-3 text-sm text-text-muted font-medium active:bg-bg cursor-pointer border-t border-border" style={{ paddingBottom: "max(0.875rem, env(safe-area-inset-bottom))" }}>Cancel</button>
-            </div>
+        {editing && (
+          <div className="mt-2 flex gap-2">
+            <input
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              placeholder="https://..."
+              autoFocus
+              onKeyDown={e => { if (e.key === "Enter") saveUrl(); if (e.key === "Escape") setEditing(false); }}
+              className="flex-1 bg-bg border border-border-light rounded-xl px-3 py-2 text-sm text-text outline-none focus:border-accent min-w-0"
+            />
+            <button onClick={saveUrl} className="px-3 py-2 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>OK</button>
+            <button onClick={() => setEditing(false)} className="px-3 py-2 rounded-xl text-sm text-text-muted cursor-pointer border border-border-light">✕</button>
           </div>
         )}
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
     );
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setShowMenu(true)}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-bg border border-border-light text-text-soft active:bg-card transition-colors cursor-pointer"
-        style={{ fontSize: 14 }}
-      >
-        📷 Add photo
-      </button>
-      {showMenu && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => { setShowMenu(false); setShowUrl(false); }}>
-          <div className="bg-card w-full max-w-[460px] rounded-t-2xl border-t border-border-light" onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-border-light rounded-full mx-auto mt-3 mb-1" />
-            <button onClick={handlePaste} className="w-full flex items-center gap-3 px-5 py-3 text-sm text-text active:bg-bg cursor-pointer">📋 Paste image</button>
-            <button onClick={() => { fileRef.current?.click(); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm text-text active:bg-bg cursor-pointer border-t border-border">📁 Upload from device</button>
-            {!showUrl ? (
-              <button onClick={() => setShowUrl(true)} className="w-full flex items-center gap-3 px-5 py-3 text-sm text-text active:bg-bg cursor-pointer border-t border-border">🔗 Paste URL</button>
-            ) : (
-              <div className="px-5 py-3 border-t border-border flex gap-2">
-                <input value={urlInput} onChange={e => setUrlInput(e.target.value)} placeholder="https://..." autoFocus onKeyDown={e => { if (e.key === "Enter" && urlInput.trim()) { onUpdate(urlInput.trim()); setShowMenu(false); setShowUrl(false); setUrlInput(""); }}} className="flex-1 bg-bg border border-border-light rounded-xl px-3 py-2 text-sm text-text outline-none focus:border-accent min-w-0" />
-                <button onClick={() => { if (urlInput.trim()) { onUpdate(urlInput.trim()); setShowMenu(false); setShowUrl(false); setUrlInput(""); }}} className="px-3 py-2 rounded-xl text-sm font-semibold text-white cursor-pointer" style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>OK</button>
-              </div>
-            )}
-            <button onClick={() => { setShowMenu(false); setShowUrl(false); }} className="w-full py-3 text-sm text-text-muted font-medium active:bg-bg cursor-pointer border-t border-border" style={{ paddingBottom: "max(0.875rem, env(safe-area-inset-bottom))" }}>Cancel</button>
-          </div>
+    <div>
+      {!editing ? (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-bg border border-border-light text-text-soft active:bg-card transition-colors cursor-pointer text-sm"
+        >
+          🔗 Add photo URL
+        </button>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            placeholder="https://example.com/image.jpg"
+            autoFocus
+            onKeyDown={e => { if (e.key === "Enter") saveUrl(); if (e.key === "Escape") { setEditing(false); setUrlInput(""); } }}
+            className="flex-1 bg-bg border border-border-light rounded-xl px-3 py-2.5 text-sm text-text outline-none focus:border-accent min-w-0"
+          />
+          <button
+            onClick={saveUrl}
+            disabled={!urlInput.trim()}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+          >OK</button>
+          <button onClick={() => { setEditing(false); setUrlInput(""); }} className="px-3 py-2.5 rounded-xl text-sm text-text-muted cursor-pointer border border-border-light">✕</button>
         </div>
       )}
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-    </>
+    </div>
   );
 }
 
