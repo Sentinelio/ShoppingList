@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
 import { COUNTRIES } from "../data/countries";
 import { CATEGORIES, CATEGORY_ORDER } from "../data/categories";
 import { LOCAL_DICTIONARY } from "../data/localDictionary";
+import { STORE_TYPES } from "../data/storeTypes";
+import { SEED_CATEGORIES, TOTAL_SEED_PRODUCTS } from "../data/seedCategories";
 
-type Tab = "dictionary" | "categories" | "languages" | "users" | "lists" | "stats";
+type Tab = "dictionary" | "categories" | "languages" | "users" | "lists" | "stats" | "builder";
 
 interface DictRow {
   key: string;
@@ -36,6 +38,12 @@ interface AdminPageProps {
 
 export default function AdminPage({ onBack }: AdminPageProps) {
   const [tab, setTab] = useState<Tab>("stats");
+  // Builder state
+  const [building, setBuilding] = useState(false);
+  const [builtIds, setBuiltIds] = useState<string[]>([]);
+  const [currentBuild, setCurrentBuild] = useState<string | null>(null);
+  const [buildLog, setBuildLog] = useState<string[]>([]);
+  const buildAbort = useRef(false);
   const [dictRows, setDictRows] = useState<DictRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
@@ -141,6 +149,7 @@ export default function AdminPage({ onBack }: AdminPageProps) {
     { key: "languages", label: "Languages", icon: "🌍" },
     { key: "users", label: "Users", icon: "👥" },
     { key: "lists", label: "Lists", icon: "📝" },
+    { key: "builder", label: "Builder", icon: "🧠" },
   ];
 
   const allLangs = [...new Set([
@@ -551,6 +560,143 @@ export default function AdminPage({ onBack }: AdminPageProps) {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+        )}
+        {/* ── Builder ── */}
+        {tab === "builder" && (
+          <div>
+            <div className="bg-card rounded-xl p-4 border border-border mb-4">
+              <h3 className="text-sm font-bold mb-1">🧠 Dictionary Builder</h3>
+              <p className="text-text-muted text-xs mb-3">
+                Generate ~{TOTAL_SEED_PRODUCTS} product translations across {STORE_TYPES.length} store types using Claude AI.
+                Each category is generated in a separate API call.
+              </p>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent rounded-full transition-all"
+                    style={{ width: `${(builtIds.length / SEED_CATEGORIES.length) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs text-text-muted shrink-0">
+                  {builtIds.length}/{SEED_CATEGORIES.length} categories
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (IS_DEMO) { showToast("Connect Supabase first"); return; }
+                    setBuilding(true);
+                    buildAbort.current = false;
+                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+                    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+                    const remaining = SEED_CATEGORIES.filter(c => !builtIds.includes(c.id));
+                    for (const cat of remaining) {
+                      if (buildAbort.current) break;
+                      setCurrentBuild(cat.id);
+                      setBuildLog(prev => [...prev, `Building: ${cat.name} (${cat.count} products)...`]);
+                      try {
+                        const res = await fetch(`${supabaseUrl}/functions/v1/seed-dictionary`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${supabaseKey}`,
+                            "apikey": supabaseKey,
+                          },
+                          body: JSON.stringify({
+                            count: cat.count,
+                            prompt: cat.prompt,
+                            category: cat.category,
+                            storeType: cat.storeType,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setBuildLog(prev => [...prev, `  ✅ ${cat.name}: ${data.inserted} products inserted`]);
+                          setBuiltIds(prev => [...prev, cat.id]);
+                        } else {
+                          setBuildLog(prev => [...prev, `  ❌ ${cat.name}: ${data.error}`]);
+                        }
+                      } catch (err) {
+                        setBuildLog(prev => [...prev, `  ❌ ${cat.name}: ${err}`]);
+                      }
+                      // Small delay to avoid rate limiting
+                      await new Promise(r => setTimeout(r, 1500));
+                    }
+                    setBuilding(false);
+                    setCurrentBuild(null);
+                    fetchDictionary();
+                  }}
+                  disabled={building}
+                  className="flex-1 py-3 rounded-xl font-semibold text-sm text-white cursor-pointer disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                >
+                  {building ? `⏳ Building ${currentBuild ?? ""}...` : builtIds.length >= SEED_CATEGORIES.length ? "✅ Complete" : "🚀 Build Dictionary"}
+                </button>
+                {building && (
+                  <button
+                    onClick={() => { buildAbort.current = true; }}
+                    className="px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer"
+                    style={{ background: "rgba(255,92,92,0.1)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
+                  >
+                    Stop
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Store types overview */}
+            <h3 className="text-sm font-bold mb-2">Store Types ({STORE_TYPES.length})</h3>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {STORE_TYPES.map(st => {
+                const cats = SEED_CATEGORIES.filter(c => c.storeType === st.id);
+                const totalProducts = cats.reduce((a, c) => a + c.count, 0);
+                const builtCount = cats.filter(c => builtIds.includes(c.id)).length;
+                return (
+                  <div key={st.id} className="bg-card rounded-xl p-3 border border-border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{st.emoji}</span>
+                      <span className="text-xs font-bold">{st.en}</span>
+                    </div>
+                    <div className="text-text-muted text-[10px]">
+                      {cats.length} categories · {totalProducts} products · {builtCount}/{cats.length} built
+                    </div>
+                    <div className="h-1.5 bg-border rounded-full overflow-hidden mt-1.5">
+                      <div className="h-full rounded-full" style={{ width: `${cats.length > 0 ? (builtCount / cats.length) * 100 : 0}%`, background: builtCount === cats.length ? "#3dd68c" : "#f0883e" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Categories detail */}
+            <h3 className="text-sm font-bold mb-2">All Categories ({SEED_CATEGORIES.length})</h3>
+            <div className="space-y-1.5 mb-4">
+              {SEED_CATEGORIES.map(cat => {
+                const st = STORE_TYPES.find(s => s.id === cat.storeType);
+                const built = builtIds.includes(cat.id);
+                return (
+                  <div key={cat.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${built ? "bg-card/50 opacity-60" : "bg-card"} border border-border`}>
+                    <span>{st?.emoji || "🛒"}</span>
+                    <span className="font-medium flex-1">{cat.name}</span>
+                    <span className="text-text-muted">{cat.count} products</span>
+                    <span className={built ? "text-[#3dd68c]" : "text-text-muted"}>{built ? "✅" : "○"}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Build log */}
+            {buildLog.length > 0 && (
+              <div className="bg-card rounded-xl p-3 border border-border">
+                <h4 className="text-xs font-bold text-text-muted mb-2">Build Log</h4>
+                <div className="max-h-48 overflow-y-auto text-[11px] font-mono text-text-soft space-y-0.5">
+                  {buildLog.map((line, i) => (
+                    <div key={i}>{line}</div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
