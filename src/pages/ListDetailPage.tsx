@@ -51,7 +51,14 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const pendingMembers = members.filter(m => m.status === "pending");
 
   // Split items into unchecked and checked
-  const uncheckedItems = useMemo(() => items.filter((i) => !i.checked), [items]);
+  // Sort: important first, then by created_at (preserves order for the rest)
+  const sortByImportance = (arr: Item[]) =>
+    [...arr].sort((a, b) => {
+      if (!!b.important !== !!a.important) return b.important ? 1 : -1;
+      return 0;
+    });
+
+  const uncheckedItems = useMemo(() => sortByImportance(items.filter((i) => !i.checked)), [items]);
   const checkedItems = useMemo(() => items.filter((i) => i.checked), [items]);
 
   // Group unchecked items by category
@@ -62,6 +69,11 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       const cat = item.category || "other";
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(item);
+    }
+
+    // Sort each category: important first
+    for (const cat of Object.keys(grouped)) {
+      grouped[cat] = sortByImportance(grouped[cat]);
     }
 
     return CATEGORY_ORDER.filter((cat) => grouped[cat] && grouped[cat].length > 0).map((cat) => ({

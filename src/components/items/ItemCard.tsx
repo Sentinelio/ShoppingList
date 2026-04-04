@@ -40,9 +40,10 @@ export default function ItemCard({
       className={`relative flex flex-col items-center justify-center rounded-2xl cursor-pointer active:scale-[0.97] transition-transform ${item.important ? "babelcart-important" : ""}`}
       style={{
         padding: "14px 6px 10px",
-        backgroundColor: item.important ? undefined : `${catColor}26`,
-        border: `1px solid ${item.important ? "rgba(255,92,92,0.5)" : `${catColor}40`}`,
+        backgroundColor: `${catColor}26`,
+        border: `1px solid ${catColor}40`,
         opacity: isPending ? 0.6 : 1,
+        ["--babelcart-cat-bg" as string]: `${catColor}26`,
       }}
       onClick={() => onClick(item)}
       role="button"
