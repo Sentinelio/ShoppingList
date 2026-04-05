@@ -157,6 +157,73 @@ export default function AdminPage(_: AdminPageProps) {
     fetchDictionary();
   };
 
+  // Delete dictionary entries whose `category` is no longer in CATEGORY_ORDER
+  const cleanOrphanEntries = async () => {
+    if (IS_DEMO) { showToast("Demo mode — nothing to clean"); return; }
+    const valid = new Set(CATEGORY_ORDER);
+    const orphans = dictRows.filter(d => !valid.has(d.category));
+    if (orphans.length === 0) { showToast("No orphan entries found"); return; }
+    const keys = orphans.map(o => o.key);
+    const { error } = await supabase.from("dictionary").delete().in("key", keys);
+    if (error) { showToast(`Error: ${error.message}`); return; }
+    showToast(`🧹 Cleaned ${orphans.length} orphan entries`);
+    fetchDictionary();
+  };
+
+  // Remove a specific language key from every dictionary entry's translations JSON
+  const purgeLanguageFromDictionary = async (langCode: string) => {
+    if (IS_DEMO) return { updated: 0 };
+    let updated = 0;
+    for (const row of dictRows) {
+      if (!row.translations || !(langCode in row.translations)) continue;
+      const next: Record<string, string> = { ...row.translations };
+      delete next[langCode];
+      const { error } = await supabase.from("dictionary").update({ translations: next }).eq("key", row.key);
+      if (!error) updated++;
+    }
+    return { updated };
+  };
+
+  // Call the translate Edge Function for a single item and return its translation in a target language
+  const translateOne = async (text: string, targetLang: string): Promise<string | null> => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}`, "apikey": supabaseKey },
+        body: JSON.stringify({ text, langs: [targetLang] }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.t?.[targetLang]) return String(data.t[targetLang]);
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  // Fill missing translations for a specific language across the whole dictionary
+  const fillLanguageTranslations = async (langCode: string) => {
+    if (IS_DEMO) { showToast("Demo mode — nothing to fill"); return; }
+    const missing = dictRows.filter(d => !d.translations || !d.translations[langCode]);
+    if (missing.length === 0) { showToast(`All items already have ${langCode} translations`); return; }
+    setBulkRunning(`fillLang:${langCode}`);
+    let done = 0;
+    const CONCURRENCY = 4;
+    for (let i = 0; i < missing.length; i += CONCURRENCY) {
+      const slice = missing.slice(i, i + CONCURRENCY);
+      await Promise.all(slice.map(async row => {
+        const translated = await translateOne(row.key, langCode);
+        if (!translated) return;
+        const next = { ...(row.translations || {}), [langCode]: translated };
+        await supabase.from("dictionary").update({ translations: next }).eq("key", row.key);
+        done++;
+      }));
+      showToast(`Translating ${langCode}: ${done}/${missing.length}`);
+    }
+    setBulkRunning(null);
+    showToast(`✅ Filled ${done}/${missing.length} ${langCode} translations`);
+    fetchDictionary();
+  };
+
   const buildOneCategory = async (categoryId: string) => {
     const seed = SEED_CATEGORIES.find(s => s.category === categoryId);
     if (!seed) { showToast("No seed config for this category"); return; }
@@ -417,6 +484,41 @@ export default function AdminPage(_: AdminPageProps) {
                 <StatCard label="Lists" value={lists.length} icon="📝" color="#c76dff" />
                 <StatCard label="List items" value={totalListItems} icon="🛒" color="#e8c364" />
               </div>
+
+              {/* Maintenance: orphan entries */}
+              {(() => {
+                const valid = new Set(CATEGORY_ORDER);
+                const orphans = dictRows.filter(d => !valid.has(d.category));
+                if (orphans.length === 0) return null;
+                const confirming = confirmClearAll; // reuse same confirm state for simple 2-step
+                return (
+                  <div className="bg-card rounded-xl p-3 border border-border">
+                    <h3 className="text-xs font-bold mb-2">🧹 Maintenance</h3>
+                    <div className="text-[11px] text-text-muted mb-2">
+                      Found <span className="text-danger font-semibold">{orphans.length}</span> dictionary entries pointing to categories that no longer exist.
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (confirming) {
+                          cleanOrphanEntries();
+                          setConfirmClearAll(false);
+                        } else {
+                          setConfirmClearAll(true);
+                          setTimeout(() => setConfirmClearAll(false), 3000);
+                        }
+                      }}
+                      className="w-full py-2 rounded-lg text-[11px] font-semibold cursor-pointer"
+                      style={{
+                        background: confirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                        color: confirming ? "#fff" : "#ff5c5c",
+                        border: confirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                      }}
+                    >
+                      {confirming ? `⚠️ Confirm delete ${orphans.length} orphans` : `🧹 Clean ${orphans.length} orphan entries`}
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Dictionary by store type */}
               <div className="bg-card rounded-xl p-3 border border-border">
@@ -1030,14 +1132,15 @@ export default function AdminPage(_: AdminPageProps) {
                 const uiKeyCount = hardcodedUI.includes(lang.code)
                   ? Object.keys(strings.en).length
                   : (storedUI[lang.code] ? Object.keys(storedUI[lang.code]).length : 0);
-                const dictCoverage = dictRows.filter(d => d.translations[lang.code]).length;
-                const localCoverage = LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[lang.code]).length;
+                const dictCoverage = dictRows.filter(d => d.translations && d.translations[lang.code]).length;
+                const missingCount = dictRows.length - dictCoverage;
+                const isFillRunning = bulkRunning === `fillLang:${lang.code}`;
                 return (
                   <div key={lang.code} className="bg-card rounded-xl border border-border overflow-hidden">
                     {/* Language header */}
                     <div className="flex items-center gap-3 p-3">
                       <span className="text-2xl">{lang.flag}</span>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm">{lang.name} <span className="text-text-muted text-xs">{lang.code}</span></div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {hasUI ? (
@@ -1051,31 +1154,50 @@ export default function AdminPage(_: AdminPageProps) {
                               Generate UI →
                             </button>
                           )}
-                          <span className="text-[9px] text-text-muted">{dictCoverage + localCoverage} dict</span>
+                          <span className="text-[9px] text-text-muted">{dictCoverage}/{dictRows.length} dict</span>
+                          {missingCount > 0 && !IS_DEMO && (
+                            <button
+                              onClick={() => fillLanguageTranslations(lang.code)}
+                              disabled={!!bulkRunning}
+                              className="text-[9px] font-semibold px-1.5 py-0.5 rounded cursor-pointer disabled:opacity-40"
+                              style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
+                            >
+                              {isFillRunning ? "⏳ Filling..." : `🧠 Fill ${missingCount}`}
+                            </button>
+                          )}
                         </div>
                       </div>
                       {!isCore && (() => {
                         const isConfirming = confirmDisableLang === lang.code;
                         return (
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (isConfirming) {
+                                if (!IS_DEMO && dictCoverage > 0) {
+                                  setBulkRunning(`purgeLang:${lang.code}`);
+                                  showToast(`Removing ${dictCoverage} ${lang.code} translations...`);
+                                  await purgeLanguageFromDictionary(lang.code);
+                                  setBulkRunning(null);
+                                }
                                 disableLang(lang.code);
                                 setConfirmDisableLang(null);
                                 forceUpdate(n => n + 1);
+                                fetchDictionary();
+                                showToast(`${lang.name} disabled`);
                               } else {
                                 setConfirmDisableLang(lang.code);
-                                setTimeout(() => setConfirmDisableLang(prev => prev === lang.code ? null : prev), 3000);
+                                setTimeout(() => setConfirmDisableLang(prev => prev === lang.code ? null : prev), 4000);
                               }
                             }}
-                            className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer whitespace-nowrap"
+                            className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer whitespace-nowrap shrink-0"
                             style={{
                               background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
                               color: isConfirming ? "#fff" : "#ff5c5c",
                               border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
                             }}
+                            title={dictCoverage > 0 ? `Also deletes ${dictCoverage} ${lang.code} translations from the dictionary` : undefined}
                           >
-                            {isConfirming ? "⚠️ Confirm" : "✕"}
+                            {isConfirming ? (dictCoverage > 0 ? `⚠️ Drop ${dictCoverage}` : "⚠️ Confirm") : "✕"}
                           </button>
                         );
                       })()}
@@ -1240,8 +1362,8 @@ export default function AdminPage(_: AdminPageProps) {
               </div>}
             </div>
             {[
-              {title:"✅ MVP",color:"#3dd68c",items:[[true,"Listas compartidas multilingües"],[true,"Traducción automática vía Claude API"],[true,"Tu idioma + idioma del estante"],[true,"Invitación por código + aprobación"],[true,"Swipe-to-delete 2 pasos"],[true,"122 iconos emoji multilingüe"],[true,"Diccionario local 100+ productos"],[true,"Cantidades y unidades"],[true,"Duplicados cross-idioma + merge"],[true,"Modo Mostrar en tienda + frases"],[true,"Grid 3 columnas + categorías"],[true,"i18n en/es/pl"],[true,"Admin panel completo"],[true,"Dictionary Builder multitienda"],[true,"70 idiomas con auto-import países"],[true,"UI dinámica por idioma"],[true,"Confirmación 2 pasos en todos los borrados (app + admin)"],[true,"Fotos en items — add/change/remove, fullscreen zoom"],[true,"Important items con pulse rojo suave"],[true,"Colapso persistente de categorías y tipos de tienda"],[true,"Vaciar completados (bulk delete checked)"],[true,"Categorías no-alimentarias (Pets, Ropa, Bricolaje, Auto, etc.)"],[true,"Listas por tipo de tienda — jerarquía store→categoría"],[true,"Admin: CRUD completo de store types y categorías custom"],[true,"Admin: Clear dictionary por categoría / store / global"],[true,"Admin: Generate items bulk por categoría / store / global"],[true,"Admin: menú ⋯ en store types y categorías (acciones agrupadas)"],[true,"Admin: Updates tab con build info, runtime state y changelog"],[true,"Admin: Stats completas por store, categoría, idioma y país"],[true,"Admin: indicador Demo/Supabase con pulse en header"],[true,"CI: auto-deploy a GitHub Pages en cada push"],[true,"Admin delete users + lists con confirmación"]]},
-              {title:"🔴 Siguiente",color:"#ff5c5c",items:[[false,"Diccionario 1.500+ productos (todos los store types)"],[false,"Autocompletado productos anteriores"],[false,"Modo compra (estante GRANDE)"],[false,"Export WhatsApp bilingüe"],[false,"Bulk add desde WhatsApp"],[false,"Buscar dentro de una lista"],[false,"Diccionario fuzzy (plurales, typos)"]]},
+              {title:"✅ MVP",color:"#3dd68c",items:[[true,"Listas compartidas multilingües"],[true,"Traducción automática vía Claude API"],[true,"Tu idioma + idioma del estante"],[true,"Invitación por código + aprobación"],[true,"Swipe-to-delete 2 pasos"],[true,"122 iconos emoji multilingüe"],[true,"Diccionario local 100+ productos"],[true,"Cantidades y unidades"],[true,"Duplicados cross-idioma + merge"],[true,"Modo Mostrar en tienda + frases"],[true,"Grid 3 columnas + categorías"],[true,"i18n en/es/pl"],[true,"Admin panel completo"],[true,"Dictionary Builder multitienda"],[true,"70 idiomas con auto-import países"],[true,"UI dinámica por idioma"],[true,"Confirmación 2 pasos en todos los borrados (app + admin)"],[true,"Fotos en items — add/change/remove, fullscreen zoom"],[true,"Important items con pulse rojo suave"],[true,"Colapso persistente de categorías y tipos de tienda"],[true,"Vaciar completados (bulk delete checked)"],[true,"Categorías no-alimentarias (Pets, Ropa, Bricolaje, Auto, etc.)"],[true,"Listas por tipo de tienda — jerarquía store→categoría"],[true,"Admin: CRUD completo de store types y categorías custom"],[true,"Admin: Clear dictionary por categoría / store / global"],[true,"Admin: Generate items bulk por categoría / store / global"],[true,"Admin: menú ⋯ en store types y categorías (acciones agrupadas)"],[true,"Admin: Updates tab con build info, runtime state y changelog"],[true,"Admin: Stats completas por store, categoría, idioma y país"],[true,"Admin: indicador Demo/Supabase con pulse en header"],[true,"CI: auto-deploy a GitHub Pages en cada push"],[true,"Admin delete users + lists con confirmación"],[true,"Diccionario 1.500+ productos (27 store types, 138 categorías)"],[true,"Admin: Clean orphan entries (entradas huérfanas de categorías obsoletas)"],[true,"Admin: cascade delete de traducciones al quitar un idioma"],[true,"Admin: backfill de traducciones al añadir un idioma"],[true,"Fix Demo Mode en producción via .env.production"],[true,"Admin: contadores de categorías e items en headers de store types"]]},
+              {title:"🔴 Siguiente",color:"#ff5c5c",items:[[false,"Autocompletado productos anteriores"],[false,"Buscar dentro de una lista"],[false,"Modo compra (estante GRANDE)"],[false,"Export WhatsApp bilingüe"],[false,"Bulk add desde WhatsApp"],[false,"Diccionario fuzzy (plurales, typos)"]]},
               {title:"🟡 v2.1",color:"#e8c364",items:[[false,"Input por voz multilingüe"],[false,"Asignar items a personas"],[false,"Sugerencias predictivas"],[false,"Mover/copiar items entre listas"],[false,"Modo emergencia (traducción instant)"],[false,"Web Share API"],[false,"PWA completa"]]},
               {title:"🔵 v2.2",color:"#6c8aff",items:[[false,"Monetización Free + Pro €2/mes"],[false,"Cache orgánico de traducciones"],[false,"Diccionario 5.000+ productos"],[false,"Export/import CSV + JSON"],[false,"Google Play + App Store"],[false,"Admin: staging mode — aplicar cambios al instante o encolar para publicar juntos"],[false,"Admin: preview de la app antes de publicar cambios a todos los usuarios"],[false,"Admin: botón 'Apply changes' con toggle directo/batch"],[false,"Admin: auto-borrado de listas inactivas (umbral configurable: 30/60/90/180 días)"],[false,"Admin: cron de limpieza nocturno para eliminar listas sin actividad"],[false,"Admin: aviso a los miembros antes de borrar una lista por inactividad"]]},
               {title:"🟣 v3 — El sueño",color:"#c76dff",items:[[false,"Modo offline"],[false,"Real-time sync"],[false,"Push notifications"],[false,"Recetas → lista traducida"],[false,"Escaneo código de barras"],[false,"Reconocimiento de imagen"],[false,"Precios por tienda"],[false,"Etiquetas dietéticas"],[false,"Modo presupuesto"],[false,"Reparto de gastos"],[false,"BabelCart for Teams"],[false,"API del diccionario"],[false,"App nativa"]]},

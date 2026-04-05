@@ -14,6 +14,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "11:20",
+    type: "feat",
+    title: "Dictionary maintenance + language lifecycle",
+    details: [
+      "Admin → Stats: 'Clean orphan entries' button — detects entries with categories that no longer exist and deletes them",
+      "Disable language now also deletes that language's translations from every dictionary entry (cascade, 2-step confirm showing affected count)",
+      "Enable language → new 'Fill' button per active language that backfills missing translations via the translate Edge Function (concurrency 4, live progress toast)",
+      "Languages tab now shows X/Y dict coverage ratio per language",
+      "Roadmap refreshed: 1.500+ productos ✅, orphan cleanup ✅, cascade delete ✅, backfill ✅, Demo Mode fix ✅, store type counters ✅",
+    ],
+  },
+  {
+    hash: "df84c0b",
+    date: "2026-04-05",
     time: "09:55",
     type: "fix",
     title: "Fix unintended Demo Mode in production",
