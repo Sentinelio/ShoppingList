@@ -54,7 +54,6 @@ export default function AdminPage(_: AdminPageProps) {
   const [, setBuiltIds] = useState<string[]>([]);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
-  const [confirmClearDict, setConfirmClearDict] = useState<"all" | "filtered" | null>(null);
   const [collapsedStores, setCollapsedStores] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem("babelcart_admin_collapsed_stores");
@@ -78,6 +77,9 @@ export default function AdminPage(_: AdminPageProps) {
   const [newStoreForm, setNewStoreForm] = useState({ emoji: "🛒", name: "" });
   const [newCatForm, setNewCatForm] = useState({ emoji: "📦", color: "#8b949e", name: "" });
   const [confirmClearCat, setConfirmClearCat] = useState<string | null>(null);
+  const [confirmClearStore, setConfirmClearStore] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState<string | null>(null); // label of current bulk op
 
   const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `item_${Date.now()}`;
 
@@ -139,6 +141,15 @@ export default function AdminPage(_: AdminPageProps) {
     fetchDictionary();
   };
 
+  const clearCategories = async (ids: string[]) => {
+    if (IS_DEMO) { showToast("Demo mode — local dictionary only"); return; }
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("dictionary").delete().in("category", ids);
+    if (error) { showToast(`Error: ${error.message}`); return; }
+    showToast(`Cleared ${ids.length} categories`);
+    fetchDictionary();
+  };
+
   const buildOneCategory = async (categoryId: string) => {
     const seed = SEED_CATEGORIES.find(s => s.category === categoryId);
     if (!seed) { showToast("No seed config for this category"); return; }
@@ -176,6 +187,23 @@ export default function AdminPage(_: AdminPageProps) {
     setBuildingCategory(null);
   };
 
+  const buildManyCategories = async (categoryIds: string[], label: string) => {
+    if (IS_DEMO) { showToast("Connect Supabase first"); return; }
+    const seeds = categoryIds
+      .map(id => SEED_CATEGORIES.find(s => s.category === id))
+      .filter((s): s is typeof SEED_CATEGORIES[number] => !!s);
+    if (seeds.length === 0) { showToast("No seed configs found"); return; }
+    setBulkRunning(label);
+    let total = 0;
+    for (const seed of seeds) {
+      await buildOneCategory(seed.category);
+      total++;
+      showToast(`(${total}/${seeds.length}) ${seed.name} done`);
+    }
+    setBulkRunning(null);
+    showToast(`✅ ${label}: ${seeds.length} categories generated`);
+  };
+
   // Fetch data based on tab
   const fetchDictionary = useCallback(async () => {
     setLoading(true);
@@ -187,8 +215,21 @@ export default function AdminPage(_: AdminPageProps) {
         created_at: "",
       })));
     } else {
-      const { data } = await supabase.from("dictionary").select("*").order("created_at", { ascending: false }).limit(500);
-      if (data) setDictRows(data as DictRow[]);
+      const all: DictRow[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from("dictionary")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error || !data) break;
+        all.push(...(data as DictRow[]));
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      setDictRows(all);
     }
     setLoading(false);
   }, []);
@@ -394,6 +435,44 @@ export default function AdminPage(_: AdminPageProps) {
               </div>
             )}
 
+            {/* Global bulk actions */}
+            {!search && (
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => {
+                    const allIds = storeTypesWithCats.flatMap(st => st.categories.map(c => c.id));
+                    buildManyCategories(allIds, "All categories");
+                  }}
+                  disabled={!!bulkRunning}
+                  className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                  style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
+                >
+                  {bulkRunning === "All categories" ? "⏳ Generating..." : "🧠 Generate all"}
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirmClearAll) {
+                      const allIds = storeTypesWithCats.flatMap(st => st.categories.map(c => c.id));
+                      clearCategories(allIds);
+                      setConfirmClearAll(false);
+                    } else {
+                      setConfirmClearAll(true);
+                      setTimeout(() => setConfirmClearAll(false), 3000);
+                    }
+                  }}
+                  disabled={!!bulkRunning}
+                  className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                  style={{
+                    background: confirmClearAll ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                    color: confirmClearAll ? "#fff" : "#ff5c5c",
+                    border: confirmClearAll ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                  }}
+                >
+                  {confirmClearAll ? "⚠️ Confirm clear all" : "🧹 Clear all"}
+                </button>
+              </div>
+            )}
+
             <div className="flex justify-end mb-3">
               <button
                 onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
@@ -478,6 +557,43 @@ export default function AdminPage(_: AdminPageProps) {
                         >✕</button>
                       )}
                     </div>
+
+                    {/* Store-level bulk actions */}
+                    {st.categories.length > 0 && (
+                      <div className="flex gap-2 px-3 pb-3">
+                        <button
+                          onClick={() => {
+                            const ids = st.categories.map(c => c.id);
+                            buildManyCategories(ids, `store:${st.id}`);
+                          }}
+                          disabled={!!bulkRunning}
+                          className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                          style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
+                        >
+                          {bulkRunning === `store:${st.id}` ? "⏳ Generating..." : "🧠 Generate all"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirmClearStore === st.id) {
+                              clearCategories(st.categories.map(c => c.id));
+                              setConfirmClearStore(null);
+                            } else {
+                              setConfirmClearStore(st.id);
+                              setTimeout(() => setConfirmClearStore(prev => prev === st.id ? null : prev), 3000);
+                            }
+                          }}
+                          disabled={!!bulkRunning}
+                          className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                          style={{
+                            background: confirmClearStore === st.id ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                            color: confirmClearStore === st.id ? "#fff" : "#ff5c5c",
+                            border: confirmClearStore === st.id ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                          }}
+                        >
+                          {confirmClearStore === st.id ? "⚠️ Confirm clear" : "🧹 Clear all"}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Add category form */}
                     {addingCatFor === st.id && (
