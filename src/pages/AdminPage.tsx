@@ -82,6 +82,7 @@ export default function AdminPage(_: AdminPageProps) {
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [bulkRunning, setBulkRunning] = useState<string | null>(null); // label of current bulk op
   const [openStoreMenu, setOpenStoreMenu] = useState<string | null>(null);
+  const [openCatMenu, setOpenCatMenu] = useState<string | null>(null);
   const [confirmDeleteStore, setConfirmDeleteStore] = useState<string | null>(null);
   const [confirmDeleteCat, setConfirmDeleteCat] = useState<string | null>(null);
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<string | null>(null);
@@ -320,7 +321,24 @@ export default function AdminPage(_: AdminPageProps) {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex items-center gap-3">
         <h1 className="text-lg font-bold">🛠️ Admin Panel</h1>
-        <span className="text-text-muted text-xs ml-auto">{IS_DEMO ? "Demo Mode" : "Supabase"}</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full"
+            style={{
+              background: IS_DEMO ? "#ff5c5c" : "#3dd68c",
+              boxShadow: IS_DEMO ? "0 0 0 0 rgba(255,92,92,0.7)" : "0 0 0 0 rgba(61,214,140,0.7)",
+              animation: "admin-status-pulse 2s ease-in-out infinite",
+            }}
+            title={IS_DEMO ? "Running in Demo Mode (no Supabase connection)" : "Connected to Supabase"}
+          />
+          <span className="text-text-muted text-xs">{IS_DEMO ? "Demo Mode" : "Supabase"}</span>
+        </div>
+        <style>{`
+          @keyframes admin-status-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 ${IS_DEMO ? "rgba(255,92,92,0.6)" : "rgba(61,214,140,0.6)"}; opacity: 1; }
+            50% { box-shadow: 0 0 0 6px ${IS_DEMO ? "rgba(255,92,92,0)" : "rgba(61,214,140,0)"}; opacity: 0.75; }
+          }
+        `}</style>
       </header>
 
       {/* Tabs */}
@@ -833,7 +851,7 @@ export default function AdminPage(_: AdminPageProps) {
                           return (
                             <div key={c.id} className="border-b border-border last:border-b-0">
                               <div className="px-3 py-2.5">
-                                <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => setExpandedCategory(isExpanded ? null : c.id)}
                                     className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-left"
@@ -844,63 +862,78 @@ export default function AdminPage(_: AdminPageProps) {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
+                                      <div className="text-[9px] text-text-muted">{dictItems.length} items{isBuilding ? " · generating..." : ""}</div>
                                     </div>
                                   </button>
-                                  {c.custom && (() => {
-                                    const isConfirming = confirmDeleteCat === c.id;
-                                    return (
-                                      <button
-                                        onClick={() => {
-                                          if (isConfirming) {
-                                            removeCustomCategory(c.id);
-                                            setStoreCatVersion(v => v + 1);
-                                            setConfirmDeleteCat(null);
-                                            showToast("Category removed");
-                                          } else {
-                                            setConfirmDeleteCat(c.id);
-                                            setTimeout(() => setConfirmDeleteCat(prev => prev === c.id ? null : prev), 3000);
-                                          }
-                                        }}
-                                        className="px-1.5 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0 whitespace-nowrap"
-                                        style={{
-                                          background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                                          color: isConfirming ? "#fff" : "#ff5c5c",
-                                          border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                                        }}
-                                        title="Delete this custom category"
-                                      >{isConfirming ? "⚠️ Confirm" : "✕"}</button>
-                                    );
-                                  })()}
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => buildOneCategory(c.id)}
-                                    disabled={isBuilding || !seed}
-                                    className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
-                                    style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
-                                  >
-                                    {isBuilding ? "⏳ Generating..." : "🧠 Generate items"}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (confirmClearCat === c.id) {
-                                        clearDictionary(c.id);
-                                        setConfirmClearCat(null);
-                                      } else {
-                                        setConfirmClearCat(c.id);
-                                        setTimeout(() => setConfirmClearCat(prev => prev === c.id ? null : prev), 3000);
-                                      }
-                                    }}
-                                    disabled={dictItems.length === 0}
-                                    className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
-                                    style={{
-                                      background: confirmClearCat === c.id ? "#b71c1c" : "rgba(255,176,61,0.1)",
-                                      color: confirmClearCat === c.id ? "#fff" : "#ffb03d",
-                                      border: confirmClearCat === c.id ? "1px solid #b71c1c" : "1px solid rgba(255,176,61,0.2)",
-                                    }}
-                                  >
-                                    {confirmClearCat === c.id ? "⚠️ Confirm clear" : "🧹 Clear items"}
-                                  </button>
+                                  <div className="relative shrink-0">
+                                    <button
+                                      onClick={() => setOpenCatMenu(prev => prev === c.id ? null : c.id)}
+                                      className="w-8 h-8 rounded-lg text-base cursor-pointer flex items-center justify-center text-text-muted"
+                                      style={{ background: openCatMenu === c.id ? "rgba(240,136,62,0.15)" : "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                      title="Actions"
+                                    >⋯</button>
+                                    {openCatMenu === c.id && (
+                                      <>
+                                        <div className="fixed inset-0 z-10" onClick={() => { setOpenCatMenu(null); setConfirmClearCat(null); setConfirmDeleteCat(null); }} />
+                                        <div className="absolute right-0 top-9 z-20 bg-card border border-border-light rounded-xl shadow-lg py-1 min-w-[180px]">
+                                          <button
+                                            disabled={isBuilding || !seed}
+                                            onClick={() => { buildOneCategory(c.id); setOpenCatMenu(null); }}
+                                            className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
+                                            style={{ color: "#3dd68c" }}
+                                          >
+                                            <span>🧠</span><span>{isBuilding ? "Generating..." : seed ? "Generate items" : "No seed available"}</span>
+                                          </button>
+                                          <button
+                                            disabled={dictItems.length === 0}
+                                            onClick={() => {
+                                              if (confirmClearCat === c.id) {
+                                                clearDictionary(c.id);
+                                                setConfirmClearCat(null);
+                                                setOpenCatMenu(null);
+                                              } else {
+                                                setConfirmClearCat(c.id);
+                                                setTimeout(() => setConfirmClearCat(prev => prev === c.id ? null : prev), 3000);
+                                              }
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-danger/10 flex items-center gap-2 disabled:opacity-40"
+                                            style={{
+                                              color: confirmClearCat === c.id ? "#fff" : "#ffb03d",
+                                              background: confirmClearCat === c.id ? "#b71c1c" : undefined,
+                                            }}
+                                          >
+                                            <span>🧹</span><span>{confirmClearCat === c.id ? "Confirm clear" : "Clear items"}</span>
+                                          </button>
+                                          {c.custom && (
+                                            <>
+                                              <div className="h-px bg-border my-1" />
+                                              <button
+                                                onClick={() => {
+                                                  if (confirmDeleteCat === c.id) {
+                                                    removeCustomCategory(c.id);
+                                                    setStoreCatVersion(v => v + 1);
+                                                    setConfirmDeleteCat(null);
+                                                    showToast("Category removed");
+                                                    setOpenCatMenu(null);
+                                                  } else {
+                                                    setConfirmDeleteCat(c.id);
+                                                    setTimeout(() => setConfirmDeleteCat(prev => prev === c.id ? null : prev), 3000);
+                                                  }
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-danger/10 flex items-center gap-2"
+                                                style={{
+                                                  color: confirmDeleteCat === c.id ? "#fff" : "#ff5c5c",
+                                                  background: confirmDeleteCat === c.id ? "#b71c1c" : undefined,
+                                                }}
+                                              >
+                                                <span>🗑️</span><span>{confirmDeleteCat === c.id ? "Confirm delete" : "Delete category"}</span>
+                                              </button>
+                                            </>
+                                          )}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 

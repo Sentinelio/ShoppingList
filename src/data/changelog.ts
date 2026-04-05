@@ -14,6 +14,17 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "08:25",
+    type: "feat",
+    title: "Category dropdown menu + header status indicator",
+    details: [
+      "Each category now has a ⋯ menu with Generate items / Clear items / Delete",
+      "Pulsing status dot in header: red = Demo Mode, green = Supabase",
+    ],
+  },
+  {
+    hash: "45d1af9",
+    date: "2026-04-05",
     time: "08:10",
     type: "fix",
     title: "Multiple admin fixes",
