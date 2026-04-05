@@ -116,10 +116,26 @@ export default function AdminPage(_: AdminPageProps) {
       showToast("User deleted (demo)");
       return;
     }
+    // 1. Delete lists created by this user (cascades to list_members and items via FK)
+    const { data: ownedLists, error: listsErr } = await supabase
+      .from("lists")
+      .select("id")
+      .eq("created_by", userId);
+    if (listsErr) { showToast(`Error: ${listsErr.message}`); return; }
+    const ownedIds = (ownedLists ?? []).map(l => l.id);
+    if (ownedIds.length > 0) {
+      const { error: delListsErr } = await supabase.from("lists").delete().in("id", ownedIds);
+      if (delListsErr) { showToast(`Error deleting lists: ${delListsErr.message}`); return; }
+    }
+    // 2. Remove this user from any list_members rows (they might be a member of lists they don't own)
+    const { error: membersErr } = await supabase.from("list_members").delete().eq("user_id", userId);
+    if (membersErr) { showToast(`Error: ${membersErr.message}`); return; }
+    // 3. Finally delete the user
     const { error } = await supabase.from("users").delete().eq("id", userId);
     if (error) { showToast(`Error: ${error.message}`); return; }
     setUsers(prev => prev.filter(u => u.id !== userId));
-    showToast("User deleted");
+    setLists(prev => prev.filter(l => !ownedIds.includes(l.id)));
+    showToast(ownedIds.length > 0 ? `User + ${ownedIds.length} list${ownedIds.length === 1 ? "" : "s"} deleted` : "User deleted");
   };
 
   const deleteListFromAdmin = async (listId: string) => {

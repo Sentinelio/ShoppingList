@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.28",
+    version: "v0.29",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "12:15",
+    type: "fix",
+    title: "Delete user now cascades through lists and memberships",
+    details: [
+      "Root cause: users.id has a FK from lists.created_by without ON DELETE CASCADE, so Supabase blocked user deletion when the user owned lists",
+      "Client-side fix: deleteUser now first deletes lists owned by that user (which already cascades to list_members and items), then removes any list_members rows where the user is a member of other people's lists, then deletes the user",
+      "Toast now reports how many lists were also removed",
+    ],
+  },
+  {
+    version: "v0.28",
+    hash: "a935be6",
     date: "2026-04-05",
     time: "11:35",
     type: "refactor",
