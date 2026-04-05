@@ -1,6 +1,7 @@
 export type ChangeType = "feat" | "fix" | "refactor" | "style" | "chore" | "ci" | "docs";
 
 export interface ChangelogEntry {
+  version: string; // v0.1, v0.2, ... — incremental, oldest = lowest
   hash: string;
   date: string; // YYYY-MM-DD
   time?: string; // HH:MM (24h, UTC)
@@ -9,10 +10,25 @@ export interface ChangelogEntry {
   details?: string[];
 }
 
-// Newest first. Update with each meaningful change.
+// Newest first. Version increments by 1 on each meaningful change.
+// When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "v0.28",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "11:35",
+    type: "refactor",
+    title: "Changelog uses incremental version numbers",
+    details: [
+      "Added version field (v0.1 … v0.28) to every changelog entry",
+      "Updates tab displays the version prominently with hash as secondary info",
+      "Easier to reference changes by version number instead of git hash",
+    ],
+  },
+  {
+    version: "v0.27",
+    hash: "e7d9645",
     date: "2026-04-05",
     time: "11:20",
     type: "feat",
@@ -26,6 +42,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.26",
     hash: "df84c0b",
     date: "2026-04-05",
     time: "09:55",
@@ -39,6 +56,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.25",
     hash: "82c8a97",
     date: "2026-04-05",
     time: "09:40",
@@ -54,6 +72,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.24",
     hash: "9169f78",
     date: "2026-04-05",
     time: "09:25",
@@ -69,6 +88,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.23",
     hash: "8e9d48a",
     date: "2026-04-05",
     time: "09:10",
@@ -82,6 +102,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.22",
     hash: "7c1df5e",
     date: "2026-04-05",
     time: "08:55",
@@ -98,6 +119,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.21",
     hash: "b441057",
     date: "2026-04-05",
     time: "08:40",
@@ -109,6 +131,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.20",
     hash: "f3b09f6",
     date: "2026-04-05",
     time: "08:25",
@@ -120,6 +143,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.19",
     hash: "45d1af9",
     date: "2026-04-05",
     time: "08:10",
@@ -136,6 +160,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.18",
     hash: "2e29e0c",
     date: "2026-04-05",
     time: "07:55",
@@ -147,6 +172,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.17",
     hash: "8159eb6",
     date: "2026-04-05",
     time: "07:53",
@@ -159,6 +185,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.16",
     hash: "01fe231",
     date: "2026-04-05",
     time: "07:47",
@@ -170,6 +197,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.15",
     hash: "47d3bf7",
     date: "2026-04-05",
     time: "07:40",
@@ -182,6 +210,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.14",
     hash: "4550909",
     date: "2026-04-05",
     time: "07:35",
@@ -190,6 +219,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     details: ["Replaces the global Clear Dictionary button"],
   },
   {
+    version: "v0.13",
     hash: "97dc798",
     date: "2026-04-04",
     time: "22:10",
@@ -198,6 +228,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     details: ["Store type collapse state saved to localStorage"],
   },
   {
+    version: "v0.12",
     hash: "6bb2aaf",
     date: "2026-04-04",
     time: "21:59",
@@ -205,6 +236,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Collapse state persists across list navigation",
   },
   {
+    version: "v0.11",
     hash: "de3b1c5",
     date: "2026-04-04",
     time: "21:55",
@@ -212,6 +244,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Clear category products button in Catalog",
   },
   {
+    version: "v0.10",
     hash: "14475e3",
     date: "2026-04-04",
     time: "21:51",
@@ -220,6 +253,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     details: ["Merged Dictionary, Categories and Builder into single tab"],
   },
   {
+    version: "v0.9",
     hash: "62460ac",
     date: "2026-04-04",
     time: "21:39",
@@ -227,6 +261,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Simpler store/category forms with color picker",
   },
   {
+    version: "v0.8",
     hash: "5f6c187",
     date: "2026-04-04",
     time: "21:31",
@@ -235,6 +270,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     details: ["Admin can add/remove custom store types and categories"],
   },
   {
+    version: "v0.7",
     hash: "84fa5bc",
     date: "2026-04-04",
     time: "21:28",
@@ -242,6 +278,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Admin: clear dictionary (all or by category)",
   },
   {
+    version: "v0.6",
     hash: "2caee8c",
     date: "2026-04-04",
     time: "21:22",
@@ -249,6 +286,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Translate Edge Function uses all 58 categories",
   },
   {
+    version: "v0.5",
     hash: "2030f3e",
     date: "2026-04-04",
     time: "21:20",
@@ -256,6 +294,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Admin delete lists + inactive list cleanup roadmap",
   },
   {
+    version: "v0.4",
     hash: "8f6f5b1",
     date: "2026-04-04",
     time: "21:15",
@@ -263,6 +302,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Collapse persistence, remove members, admin delete users",
   },
   {
+    version: "v0.3",
     hash: "807ebb0",
     date: "2026-04-04",
     time: "21:06",
@@ -271,6 +311,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     details: ["Admin back goes to stats tab"],
   },
   {
+    version: "v0.2",
     hash: "92fe935",
     date: "2026-04-04",
     time: "20:40",
@@ -278,6 +319,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "List rename save, member approve refresh, item importance flag",
   },
   {
+    version: "v0.1",
     hash: "322a3aa",
     date: "2026-04-04",
     time: "18:30",

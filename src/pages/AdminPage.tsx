@@ -1404,12 +1404,16 @@ export default function AdminPage(_: AdminPageProps) {
           return (
             <div>
               {/* Build info */}
+              {(() => { /* build info local scope */ return null; })()}
               <div className="bg-card rounded-xl p-3 border border-border mb-3">
                 <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Current build</div>
                 <div className="space-y-1.5 text-[12px]">
                   <div className="flex items-center gap-2">
                     <span className="text-text-muted w-20 shrink-0">Version</span>
-                    <code className="text-accent font-mono text-[11px] bg-bg px-1.5 py-0.5 rounded">{__BUILD_HASH__}</code>
+                    <span className="text-accent font-mono text-sm font-bold">
+                      {CHANGELOG.find(e => e.hash === __BUILD_HASH__)?.version ?? CHANGELOG[0]?.version ?? "v?"}
+                    </span>
+                    <code className="text-text-muted font-mono text-[10px] bg-bg px-1.5 py-0.5 rounded">{__BUILD_HASH__}</code>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-text-muted w-20 shrink-0">Branch</span>
@@ -1478,13 +1482,16 @@ export default function AdminPage(_: AdminPageProps) {
                     const isCurrent = e.hash === __BUILD_HASH__;
                     return (
                       <div key={i} className="px-3 py-2.5">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span
+                            className="text-[11px] font-bold font-mono text-accent"
+                          >{e.version}</span>
                           <span
                             className="text-[9px] font-bold px-1.5 py-0.5 rounded"
                             style={{ background: `${color}20`, color }}
                           >{typeLabel[e.type]}</span>
-                          <code className="text-[10px] font-mono text-text-muted">{e.hash}</code>
                           <span className="text-[10px] text-text-muted">{e.date}{e.time ? ` · ${e.time}` : ""}</span>
+                          <code className="text-[9px] font-mono text-text-muted opacity-60">{e.hash}</code>
                           {isCurrent && (
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-auto" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>LIVE</span>
                           )}
