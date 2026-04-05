@@ -14,6 +14,19 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "09:55",
+    type: "fix",
+    title: "Fix unintended Demo Mode in production",
+    details: [
+      "Root cause: CI was building without VITE_SUPABASE_* env vars (secrets not set in repo), so IS_DEMO evaluated to true at build time",
+      "Committed .env.production with Supabase URL + anon key (anon key is public by design, protected by RLS policies server-side)",
+      "Removed broken secret injection from the deploy workflow so empty secrets don't override .env.production",
+      "Verified local build: 590 KB bundle now contains the real Supabase URL and client (vs 395 KB broken demo build)",
+    ],
+  },
+  {
+    hash: "82c8a97",
+    date: "2026-04-05",
     time: "09:40",
     type: "fix",
     title: "Remove category overlap + stats double-count bug",
