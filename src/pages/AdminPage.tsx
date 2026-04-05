@@ -592,16 +592,23 @@ export default function AdminPage(_: AdminPageProps) {
               </div>
             )}
 
-            {/* Global bulk actions */}
+            {/* Global actions: + Store type · Generate all · Clear all (1/3 each) */}
             {!search && (
               <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
+                  className="w-1/3 py-2 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
+                  style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+                >
+                  + Store type
+                </button>
                 <button
                   onClick={() => {
                     const allIds = storeTypesWithCats.flatMap(st => st.categories.map(c => c.id));
                     buildManyCategories(allIds, "All categories");
                   }}
                   disabled={!!bulkRunning}
-                  className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                  className="w-1/3 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                   style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
                 >
                   {bulkRunning === "All categories" ? "⏳ Generating..." : "🧠 Generate all"}
@@ -618,27 +625,17 @@ export default function AdminPage(_: AdminPageProps) {
                     }
                   }}
                   disabled={!!bulkRunning}
-                  className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                  className="w-1/3 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                   style={{
                     background: confirmClearAll ? "#b71c1c" : "rgba(255,92,92,0.08)",
                     color: confirmClearAll ? "#fff" : "#ff5c5c",
                     border: confirmClearAll ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
                   }}
                 >
-                  {confirmClearAll ? "⚠️ Confirm clear all" : "🧹 Clear all"}
+                  {confirmClearAll ? "⚠️ Confirm clear" : "🧹 Clear all"}
                 </button>
               </div>
             )}
-
-            <div className="flex justify-end mb-3">
-              <button
-                onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
-                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
-              >
-                + Store type
-              </button>
-            </div>
 
             {/* Add store type form */}
             {addingStore && (
@@ -1243,9 +1240,9 @@ export default function AdminPage(_: AdminPageProps) {
               </div>}
             </div>
             {[
-              {title:"✅ MVP",color:"#3dd68c",items:[[true,"Listas compartidas multilingües"],[true,"Traducción automática vía Claude API"],[true,"Tu idioma + idioma del estante"],[true,"Invitación por código + aprobación"],[true,"Swipe-to-delete 2 pasos"],[true,"122 iconos emoji multilingüe"],[true,"Diccionario local 100+ productos"],[true,"Cantidades y unidades"],[true,"Duplicados cross-idioma + merge"],[true,"Modo Mostrar en tienda + frases"],[true,"Grid 3 columnas + categorías"],[true,"i18n en/es/pl"],[true,"Admin panel completo"],[true,"Dictionary Builder multitienda"],[true,"70 idiomas con auto-import países"],[true,"UI dinámica por idioma"]]},
-              {title:"🔴 Siguiente",color:"#ff5c5c",items:[[false,"Diccionario 1.500+ productos (12 tipos tienda)"],[false,"Autocompletado productos anteriores"],[false,"Vaciar completados"],[false,"Modo compra (estante GRANDE)"],[false,"Export WhatsApp bilingüe"],[false,"Bulk add desde WhatsApp"],[false,"Buscar en lista"],[false,"Diccionario fuzzy (plurales, typos)"]]},
-              {title:"🟡 v2.1",color:"#e8c364",items:[[false,"Input por voz multilingüe"],[false,"Asignar items a personas"],[false,"Sugerencias predictivas"],[false,"Categorías no-alimentarias"],[false,"Listas por tipo de tienda"],[false,"Mover/copiar items entre listas"],[false,"Modo emergencia (traducción instant)"],[false,"Web Share API"],[false,"PWA completa"]]},
+              {title:"✅ MVP",color:"#3dd68c",items:[[true,"Listas compartidas multilingües"],[true,"Traducción automática vía Claude API"],[true,"Tu idioma + idioma del estante"],[true,"Invitación por código + aprobación"],[true,"Swipe-to-delete 2 pasos"],[true,"122 iconos emoji multilingüe"],[true,"Diccionario local 100+ productos"],[true,"Cantidades y unidades"],[true,"Duplicados cross-idioma + merge"],[true,"Modo Mostrar en tienda + frases"],[true,"Grid 3 columnas + categorías"],[true,"i18n en/es/pl"],[true,"Admin panel completo"],[true,"Dictionary Builder multitienda"],[true,"70 idiomas con auto-import países"],[true,"UI dinámica por idioma"],[true,"Confirmación 2 pasos en todos los borrados (app + admin)"],[true,"Fotos en items — add/change/remove, fullscreen zoom"],[true,"Important items con pulse rojo suave"],[true,"Colapso persistente de categorías y tipos de tienda"],[true,"Vaciar completados (bulk delete checked)"],[true,"Categorías no-alimentarias (Pets, Ropa, Bricolaje, Auto, etc.)"],[true,"Listas por tipo de tienda — jerarquía store→categoría"],[true,"Admin: CRUD completo de store types y categorías custom"],[true,"Admin: Clear dictionary por categoría / store / global"],[true,"Admin: Generate items bulk por categoría / store / global"],[true,"Admin: menú ⋯ en store types y categorías (acciones agrupadas)"],[true,"Admin: Updates tab con build info, runtime state y changelog"],[true,"Admin: Stats completas por store, categoría, idioma y país"],[true,"Admin: indicador Demo/Supabase con pulse en header"],[true,"CI: auto-deploy a GitHub Pages en cada push"],[true,"Admin delete users + lists con confirmación"]]},
+              {title:"🔴 Siguiente",color:"#ff5c5c",items:[[false,"Diccionario 1.500+ productos (todos los store types)"],[false,"Autocompletado productos anteriores"],[false,"Modo compra (estante GRANDE)"],[false,"Export WhatsApp bilingüe"],[false,"Bulk add desde WhatsApp"],[false,"Buscar dentro de una lista"],[false,"Diccionario fuzzy (plurales, typos)"]]},
+              {title:"🟡 v2.1",color:"#e8c364",items:[[false,"Input por voz multilingüe"],[false,"Asignar items a personas"],[false,"Sugerencias predictivas"],[false,"Mover/copiar items entre listas"],[false,"Modo emergencia (traducción instant)"],[false,"Web Share API"],[false,"PWA completa"]]},
               {title:"🔵 v2.2",color:"#6c8aff",items:[[false,"Monetización Free + Pro €2/mes"],[false,"Cache orgánico de traducciones"],[false,"Diccionario 5.000+ productos"],[false,"Export/import CSV + JSON"],[false,"Google Play + App Store"],[false,"Admin: staging mode — aplicar cambios al instante o encolar para publicar juntos"],[false,"Admin: preview de la app antes de publicar cambios a todos los usuarios"],[false,"Admin: botón 'Apply changes' con toggle directo/batch"],[false,"Admin: auto-borrado de listas inactivas (umbral configurable: 30/60/90/180 días)"],[false,"Admin: cron de limpieza nocturno para eliminar listas sin actividad"],[false,"Admin: aviso a los miembros antes de borrar una lista por inactividad"]]},
               {title:"🟣 v3 — El sueño",color:"#c76dff",items:[[false,"Modo offline"],[false,"Real-time sync"],[false,"Push notifications"],[false,"Recetas → lista traducida"],[false,"Escaneo código de barras"],[false,"Reconocimiento de imagen"],[false,"Precios por tienda"],[false,"Etiquetas dietéticas"],[false,"Modo presupuesto"],[false,"Reparto de gastos"],[false,"BabelCart for Teams"],[false,"API del diccionario"],[false,"App nativa"]]},
             ].map((s,si) => {let c=0;return(

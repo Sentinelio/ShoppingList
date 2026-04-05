@@ -14,6 +14,19 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "09:10",
+    type: "feat",
+    title: "More store types + roadmap refresh + button layout",
+    details: [
+      "Added 11 new store types: Bakery, Butcher, Fishmonger, Liquor, Garden Center, Baby Shop, Toys, Bookstore, Florist, Optician, Kiosk",
+      "All new store types come with categories and seed prompts — ready to Generate items",
+      "Catalog: + Store type / Generate all / Clear all now 1/3 width each in a single row",
+      "Roadmap updated: marked completed items (photos, important pulse, bulk generate/clear, admin menus, Updates tab, full stats, CI auto-deploy, delete confirmations, etc.)",
+    ],
+  },
+  {
+    hash: "7c1df5e",
+    date: "2026-04-05",
     time: "08:55",
     type: "feat",
     title: "Category rework across store types",

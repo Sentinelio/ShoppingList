@@ -90,8 +90,60 @@ export const CATEGORIES: Record<string, { emoji: string; color: string; en: stri
   party_supplies: { emoji: "🎉", color: "#f472b6", en: "Party Supplies",    es: "Fiesta",                 pl: "Imprezowe" },
   seasonal:       { emoji: "🎄", color: "#22c55e", en: "Seasonal",          es: "Temporada",              pl: "Sezonowe" },
   gifts_novelty:  { emoji: "🎁", color: "#f97316", en: "Gifts & Novelty",   es: "Regalos",                pl: "Prezenty" },
+  // ── Bakery (dedicated) ──
+  breads:       { emoji: "🍞", color: "#d4a04a", en: "Breads",             es: "Panes",               pl: "Chleby" },
+  pastries:     { emoji: "🥐", color: "#f59e0b", en: "Pastries",           es: "Bollería",            pl: "Ciasta" },
+  cakes:        { emoji: "🎂", color: "#ec4899", en: "Cakes & Desserts",   es: "Tartas y Postres",    pl: "Torty i Desery" },
+  sandwiches:   { emoji: "🥪", color: "#fb923c", en: "Sandwiches",         es: "Bocadillos",          pl: "Kanapki" },
+  // ── Butcher (dedicated) ──
+  beef_pork:    { emoji: "🥩", color: "#dc2626", en: "Beef & Pork",        es: "Ternera y Cerdo",     pl: "Wołowina i Wieprzowina" },
+  poultry:      { emoji: "🍗", color: "#f59e0b", en: "Poultry",            es: "Aves",                pl: "Drób" },
+  cold_cuts:    { emoji: "🍖", color: "#f87171", en: "Cold Cuts & Sausages", es: "Embutidos",         pl: "Wędliny" },
+  // ── Fishmonger ──
+  fish_fresh:   { emoji: "🐟", color: "#60a5fa", en: "Fresh Fish",         es: "Pescado fresco",      pl: "Świeże ryby" },
+  shellfish:    { emoji: "🦐", color: "#fb923c", en: "Shellfish",          es: "Marisco",             pl: "Owoce morza" },
+  smoked_cured_fish: { emoji: "🐠", color: "#f472b6", en: "Smoked & Cured", es: "Ahumados",           pl: "Wędzone" },
+  // ── Liquor ──
+  wine:         { emoji: "🍷", color: "#991b1b", en: "Wine",               es: "Vino",                pl: "Wino" },
+  beer:         { emoji: "🍺", color: "#f59e0b", en: "Beer",               es: "Cerveza",             pl: "Piwo" },
+  spirits:      { emoji: "🥃", color: "#78350f", en: "Spirits",            es: "Licores",             pl: "Mocne alkohole" },
+  mixers:       { emoji: "🥤", color: "#38bdf8", en: "Mixers & Soft",      es: "Refrescos y Mixers",  pl: "Napoje i Mixery" },
+  // ── Garden Center ──
+  plants_outdoor:  { emoji: "🌳", color: "#16a34a", en: "Plants & Shrubs",  es: "Plantas y Arbustos",  pl: "Rośliny" },
+  seeds_bulbs:     { emoji: "🌱", color: "#22c55e", en: "Seeds & Bulbs",    es: "Semillas y Bulbos",   pl: "Nasiona" },
+  pots_planters:   { emoji: "🪴", color: "#a3a3a3", en: "Pots & Planters",  es: "Macetas",             pl: "Doniczki" },
+  garden_care:     { emoji: "🧴", color: "#84cc16", en: "Soil & Fertilizer", es: "Tierra y Abono",     pl: "Ziemia i Nawozy" },
+  // ── Baby Shop ──
+  baby_clothes: { emoji: "👶", color: "#f9a8d4", en: "Baby Clothes",       es: "Ropa de bebé",        pl: "Ubranka" },
+  baby_gear:    { emoji: "🛒", color: "#a78bfa", en: "Strollers & Gear",   es: "Carritos y Equipo",   pl: "Wózki i Akcesoria" },
+  baby_feeding: { emoji: "🍼", color: "#60a5fa", en: "Feeding & Nursing",  es: "Alimentación",        pl: "Karmienie" },
+  baby_safety:  { emoji: "🛡️", color: "#f97316", en: "Safety & Monitor",   es: "Seguridad",           pl: "Bezpieczeństwo" },
+  // ── Toys ──
+  baby_toys:         { emoji: "🧸", color: "#f9a8d4", en: "Baby & Toddler Toys", es: "Juguetes bebé",  pl: "Zabawki dla maluchów" },
+  kids_toys:         { emoji: "🪀", color: "#fbbf24", en: "Kids Toys",          es: "Juguetes niños",  pl: "Zabawki dla dzieci" },
+  construction_toys: { emoji: "🧱", color: "#ef4444", en: "Construction Toys",  es: "Construcción",    pl: "Klocki i Budowa" },
+  dolls_figures:     { emoji: "🪆", color: "#e879f9", en: "Dolls & Figures",    es: "Muñecas y Figuras", pl: "Lalki i Figurki" },
+  board_games:       { emoji: "🎲", color: "#6366f1", en: "Board Games & Puzzles", es: "Juegos de mesa", pl: "Gry planszowe" },
+  outdoor_toys:      { emoji: "🛴", color: "#22c55e", en: "Outdoor Toys",       es: "Juguetes aire libre", pl: "Zabawki na zewnątrz" },
+  // ── Bookstore ──
+  books:             { emoji: "📖", color: "#8b5cf6", en: "Books",              es: "Libros",              pl: "Książki" },
+  magazines_comics:  { emoji: "📰", color: "#f472b6", en: "Magazines & Comics", es: "Revistas y Cómics",   pl: "Czasopisma i Komiksy" },
+  // ── Florist ──
+  cut_flowers:         { emoji: "🌹", color: "#ec4899", en: "Cut Flowers",     es: "Flores cortadas",     pl: "Cięte kwiaty" },
+  houseplants:         { emoji: "🪴", color: "#16a34a", en: "Houseplants",     es: "Plantas de interior", pl: "Rośliny doniczkowe" },
+  flower_arrangements: { emoji: "💐", color: "#f472b6", en: "Arrangements & Gifts", es: "Ramos y Regalos", pl: "Bukiety i Prezenty" },
+  // ── Optician ──
+  eyeglasses:     { emoji: "👓", color: "#6366f1", en: "Glasses",          es: "Gafas",                pl: "Okulary" },
+  contact_lenses: { emoji: "👁️", color: "#06b6d4", en: "Contact Lenses",   es: "Lentillas",            pl: "Soczewki" },
+  lens_care:      { emoji: "💧", color: "#38bdf8", en: "Lens Care",        es: "Cuidado de lentes",    pl: "Pielęgnacja soczewek" },
+  sunglasses_opt: { emoji: "🕶️", color: "#1e293b", en: "Sunglasses",       es: "Gafas de sol",         pl: "Okulary przeciwsłoneczne" },
+  // ── Kiosk ──
+  newspapers:   { emoji: "🗞️", color: "#64748b", en: "Newspapers",         es: "Periódicos",          pl: "Gazety" },
+  magazines:    { emoji: "📰", color: "#8b5cf6", en: "Magazines",          es: "Revistas",            pl: "Czasopisma" },
+  tobacco:      { emoji: "🚬", color: "#78716c", en: "Tobacco",            es: "Tabaco",              pl: "Wyroby tytoniowe" },
+  lottery:      { emoji: "🎟️", color: "#fbbf24", en: "Lottery & Tickets",  es: "Lotería y Tickets",   pl: "Loteria" },
   // ── Fallback ──
-  other:        { emoji: "🛒", color: "#8b949e", en: "Other",             es: "Otros",               pl: "Inne" },
+  other:        { emoji: "🛒", color: "#8b949e", en: "Other",              es: "Otros",               pl: "Inne" },
 };
 
 export const CATEGORY_ORDER = [
@@ -119,6 +171,28 @@ export const CATEGORY_ORDER = [
   "writing", "paper_notebooks", "art_supplies", "desk_org", "gift_cards", "school",
   // Bazaar
   "home_deco", "kitchen_acc", "storage_org", "party_supplies", "seasonal", "gifts_novelty",
+  // Bakery (dedicated)
+  "breads", "pastries", "cakes", "sandwiches",
+  // Butcher
+  "beef_pork", "poultry", "cold_cuts",
+  // Fishmonger
+  "fish_fresh", "shellfish", "smoked_cured_fish",
+  // Liquor
+  "wine", "beer", "spirits", "mixers",
+  // Garden center
+  "plants_outdoor", "seeds_bulbs", "pots_planters", "garden_care",
+  // Baby shop
+  "baby_clothes", "baby_gear", "baby_feeding", "baby_safety",
+  // Toys
+  "baby_toys", "kids_toys", "construction_toys", "dolls_figures", "board_games", "outdoor_toys",
+  // Bookstore
+  "books", "magazines_comics",
+  // Florist
+  "cut_flowers", "houseplants", "flower_arrangements",
+  // Optician
+  "eyeglasses", "contact_lenses", "lens_care", "sunglasses_opt",
+  // Kiosk
+  "newspapers", "magazines", "tobacco", "lottery",
   // Fallback
   "other",
 ];

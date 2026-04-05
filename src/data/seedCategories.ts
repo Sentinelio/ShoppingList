@@ -98,6 +98,58 @@ export const SEED_CATEGORIES: SeedCategory[] = [
   { id: "bazaar_party", name: "Party supplies", count: 20, storeType: "bazaar", category: "party_supplies", prompt: "balloons, birthday candles, paper plates, plastic cups, party hats, banner, confetti, piñata, party favors, disposable cutlery, tablecloth" },
   { id: "bazaar_season", name: "Seasonal", count: 20, storeType: "bazaar", category: "seasonal", prompt: "Christmas tree, Christmas ornaments, string lights, Halloween decorations, pumpkin, Easter eggs, Valentine decorations, advent calendar, nativity, fake snow" },
   { id: "bazaar_gifts", name: "Gifts & novelty", count: 20, storeType: "bazaar", category: "gifts_novelty", prompt: "keychain, mug, magnet, snow globe, photo frame, small plush, jewelry box, music box, souvenir, novelty gadget, funny gift" },
+  // Bakery (dedicated) (95)
+  { id: "bakery_breads",  name: "Breads",            count: 25, storeType: "bakery", category: "breads",     prompt: "white bread, whole grain bread, sourdough, baguette, ciabatta, rye bread, brioche, bread rolls, pita, focaccia, flatbread, bagel" },
+  { id: "bakery_pastry",  name: "Pastries",          count: 25, storeType: "bakery", category: "pastries",   prompt: "croissant, pain au chocolat, danish, muffin, scone, donut, eclair, cinnamon roll, palmier, napolitana, empanada" },
+  { id: "bakery_cakes",   name: "Cakes & desserts",  count: 25, storeType: "bakery", category: "cakes",      prompt: "birthday cake, cheesecake, chocolate cake, fruit tart, tiramisu, cupcake, brownie, macaron, meringue, mousse, flan" },
+  { id: "bakery_sandwich", name: "Sandwiches",       count: 20, storeType: "bakery", category: "sandwiches", prompt: "ham sandwich, cheese sandwich, tuna sandwich, club sandwich, panini, wrap, baguette sandwich, bocadillo, empanada savory" },
+  // Butcher (dedicated) (75)
+  { id: "butcher_beef",   name: "Beef & pork",       count: 30, storeType: "butcher", category: "beef_pork", prompt: "beef steak, ribeye, sirloin, ground beef, beef tenderloin, pork chop, pork loin, pork belly, bacon, pork ribs, lamb chop, veal" },
+  { id: "butcher_poultry", name: "Poultry",          count: 25, storeType: "butcher", category: "poultry",   prompt: "whole chicken, chicken breast, chicken thigh, chicken wings, chicken drumstick, turkey breast, whole turkey, duck, quail, chicken liver" },
+  { id: "butcher_cuts",   name: "Cold cuts & sausages", count: 25, storeType: "butcher", category: "cold_cuts", prompt: "ham, salami, chorizo, pepperoni, prosciutto, mortadella, bologna, sausage, bratwurst, frankfurter, liver pâté, cured bacon" },
+  // Fishmonger (65)
+  { id: "fish_fresh",  name: "Fresh fish",        count: 25, storeType: "fishmonger", category: "fish_fresh", prompt: "salmon, tuna, cod, sea bass, sea bream, hake, sardine, mackerel, trout, sole, monkfish, swordfish, halibut" },
+  { id: "fish_shell",  name: "Shellfish",         count: 25, storeType: "fishmonger", category: "shellfish",  prompt: "shrimp, prawn, lobster, crab, mussels, clams, oysters, scallops, squid, octopus, cuttlefish, langoustine" },
+  { id: "fish_smoked", name: "Smoked & cured",    count: 15, storeType: "fishmonger", category: "smoked_cured_fish", prompt: "smoked salmon, smoked mackerel, smoked trout, anchovies, salt cod, bottarga, herring, caviar, lox" },
+  // Liquor (100)
+  { id: "liquor_wine",    name: "Wine",            count: 30, storeType: "liquor", category: "wine",    prompt: "red wine, white wine, rosé, sparkling wine, champagne, prosecco, cava, rioja, cabernet, merlot, chardonnay, sauvignon blanc" },
+  { id: "liquor_beer",    name: "Beer",            count: 25, storeType: "liquor", category: "beer",    prompt: "lager, pilsner, IPA, stout, porter, wheat beer, ale, craft beer, non-alcoholic beer, cider, radler, light beer" },
+  { id: "liquor_spirits", name: "Spirits",         count: 25, storeType: "liquor", category: "spirits", prompt: "vodka, whisky, rum, gin, tequila, brandy, cognac, bourbon, liqueur, absinthe, vermouth, sake" },
+  { id: "liquor_mixers",  name: "Mixers & soft",   count: 20, storeType: "liquor", category: "mixers",  prompt: "tonic water, soda water, cola, lemonade, ginger beer, bitters, syrup, juice mixer, energy drink mixer, grenadine" },
+  // Garden Center (100)
+  { id: "garden_plants", name: "Plants & shrubs", count: 30, storeType: "garden_center", category: "plants_outdoor", prompt: "rose bush, lavender, hydrangea, boxwood, olive tree, citrus tree, fern, ivy, bamboo, maple, conifer, hedging plant, fruit tree, palm" },
+  { id: "garden_seeds",  name: "Seeds & bulbs",   count: 25, storeType: "garden_center", category: "seeds_bulbs",   prompt: "tomato seeds, pepper seeds, lettuce seeds, tulip bulbs, daffodil bulbs, herb seeds, flower seed mix, grass seed, vegetable starter kit" },
+  { id: "garden_pots",   name: "Pots & planters", count: 20, storeType: "garden_center", category: "pots_planters", prompt: "terracotta pot, ceramic pot, plastic planter, window box, hanging basket, self-watering pot, saucer, grow bag, raised bed" },
+  { id: "garden_care",   name: "Soil & fertilizer", count: 25, storeType: "garden_center", category: "garden_care", prompt: "potting soil, compost, fertilizer, mulch, peat moss, perlite, bone meal, pesticide, fungicide, weed killer, plant food" },
+  // Baby Shop (100)
+  { id: "baby_clothes",  name: "Baby clothes",      count: 25, storeType: "baby_shop", category: "baby_clothes", prompt: "onesie, bodysuit, baby romper, baby socks, baby hat, bib, sleep sack, baby jacket, baby shoes, mittens, swaddle blanket" },
+  { id: "baby_gear",     name: "Strollers & gear",  count: 30, storeType: "baby_shop", category: "baby_gear", prompt: "stroller, baby carrier, car seat, high chair, bouncer, playpen, crib, changing table, diaper bag, baby monitor, bassinet" },
+  { id: "baby_feeding",  name: "Feeding & nursing", count: 25, storeType: "baby_shop", category: "baby_feeding", prompt: "baby bottle, bottle warmer, sterilizer, breast pump, pacifier, teething ring, bib, baby spoon, sippy cup, burp cloth, nursing pillow, formula" },
+  { id: "baby_safety",   name: "Safety & monitor",  count: 20, storeType: "baby_shop", category: "baby_safety", prompt: "baby monitor, outlet covers, cabinet locks, stair gate, corner protector, safety harness, bath thermometer, night light" },
+  // Toys (150)
+  { id: "toys_baby",    name: "Baby & toddler toys", count: 25, storeType: "toys", category: "baby_toys", prompt: "rattle, soft toy, plush, activity gym, stacking rings, shape sorter, teething toy, musical toy, bath toy, pull-along toy" },
+  { id: "toys_kids",    name: "Kids toys",          count: 25, storeType: "toys", category: "kids_toys", prompt: "toy car, remote control car, action figure, play dough, slime, kinetic sand, water gun, yo-yo, kite, magic wand, toy kitchen" },
+  { id: "toys_construct", name: "Construction toys", count: 25, storeType: "toys", category: "construction_toys", prompt: "building blocks, LEGO set, magnetic tiles, wooden blocks, marble run, train set, track set, engineering kit, robot kit" },
+  { id: "toys_dolls",   name: "Dolls & figures",    count: 25, storeType: "toys", category: "dolls_figures", prompt: "baby doll, fashion doll, doll house, doll clothes, action figure, superhero figure, dinosaur figure, collectible figure" },
+  { id: "toys_board",   name: "Board games & puzzles", count: 25, storeType: "toys", category: "board_games", prompt: "chess, checkers, monopoly, scrabble, card game, jigsaw puzzle, strategy game, party game, dice game, memory game" },
+  { id: "toys_outdoor", name: "Outdoor toys",       count: 25, storeType: "toys", category: "outdoor_toys", prompt: "scooter, skateboard, roller skates, bicycle trailer, trampoline, swing set, frisbee, jump rope, sandbox toys, water slide, pool toys" },
+  // Bookstore (60)
+  { id: "books_all",     name: "Books",             count: 35, storeType: "bookstore", category: "books", prompt: "novel, fiction book, non-fiction, biography, self-help, cookbook, travel guide, dictionary, children's book, textbook, poetry book, history book" },
+  { id: "books_mag",     name: "Magazines & comics", count: 25, storeType: "bookstore", category: "magazines_comics", prompt: "fashion magazine, cooking magazine, news magazine, comic book, graphic novel, manga, kids magazine, travel magazine, science magazine" },
+  // Florist (65)
+  { id: "florist_cut",     name: "Cut flowers",        count: 25, storeType: "florist", category: "cut_flowers", prompt: "roses, tulips, lilies, sunflowers, daisies, orchids, carnations, peonies, chrysanthemums, gerberas, hydrangeas" },
+  { id: "florist_plants",  name: "Houseplants",        count: 20, storeType: "florist", category: "houseplants", prompt: "monstera, pothos, snake plant, peace lily, succulent, cactus, fern, orchid plant, fiddle leaf fig, rubber plant, spider plant" },
+  { id: "florist_arrange", name: "Arrangements & gifts", count: 20, storeType: "florist", category: "flower_arrangements", prompt: "bridal bouquet, centerpiece, floral wreath, condolence arrangement, birthday bouquet, box arrangement, dried flowers, flower basket" },
+  // Optician (60)
+  { id: "optician_glasses",  name: "Glasses",         count: 20, storeType: "optician", category: "eyeglasses", prompt: "prescription glasses, reading glasses, frames, rimless glasses, blue-light glasses, progressive lenses, bifocals, glasses case, anti-glare coating" },
+  { id: "optician_lenses",   name: "Contact lenses",  count: 15, storeType: "optician", category: "contact_lenses", prompt: "daily contact lenses, monthly contacts, colored contacts, toric lenses, multifocal contacts, lens holder, contact case" },
+  { id: "optician_care",     name: "Lens care",       count: 15, storeType: "optician", category: "lens_care", prompt: "contact lens solution, eye drops, lens cleaner, microfiber cloth, lens wipes, rewetting drops, sterile saline" },
+  { id: "optician_sun",      name: "Sunglasses",      count: 15, storeType: "optician", category: "sunglasses_opt", prompt: "polarized sunglasses, aviators, wayfarers, sport sunglasses, kids sunglasses, oversized sunglasses, clip-on shades" },
+  // Kiosk (60)
+  { id: "kiosk_news",    name: "Newspapers",         count: 15, storeType: "kiosk", category: "newspapers", prompt: "daily newspaper, local newspaper, national newspaper, weekend edition, sports newspaper, financial newspaper, foreign newspaper" },
+  { id: "kiosk_mag",     name: "Magazines",          count: 20, storeType: "kiosk", category: "magazines", prompt: "news magazine, gossip magazine, TV guide, car magazine, home magazine, sports magazine, hobby magazine, music magazine, kids magazine" },
+  { id: "kiosk_tobacco", name: "Tobacco",            count: 15, storeType: "kiosk", category: "tobacco", prompt: "cigarettes, rolling tobacco, cigars, cigarette papers, filters, lighter, matches, pipe tobacco, snus, e-cigarette, nicotine pouches" },
+  { id: "kiosk_lottery", name: "Lottery & tickets",  count: 10, storeType: "kiosk", category: "lottery", prompt: "lottery ticket, scratch card, euromillions, raffle ticket, bus ticket, transport card top-up, phone card, stamp" },
 ];
 
 export const TOTAL_SEED_PRODUCTS = SEED_CATEGORIES.reduce((a, c) => a + c.count, 0);
