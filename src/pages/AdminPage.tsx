@@ -17,8 +17,9 @@ import {
   type StoreTypeWithCategories,
 } from "../lib/customStoreConfig";
 import { SEED_CATEGORIES } from "../data/seedCategories";
+import { CHANGELOG, type ChangeType } from "../data/changelog";
 
-type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap";
+type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog";
 
 interface DictRow {
   key: string;
@@ -305,6 +306,7 @@ export default function AdminPage(_: AdminPageProps) {
     { key: "users", label: "Users", icon: "👥" },
     { key: "lists", label: "Lists", icon: "📝" },
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
+    { key: "changelog", label: "Updates", icon: "📰" },
   ];
 
 
@@ -1038,6 +1040,126 @@ export default function AdminPage(_: AdminPageProps) {
             );})}
           </div>
         )}
+
+        {/* ── Changelog ── */}
+        {tab === "changelog" && (() => {
+          const buildDate = new Date(__BUILD_DATE__);
+          const typeColor: Record<ChangeType, string> = {
+            feat: "#3dd68c",
+            fix: "#ff5c5c",
+            refactor: "#6c8aff",
+            style: "#c76dff",
+            chore: "#8b949e",
+            ci: "#e8c364",
+            docs: "#4ac3d9",
+          };
+          const typeLabel: Record<ChangeType, string> = {
+            feat: "FEAT", fix: "FIX", refactor: "REFACTOR", style: "STYLE", chore: "CHORE", ci: "CI", docs: "DOCS",
+          };
+          return (
+            <div>
+              {/* Build info */}
+              <div className="bg-card rounded-xl p-3 border border-border mb-3">
+                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Current build</div>
+                <div className="space-y-1.5 text-[12px]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-muted w-20 shrink-0">Version</span>
+                    <code className="text-accent font-mono text-[11px] bg-bg px-1.5 py-0.5 rounded">{__BUILD_HASH__}</code>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-muted w-20 shrink-0">Branch</span>
+                    <code className="text-text font-mono text-[11px] bg-bg px-1.5 py-0.5 rounded truncate">{__BUILD_BRANCH__}</code>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-text-muted w-20 shrink-0">Last commit</span>
+                    <span className="text-text text-[11px] flex-1">{__BUILD_SUBJECT__}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-muted w-20 shrink-0">Built</span>
+                    <span className="text-text text-[11px]">{buildDate.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-muted w-20 shrink-0">Mode</span>
+                    <span className="text-text text-[11px]">{IS_DEMO ? "Demo (no backend)" : "Supabase"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Runtime state */}
+              <div className="bg-card rounded-xl p-3 border border-border mb-3">
+                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Runtime state</div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Dictionary</div>
+                    <div className="text-text font-bold text-sm">{dictRows.length}</div>
+                  </div>
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Store types</div>
+                    <div className="text-text font-bold text-sm">{storeTypesWithCats.length}</div>
+                  </div>
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Categories</div>
+                    <div className="text-text font-bold text-sm">{storeTypesWithCats.reduce((n, st) => n + st.categories.length, 0)}</div>
+                  </div>
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Users</div>
+                    <div className="text-text font-bold text-sm">{users.length}</div>
+                  </div>
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Lists</div>
+                    <div className="text-text font-bold text-sm">{lists.length}</div>
+                  </div>
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Languages</div>
+                    <div className="text-text font-bold text-sm">{getEnabledLangs().length}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { fetchDictionary(); fetchUsers(); fetchLists(); forceUpdate(n => n + 1); showToast("Refreshed"); }}
+                  className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                  style={{ background: "rgba(240,136,62,0.1)", color: "#f0883e", border: "1px solid rgba(240,136,62,0.2)" }}
+                >🔄 Refresh state</button>
+              </div>
+
+              {/* Changelog list */}
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Recent changes</div>
+                  <div className="text-[10px] text-text-muted">{CHANGELOG.length} entries</div>
+                </div>
+                <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
+                  {CHANGELOG.map((e, i) => {
+                    const color = typeColor[e.type];
+                    const isCurrent = e.hash === __BUILD_HASH__;
+                    return (
+                      <div key={i} className="px-3 py-2.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                            style={{ background: `${color}20`, color }}
+                          >{typeLabel[e.type]}</span>
+                          <code className="text-[10px] font-mono text-text-muted">{e.hash}</code>
+                          <span className="text-[10px] text-text-muted">{e.date}</span>
+                          {isCurrent && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-auto" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>LIVE</span>
+                          )}
+                        </div>
+                        <div className="text-[12px] font-semibold text-text mb-0.5">{e.title}</div>
+                        {e.details && e.details.length > 0 && (
+                          <ul className="text-[11px] text-text-muted space-y-0.5 mt-1 ml-2">
+                            {e.details.map((d, j) => (
+                              <li key={j} className="flex gap-1.5"><span className="text-text-muted/60">•</span><span>{d}</span></li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Dictionary edit modal (shared across tabs) */}
