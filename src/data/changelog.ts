@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.31",
+    version: "v0.32",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "14:00",
+    type: "feat",
+    title: "Search inside a list",
+    details: [
+      "New search bar in ListDetailPage (auto-shows when the list has ≥5 items)",
+      "Matches the query as substring across all language translations + the original text + note",
+      "Accent- and case-insensitive (normalized via NFD) — 'leche' finds 'Lèche', 'LECHE', 'leche entera', 'leche desnatada', etc.",
+      "Category grouping and checked/unchecked sections respect the filter in real time",
+      "New i18n keys: searchInList, noSearchResults, result, results (en/es/pl)",
+      "Roadmap: 'Buscar dentro de una lista' moved to ✅ MVP",
+    ],
+  },
+  {
+    version: "v0.31",
+    hash: "ee28171",
     date: "2026-04-05",
     time: "13:30",
     type: "refactor",

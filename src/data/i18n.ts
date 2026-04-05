@@ -90,6 +90,10 @@ export const strings = {
     "markImportant": "Mark as important",
     "addPhotoUrl": "Add photo URL",
     "loadingAdmin": "Loading admin…",
+    "searchInList": "Search in this list...",
+    "noSearchResults": "No items match",
+    "result": "result",
+    "results": "results",
   },
   es: {
     "welcome": "Bienvenido",
@@ -178,6 +182,10 @@ export const strings = {
     "markImportant": "Marcar como importante",
     "addPhotoUrl": "Añadir URL de foto",
     "loadingAdmin": "Cargando admin…",
+    "searchInList": "Buscar en esta lista...",
+    "noSearchResults": "Sin coincidencias",
+    "result": "resultado",
+    "results": "resultados",
   },
   pl: {
     "welcome": "Witaj",
@@ -266,6 +274,10 @@ export const strings = {
     "markImportant": "Oznacz jako ważne",
     "addPhotoUrl": "Dodaj URL zdjęcia",
     "loadingAdmin": "Ładowanie panelu…",
+    "searchInList": "Szukaj na tej liście...",
+    "noSearchResults": "Brak wyników",
+    "result": "wynik",
+    "results": "wyników",
   },
 } as const;
 

@@ -66,6 +66,34 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [copied, setCopied] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Normalize strings for accent/case-insensitive matching (so "leche" also
+  // finds "Lèche", "LECHE", etc.).
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // When a search is active, keep only items whose name (in any language) or
+  // original text contains the normalized query as a substring. This makes
+  // searching "leche" match "leche entera", "leche desnatada", etc.
+  const matchesQuery = useCallback(
+    (item: Item) => {
+      if (!searchQuery) return true;
+      const q = normalize(searchQuery);
+      if (!q) return true;
+      if (normalize(item.original).includes(q)) return true;
+      if (item.translations) {
+        for (const value of Object.values(item.translations)) {
+          if (typeof value === "string" && normalize(value).includes(q)) return true;
+        }
+      }
+      if (item.note && normalize(item.note).includes(q)) return true;
+      return false;
+    },
+    [searchQuery],
+  );
+
+  const filteredItems = useMemo(() => items.filter(matchesQuery), [items, matchesQuery]);
 
   const activeMembers = members.filter(m => m.status === "active");
   const pendingMembers = members.filter(m => m.status === "pending");
@@ -78,8 +106,14 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       return 0;
     });
 
-  const uncheckedItems = useMemo(() => sortByImportance(items.filter((i) => !i.checked)), [items]);
-  const checkedItems = useMemo(() => items.filter((i) => i.checked), [items]);
+  const uncheckedItems = useMemo(
+    () => sortByImportance(filteredItems.filter((i) => !i.checked)),
+    [filteredItems],
+  );
+  const checkedItems = useMemo(
+    () => filteredItems.filter((i) => i.checked),
+    [filteredItems],
+  );
 
   // Group unchecked items by category
   const categoryGroups = useMemo<CategoryGroup[]>(() => {
@@ -270,6 +304,45 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           ⚙️
         </button>
       </header>
+
+      {/* Search bar — only useful once the list has enough items to scan */}
+      {items.length >= 5 && (
+        <div className="px-4 pt-3 pb-1 bg-bg">
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none"
+            >
+              🔍
+            </span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t(lang, "searchInList")}
+              aria-label={t(lang, "searchInList")}
+              className="w-full bg-card border border-border-light rounded-xl pl-9 pr-9 py-2 text-sm text-text outline-none focus:border-accent placeholder:text-text-muted"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label={t(lang, "close")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-text-muted active:text-text cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <div className="text-[11px] text-text-muted mt-1.5 px-1">
+              {filteredItems.length === 0
+                ? t(lang, "noSearchResults")
+                : `${filteredItems.length} ${filteredItems.length === 1 ? t(lang, "result") : t(lang, "results")}`}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto pb-32">
