@@ -142,6 +142,29 @@ export const CATEGORIES: Record<string, { emoji: string; color: string; en: stri
   magazines:    { emoji: "📰", color: "#8b5cf6", en: "Magazines",          es: "Revistas",            pl: "Czasopisma" },
   tobacco:      { emoji: "🚬", color: "#78716c", en: "Tobacco",            es: "Tabaco",              pl: "Wyroby tytoniowe" },
   lottery:      { emoji: "🎟️", color: "#fbbf24", en: "Lottery & Tickets",  es: "Lotería y Tickets",   pl: "Loteria" },
+  // ── Game Store ──
+  video_games:    { emoji: "🎮", color: "#8b5cf6", en: "Video Games",         es: "Videojuegos",           pl: "Gry wideo" },
+  card_games:     { emoji: "🃏", color: "#ef4444", en: "Card Games",          es: "Juegos de cartas",      pl: "Gry karciane" },
+  tabletop_games: { emoji: "⚔️", color: "#f59e0b", en: "Tabletop & RPG",      es: "Rol y Tabletop",        pl: "RPG i figurki" },
+  puzzles:        { emoji: "🧩", color: "#3b82f6", en: "Puzzles",             es: "Puzzles",               pl: "Puzzle" },
+  gaming_gear:    { emoji: "🕹️", color: "#06b6d4", en: "Gaming Gear",         es: "Accesorios Gaming",     pl: "Akcesoria dla graczy" },
+  // ── Hunting & Fishing ──
+  fishing_gear:   { emoji: "🎣", color: "#0ea5e9", en: "Fishing Gear",        es: "Equipo de Pesca",       pl: "Wędkarstwo" },
+  hunting_gear:   { emoji: "🏹", color: "#84cc16", en: "Hunting Gear",        es: "Equipo de Caza",        pl: "Łowiectwo" },
+  outdoor_apparel: { emoji: "🥾", color: "#78716c", en: "Outdoor Apparel",    es: "Ropa de Caza/Pesca",    pl: "Odzież terenowa" },
+  optics_nav:     { emoji: "🔭", color: "#6366f1", en: "Optics & Navigation", es: "Óptica y Navegación",   pl: "Optyka i Nawigacja" },
+  bait_tackle:    { emoji: "🪱", color: "#78350f", en: "Bait & Tackle",       es: "Cebos y Aparejos",      pl: "Przynęty" },
+  // ── Musical Instruments ──
+  string_instruments:   { emoji: "🎻", color: "#d97706", en: "String Instruments", es: "Instrumentos de cuerda", pl: "Instrumenty strunowe" },
+  wind_instruments:     { emoji: "🎷", color: "#eab308", en: "Wind Instruments",   es: "Instrumentos de viento", pl: "Instrumenty dęte" },
+  percussion:           { emoji: "🥁", color: "#f97316", en: "Percussion",         es: "Percusión",              pl: "Perkusja" },
+  keyboards_piano:      { emoji: "🎹", color: "#1e293b", en: "Keyboards & Piano",  es: "Teclados y Piano",       pl: "Klawisze i Pianina" },
+  music_accessories:    { emoji: "🎼", color: "#a78bfa", en: "Music Accessories",  es: "Accesorios musicales",   pl: "Akcesoria muzyczne" },
+  // ── Fabric & Sewing ──
+  fabrics:        { emoji: "🧶", color: "#ec4899", en: "Fabrics",              es: "Telas",                 pl: "Tkaniny" },
+  yarn_knitting:  { emoji: "🧵", color: "#f472b6", en: "Yarn & Knitting",      es: "Lanas y Tricot",        pl: "Włóczki" },
+  sewing_tools:   { emoji: "✂️", color: "#64748b", en: "Sewing Tools",         es: "Herramientas de Costura", pl: "Narzędzia do szycia" },
+  notions:        { emoji: "🪡", color: "#a3a3a3", en: "Buttons & Notions",    es: "Botones y Mercería",    pl: "Guziki i Pasmanteria" },
   // ── Fallback ──
   other:        { emoji: "🛒", color: "#8b949e", en: "Other",              es: "Otros",               pl: "Inne" },
 };
@@ -193,6 +216,14 @@ export const CATEGORY_ORDER = [
   "eyeglasses", "contact_lenses", "lens_care", "sunglasses_opt",
   // Kiosk
   "newspapers", "magazines", "tobacco", "lottery",
+  // Game Store
+  "video_games", "card_games", "tabletop_games", "puzzles", "gaming_gear",
+  // Hunting & Fishing
+  "fishing_gear", "hunting_gear", "outdoor_apparel", "optics_nav", "bait_tackle",
+  // Musical Instruments
+  "string_instruments", "wind_instruments", "percussion", "keyboards_piano", "music_accessories",
+  // Fabric & Sewing
+  "fabrics", "yarn_knitting", "sewing_tools", "notions",
   // Fallback
   "other",
 ];

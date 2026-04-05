@@ -14,6 +14,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "09:25",
+    type: "feat",
+    title: "Counts in headers + 4 more store types",
+    details: [
+      "Store type header now shows 'X cats · Y items' totals",
+      "Added Game Store (video games, card games, tabletop/RPG, puzzles, gaming gear)",
+      "Added Hunting & Fishing (fishing, hunting, outdoor apparel, optics, bait)",
+      "Added Musical Instruments (strings, winds, percussion, keyboards, accessories)",
+      "Added Fabric & Sewing (fabrics, yarn, sewing tools, buttons & notions)",
+      "Total: 27 store types with full seed prompts",
+    ],
+  },
+  {
+    hash: "8e9d48a",
+    date: "2026-04-05",
     time: "09:10",
     type: "feat",
     title: "More store types + roadmap refresh + button layout",

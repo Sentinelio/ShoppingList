@@ -22,6 +22,10 @@ export const STORE_TYPES = [
   { id: "stationery",    emoji: "✏️", en: "Stationery",       es: "Papelería",         pl: "Papierniczy" },
   { id: "bazaar",        emoji: "🏠", en: "Bazaar",           es: "Bazar",             pl: "Bazar" },
   { id: "kiosk",         emoji: "📰", en: "Kiosk",            es: "Quiosco",           pl: "Kiosk" },
+  { id: "games",         emoji: "🎮", en: "Game Store",       es: "Tienda de Juegos",  pl: "Sklep z grami" },
+  { id: "hunting_fish",  emoji: "🎣", en: "Hunting & Fishing", es: "Caza y Pesca",     pl: "Łowiectwo i Wędkarstwo" },
+  { id: "music_inst",    emoji: "🎸", en: "Musical Instruments", es: "Instrumentos musicales", pl: "Instrumenty muzyczne" },
+  { id: "fabric",        emoji: "🧵", en: "Fabric & Sewing",  es: "Telas y Costura",   pl: "Tkaniny i Szycie" },
 ] as const;
 
 export type StoreTypeId = (typeof STORE_TYPES)[number]["id"];

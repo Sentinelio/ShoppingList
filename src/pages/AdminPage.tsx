@@ -684,6 +684,8 @@ export default function AdminPage(_: AdminPageProps) {
             <div className="space-y-2">
               {storeTypesWithCats.map((st: StoreTypeWithCategories) => {
                 const isCollapsed = collapsedStores.has(st.id);
+                const storeCatIds = new Set(st.categories.map(c => c.id));
+                const storeItemCount = dictRows.filter(d => storeCatIds.has(d.category)).length;
                 return (
                   <div key={st.id} className="bg-card rounded-xl border border-border">
                     {/* Store type header */}
@@ -696,6 +698,7 @@ export default function AdminPage(_: AdminPageProps) {
                         <span className="text-xl">{st.emoji}</span>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-sm truncate">{(st as unknown as Record<string, string>)[lang] || st.en}</div>
+                          <div className="text-[10px] text-text-muted">{st.categories.length} cats · {storeItemCount} items</div>
                         </div>
                       </button>
                       <div className="relative">
