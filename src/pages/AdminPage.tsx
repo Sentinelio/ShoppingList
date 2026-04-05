@@ -872,16 +872,24 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
-      {/* Header — centered: title on top, pulsing status dot + label below */}
-      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-5 flex flex-col items-center justify-center gap-1.5">
+      {/* Inline keyframes — kept outside <header> so it isn't treated as a
+          flex item and push the status indicator to a new line. */}
+      <style>{`
+        @keyframes admin-status-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 ${IS_DEMO ? "rgba(255,92,92,0.6)" : "rgba(61,214,140,0.6)"}; opacity: 1; }
+          50%      { box-shadow: 0 0 0 6px ${IS_DEMO ? "rgba(255,92,92,0)" : "rgba(61,214,140,0)"}; opacity: 0.75; }
+        }
+      `}</style>
+
+      {/* Header — title on the LEFT, status pill on the RIGHT, same row */}
+      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex flex-row items-center justify-between gap-3">
         <h1
-          className="text-2xl font-bold leading-tight flex items-center gap-2"
+          className="text-lg font-bold leading-none"
           style={{ color: "var(--color-text, #e6e8ee)" }}
         >
-          <span aria-hidden="true">🛠️</span>
-          <span>Admin Panel</span>
+          🛠️ Admin Panel
         </h1>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full"
             style={{
@@ -897,12 +905,6 @@ export default function AdminPage() {
             {IS_DEMO ? "Demo Mode" : "Supabase"}
           </span>
         </div>
-        <style>{`
-          @keyframes admin-status-pulse {
-            0%, 100% { box-shadow: 0 0 0 0 ${IS_DEMO ? "rgba(255,92,92,0.6)" : "rgba(61,214,140,0.6)"}; opacity: 1; }
-            50% { box-shadow: 0 0 0 6px ${IS_DEMO ? "rgba(255,92,92,0)" : "rgba(61,214,140,0)"}; opacity: 0.75; }
-          }
-        `}</style>
       </header>
 
       {/* Tabs */}

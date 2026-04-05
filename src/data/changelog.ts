@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.47",
+    version: "v0.48",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "18:45",
+    type: "style",
+    title: "Admin header back to original side-by-side layout",
+    details: [
+      "Title on the left, status pill on the right, same row — like before the theme work introduced the accidental stacking",
+      "Moved the <style> keyframes block OUTSIDE <header> so it's not treated as a 0-width flex item that was pushing the status indicator to a second line on some widths",
+      "Kept the explicit --color-text on the title and the colored label (red/green) next to the pulsing dot",
+    ],
+  },
+  {
+    version: "v0.47",
+    hash: "f324996",
     date: "2026-04-05",
     time: "18:35",
     type: "style",
