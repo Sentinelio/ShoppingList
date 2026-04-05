@@ -14,8 +14,23 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.43",
+    version: "v0.44",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "17:40",
+    type: "fix",
+    title: "Phrases: delete and edit now actually persist",
+    details: [
+      "Root cause: when the store_phrases table was empty (or had never been seeded because migration 005 ran without its INSERTs completing), fetchFromRemote returned the in-memory fallback list. The admin saw phrases and could click delete/edit, but those operations hit rows that didn't exist in the DB — so every mutation silently no-op'd.",
+      "Fix: on first fetch, if the table exists but is empty, we now auto-seed it from the hardcoded fallback and re-fetch. Subsequent CRUD operations land on real rows.",
+      "deleteStorePhrase now asks Supabase to return the deleted rows with .select(), so a silent no-op is turned into either an explicit error or a retry after seeding.",
+      "upsertStorePhrase triggers the same seed before saving if the cache is still showing fallback data, so editing a default phrase persists too.",
+      "Only actual errors (missing table, permission denied, network failure) now fall back to in-memory — an empty table no longer masks the DB state.",
+    ],
+  },
+  {
+    version: "v0.43",
+    hash: "609bd43",
     date: "2026-04-05",
     time: "17:20",
     type: "feat",

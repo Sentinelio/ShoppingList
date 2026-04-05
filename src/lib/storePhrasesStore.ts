@@ -43,6 +43,21 @@ function notify() {
   listeners.forEach(fn => fn(cache ?? FALLBACK));
 }
 
+// Bulk insert the fallback phrases into an empty table so subsequent edits
+// (upsert, delete, usage tracking) actually hit real rows. We go through
+// upsert with onConflict:"key" so running this twice is a no-op.
+async function seedFallbackIntoDb(): Promise<void> {
+  try {
+    const payload = FALLBACK.map(p => ({
+      key: p.key,
+      emoji: p.emoji,
+      sort_order: p.sort_order,
+      translations: p.translations,
+    }));
+    await supabase.from("store_phrases").upsert(payload, { onConflict: "key" });
+  } catch { /* ignore — the caller will still return the in-memory fallback */ }
+}
+
 async function fetchFromRemote(): Promise<StorePhrase[]> {
   if (IS_DEMO) return FALLBACK;
   try {
@@ -50,7 +65,20 @@ async function fetchFromRemote(): Promise<StorePhrase[]> {
       .from("store_phrases")
       .select("id, key, emoji, translations, sort_order, usage_count, last_used_at")
       .order("sort_order", { ascending: true });
-    if (error || !data || data.length === 0) return FALLBACK;
+    // Actual error (missing table, permission denied, network) — fall back
+    // to the hardcoded list so StoreMode still shows phrases to shoppers.
+    if (error) return FALLBACK;
+    // Table exists but has no rows — seed it from the fallback once so the
+    // admin's CRUD actions land on real rows. Without this, deletes and
+    // edits silently do nothing because the admin is editing in-memory data.
+    if (!data || data.length === 0) {
+      await seedFallbackIntoDb();
+      const { data: seeded } = await supabase
+        .from("store_phrases")
+        .select("id, key, emoji, translations, sort_order, usage_count, last_used_at")
+        .order("sort_order", { ascending: true });
+      return (seeded as StorePhrase[] | null) ?? FALLBACK;
+    }
     return data as StorePhrase[];
   } catch {
     return FALLBACK;
@@ -117,8 +145,15 @@ export async function refreshStorePhrases(): Promise<StorePhrase[]> {
 
 export async function upsertStorePhrase(p: StorePhrase): Promise<void> {
   if (IS_DEMO) throw new Error("Demo mode — phrases are read-only");
+  // If the cache is still showing the in-memory fallback (because the DB
+  // was empty on first load), seed it now so subsequent edits of OTHER
+  // default phrases also land on real rows.
+  if (cache && cache.length > 0 && !cache[0].id) {
+    await seedFallbackIntoDb();
+  }
+  // Strip `id` from the payload — keying on `key` via onConflict is enough,
+  // and omitting id lets Supabase generate one for brand new phrases.
   const payload = {
-    ...(p.id ? { id: p.id } : {}),
     key: p.key,
     emoji: p.emoji,
     sort_order: p.sort_order,
@@ -132,8 +167,29 @@ export async function upsertStorePhrase(p: StorePhrase): Promise<void> {
 
 export async function deleteStorePhrase(key: string): Promise<void> {
   if (IS_DEMO) throw new Error("Demo mode — phrases are read-only");
-  const { error } = await supabase.from("store_phrases").delete().eq("key", key);
+  // Ask Supabase to return the deleted row(s) so we can tell apart a
+  // successful deletion from a silent no-op (when the row never existed in
+  // the DB — typical when the admin sees fallback-only data).
+  const { data, error } = await supabase
+    .from("store_phrases")
+    .delete()
+    .eq("key", key)
+    .select();
   if (error) throw error;
+  if (!data || data.length === 0) {
+    // The row wasn't in the DB. Seed the fallback and retry so the admin
+    // can actually remove defaults they don't want.
+    await seedFallbackIntoDb();
+    const { data: second, error: retryErr } = await supabase
+      .from("store_phrases")
+      .delete()
+      .eq("key", key)
+      .select();
+    if (retryErr) throw retryErr;
+    if (!second || second.length === 0) {
+      throw new Error(`Phrase '${key}' not found`);
+    }
+  }
   await refreshStorePhrases();
 }
 
