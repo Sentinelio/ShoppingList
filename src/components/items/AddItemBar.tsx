@@ -1,9 +1,12 @@
-import { useState, useRef, type FormEvent, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
 import { parseQty } from "../../lib/qtyParser";
 import { translateProduct } from "../../lib/translate";
 import { addItem } from "../../hooks/useItems";
 import { t } from "../../data/i18n";
 import { getEnabledLangs } from "../../lib/langConfig";
+import { preloadDictionary, suggest, type DictSuggestion } from "../../lib/dictSuggest";
+import { getCategoryEmoji, getCategoryColor } from "../../data/categories";
+import { matchProductEmoji } from "../../lib/emojiMatcher";
 
 interface AddItemBarProps {
   listId: string;
@@ -45,9 +48,43 @@ export default function AddItemBar({
   const [showPhotoInput, setShowPhotoInput] = useState(false);
   const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [important, setImportant] = useState(false);
+  const [suggestions, setSuggestions] = useState<DictSuggestion[]>([]);
+  const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionReqId = useRef(0);
 
   const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
+
+  // Preload the dictionary once the bar mounts so the first suggestion is
+  // instant instead of waiting on a network round-trip.
+  useEffect(() => {
+    preloadDictionary();
+  }, []);
+
+  // Fetch suggestions as the user types. The suggestionReqId guard prevents a
+  // slow response from overwriting a later, faster one.
+  useEffect(() => {
+    const query = input.trim();
+    if (query.length < 2) {
+      setSuggestions([]);
+      setHighlightedIdx(-1);
+      return;
+    }
+    const reqId = ++suggestionReqId.current;
+    suggest(query, userLang, 8).then(results => {
+      if (reqId !== suggestionReqId.current) return;
+      setSuggestions(results);
+      setHighlightedIdx(-1);
+    });
+  }, [input, userLang]);
+
+  const applySuggestion = (s: DictSuggestion) => {
+    const display = s.translations[userLang] || s.key;
+    setInput(display);
+    setSuggestions([]);
+    setHighlightedIdx(-1);
+    inputRef.current?.focus();
+  };
 
   const reset = () => {
     setInput("");
@@ -59,6 +96,8 @@ export default function AddItemBar({
     setExpanded(false);
     setShowPhotoInput(false);
     setPhotoUrlInput("");
+    setSuggestions([]);
+    setHighlightedIdx(-1);
   };
 
   const savePhotoUrl = () => {
@@ -71,8 +110,26 @@ export default function AddItemBar({
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
+      if (suggestions.length > 0) {
+        setSuggestions([]);
+        setHighlightedIdx(-1);
+        return;
+      }
       reset();
       inputRef.current?.blur();
+      return;
+    }
+    if (suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIdx(i => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIdx(i => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === "Tab" || (e.key === "Enter" && highlightedIdx >= 0)) {
+      e.preventDefault();
+      const target = suggestions[highlightedIdx >= 0 ? highlightedIdx : 0];
+      if (target) applySuggestion(target);
     }
   };
 
@@ -160,6 +217,55 @@ export default function AddItemBar({
       className="sticky bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
+      {/* Autocomplete suggestions — anchored above the input */}
+      {suggestions.length > 0 && (
+        <div
+          className="absolute left-0 right-0 bottom-full mb-1 px-3"
+          role="listbox"
+          aria-label={t(lang, "addProduct")}
+        >
+          <div className="bg-card rounded-2xl border border-border-light shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+            {suggestions.map((s, i) => {
+              const display = s.translations[userLang] || s.key;
+              const other = Object.entries(s.translations)
+                .filter(([code]) => code !== userLang)
+                .slice(0, 3)
+                .map(([, v]) => v)
+                .join(" · ");
+              const emoji = matchProductEmoji(s.key).emoji || getCategoryEmoji(s.category);
+              const color = getCategoryColor(s.category);
+              const active = i === highlightedIdx;
+              return (
+                <button
+                  key={`${s.key}-${i}`}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onMouseEnter={() => setHighlightedIdx(i)}
+                  onClick={() => applySuggestion(s)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer border-b border-border last:border-b-0"
+                  style={{ background: active ? `${color}1a` : "transparent" }}
+                >
+                  <span
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-lg shrink-0"
+                    style={{ background: `${color}26` }}
+                    aria-hidden="true"
+                  >
+                    {emoji}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-text truncate">{display}</div>
+                    {other && (
+                      <div className="text-[10px] text-text-muted truncate">{other}</div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Main input row */}
       <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 pt-3">
         <input

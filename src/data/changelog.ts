@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.32",
+    version: "v0.33",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "14:20",
+    type: "feat",
+    title: "Dictionary autocomplete when adding items",
+    details: [
+      "New src/lib/dictSuggest.ts: loads the full dictionary once (Supabase paginated + LOCAL_DICTIONARY), caches it in module scope, and exposes substring-match search",
+      "AddItemBar now shows a suggestion dropdown above the input as you type — typing 'leche' surfaces 'leche entera', 'leche desnatada', 'leche de avena', etc.",
+      "Matching is cross-language, accent- and case-insensitive, and sorted: prefix matches in the user's language first, then contains, then matches in other languages",
+      "Keyboard navigation: ↑/↓ to move, Enter/Tab to pick, Esc to dismiss",
+      "Dictionary preloaded on mount so the first suggestion is instant",
+      "Tapping a suggestion fills the input (doesn't auto-submit) so the user can still add qty/unit/photo/important before confirming",
+    ],
+  },
+  {
+    version: "v0.32",
+    hash: "7189d2a",
     date: "2026-04-05",
     time: "14:00",
     type: "feat",
@@ -26,7 +42,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Accent- and case-insensitive (normalized via NFD) — 'leche' finds 'Lèche', 'LECHE', 'leche entera', 'leche desnatada', etc.",
       "Category grouping and checked/unchecked sections respect the filter in real time",
       "New i18n keys: searchInList, noSearchResults, result, results (en/es/pl)",
-      "Roadmap: 'Buscar dentro de una lista' moved to ✅ MVP",
     ],
   },
   {
