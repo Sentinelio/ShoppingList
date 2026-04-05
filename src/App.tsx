@@ -5,6 +5,7 @@ import SetupWizard from './components/setup/SetupWizard'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
 import SettingsPage from './pages/SettingsPage'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // AdminPage is only used via #admin hash and imports the whole admin surface
 // area (changelog, stats, seed categories). Lazy-load it so the main bundle
@@ -47,15 +48,17 @@ function App() {
   // Admin page — accessible without auth
   if (route.page === 'admin') {
     return (
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center h-full bg-bg">
-            <div className="text-text-soft animate-pulse">Loading admin…</div>
-          </div>
-        }
-      >
-        <AdminPage />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center h-full bg-bg">
+              <div className="text-text-soft animate-pulse">Loading admin…</div>
+            </div>
+          }
+        >
+          <AdminPage />
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 

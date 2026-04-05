@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.34",
+    version: "v0.35",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "15:05",
+    type: "fix",
+    title: "Fix Admin black screen after adding Themes tab",
+    details: [
+      "Root cause: themeStore.getSelection() returned a fresh object ({ ...current }) on every call, so useSyncExternalStore saw a new snapshot reference on every render and looped infinitely, crashing the entire AdminPage render",
+      "Fix: getSelection() now returns the current Selection reference directly. setThemeId/resetThemes are the only places that create a new reference, which is the correct pub/sub pattern for useSyncExternalStore",
+      "Added a top-level ErrorBoundary around the lazy-loaded AdminPage so future errors show a retry card instead of a black screen",
+    ],
+  },
+  {
+    version: "v0.34",
+    hash: "a6d11c1",
     date: "2026-04-05",
     time: "14:50",
     type: "feat",

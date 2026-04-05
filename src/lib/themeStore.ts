@@ -45,8 +45,10 @@ export function initThemes() {
   applyCssVars(current);
 }
 
+// Must return a stable reference for useSyncExternalStore. We only create a
+// new object inside setThemeId/resetThemes when the selection actually changes.
 export function getSelection(): Selection {
-  return { ...current };
+  return current;
 }
 
 export function getThemeFor(view: ThemeView): Theme {
