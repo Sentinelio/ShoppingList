@@ -63,6 +63,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [confirmRemoveMember, setConfirmRemoveMember] = useState<string | null>(null);
   const [showListSettings, setShowListSettings] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [editingName, setEditingName] = useState(false);
 
   const activeMembers = members.filter(m => m.status === "active");
@@ -566,11 +567,25 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           {copied ? `✓ ${t(lang, "copied")}` : `📋 ${t(lang, "copyCode")}`}
         </button>
         <button
-          onClick={async () => { try { await deleteList(listId); } catch {} setShowListSettings(false); onNavigate("lists"); }}
+          onClick={async () => {
+            if (confirmLeave) {
+              try { await deleteList(listId); } catch {}
+              setConfirmLeave(false);
+              setShowListSettings(false);
+              onNavigate("lists");
+            } else {
+              setConfirmLeave(true);
+              setTimeout(() => setConfirmLeave(false), 3000);
+            }
+          }}
           className="w-full mt-3 py-3 rounded-xl font-semibold text-sm cursor-pointer"
-          style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
+          style={{
+            background: confirmLeave ? "#b71c1c" : "rgba(255,92,92,0.08)",
+            color: confirmLeave ? "#fff" : "#ff5c5c",
+            border: confirmLeave ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+          }}
         >
-          🚪 {t(lang, "leave")}
+          {confirmLeave ? `⚠️ ${t(lang, "confirm") || "Confirm"}` : `🚪 ${t(lang, "leave")}`}
         </button>
         <button onClick={() => setShowListSettings(false)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
       </Modal>

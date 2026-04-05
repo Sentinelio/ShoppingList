@@ -82,6 +82,10 @@ export default function AdminPage(_: AdminPageProps) {
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [bulkRunning, setBulkRunning] = useState<string | null>(null); // label of current bulk op
   const [openStoreMenu, setOpenStoreMenu] = useState<string | null>(null);
+  const [confirmDeleteStore, setConfirmDeleteStore] = useState<string | null>(null);
+  const [confirmDeleteCat, setConfirmDeleteCat] = useState<string | null>(null);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<string | null>(null);
+  const [confirmDisableLang, setConfirmDisableLang] = useState<string | null>(null);
 
   const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `item_${Date.now()}`;
 
@@ -345,50 +349,170 @@ export default function AdminPage(_: AdminPageProps) {
         {loading && <div className="text-center py-8 text-text-muted animate-pulse">Loading...</div>}
 
         {/* ── Stats ── */}
-        {tab === "stats" && !loading && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Dictionary entries", value: dictRows.length, icon: "📖", color: "#f0883e" },
-                { label: "Local dictionary", value: LOCAL_DICTIONARY.length, icon: "💾", color: "#3dd68c" },
-                { label: "Users", value: users.length, icon: "👥", color: "#6c8aff" },
-                { label: "Lists", value: lists.length, icon: "📝", color: "#c76dff" },
-                { label: "Languages", value: LANGS.length, icon: "🌍", color: "#34d6c0" },
-                { label: "Countries", value: COUNTRIES.length, icon: "🗺️", color: "#ffb03d" },
-                { label: "Categories", value: CATEGORY_ORDER.length, icon: "🏷️", color: "#f472b6" },
-                { label: "Product emojis", value: "110+", icon: "🎨", color: "#e8c364" },
-              ].map((s, i) => (
-                <div key={i} className="bg-card rounded-xl p-4 border border-border">
-                  <div className="text-2xl mb-1">{s.icon}</div>
-                  <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
-                  <div className="text-text-muted text-xs mt-0.5">{s.label}</div>
-                </div>
-              ))}
-            </div>
+        {tab === "stats" && !loading && (() => {
+          const enabledLangsList = getEnabledLangs();
+          const totalDict = dictRows.length + LOCAL_DICTIONARY.length;
+          // dict by store type
+          const dictByStore = storeTypesWithCats.map(st => {
+            const catIds = new Set(st.categories.map(c => c.id));
+            const n = dictRows.filter(d => catIds.has(d.category)).length
+              + LOCAL_DICTIONARY.filter(d => catIds.has(d.cat)).length;
+            return { st, n };
+          }).sort((a, b) => b.n - a.n);
+          // dict by language coverage
+          const dictByLang = enabledLangsList.map(code => {
+            const n = dictRows.filter(d => d.translations && d.translations[code]).length
+              + LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[code]).length;
+            const meta = ALL_LANGUAGES.find(l => l.code === code);
+            return { code, name: meta?.name || code, flag: meta?.flag || "🌍", n };
+          }).sort((a, b) => b.n - a.n);
+          // users by country
+          const usersByCountry: Record<string, number> = {};
+          users.forEach(u => { usersByCountry[u.country] = (usersByCountry[u.country] || 0) + 1; });
+          const usersByCountryList = Object.entries(usersByCountry).sort((a, b) => b[1] - a[1]);
+          // users by language
+          const usersByLang: Record<string, number> = {};
+          users.forEach(u => { usersByLang[u.lang] = (usersByLang[u.lang] || 0) + 1; });
+          const usersByLangList = Object.entries(usersByLang).sort((a, b) => b[1] - a[1]);
+          // lists stats
+          const totalListMembers = Object.values(listMembers).reduce((a, b) => a + b, 0);
+          const totalListItems = Object.values(listItems).reduce((a, b) => a + b, 0);
 
-            {/* Category breakdown */}
-            <div className="bg-card rounded-xl p-4 border border-border">
-              <h3 className="text-sm font-bold mb-3">Dictionary by category</h3>
-              {CATEGORY_ORDER.map(cat => {
-                const count = dictRows.filter(d => d.category === cat).length;
-                const localCount = LOCAL_DICTIONARY.filter(d => d.cat === cat).length;
-                const total = count + localCount;
-                if (total === 0) return null;
-                const c = CATEGORIES[cat];
-                return (
-                  <div key={cat} className="flex items-center gap-2 py-1">
-                    <span className="text-sm w-5">{c?.emoji}</span>
-                    <span className="text-xs text-text-soft flex-1">{c?.en || cat}</span>
-                    <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, (total / Math.max(1, dictRows.length + LOCAL_DICTIONARY.length)) * 100 * 3)}%`, background: c?.color || "#888" }} />
-                    </div>
-                    <span className="text-xs text-text-muted w-10 text-right">{total}</span>
-                  </div>
-                );
-              })}
+          const StatCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) => (
+            <div className="bg-card rounded-xl p-3 border border-border">
+              <div className="text-xl mb-0.5">{icon}</div>
+              <div className="text-xl font-bold" style={{ color }}>{value}</div>
+              <div className="text-text-muted text-[10px] mt-0.5">{label}</div>
             </div>
-          </div>
-        )}
+          );
+
+          return (
+            <div className="space-y-4">
+              {/* Top-level counters */}
+              <div className="grid grid-cols-3 gap-2">
+                <StatCard label="Dictionary" value={dictRows.length} icon="📖" color="#f0883e" />
+                <StatCard label="Local dict" value={LOCAL_DICTIONARY.length} icon="💾" color="#3dd68c" />
+                <StatCard label="Store types" value={storeTypesWithCats.length} icon="🏪" color="#6c8aff" />
+                <StatCard label="Categories" value={storeTypesWithCats.reduce((n, st) => n + st.categories.length, 0)} icon="🏷️" color="#f472b6" />
+                <StatCard label="Languages" value={`${enabledLangsList.length}/${ALL_LANGUAGES.length}`} icon="🌍" color="#34d6c0" />
+                <StatCard label="Countries" value={COUNTRIES.length} icon="🗺️" color="#ffb03d" />
+                <StatCard label="Users" value={users.length} icon="👥" color="#6c8aff" />
+                <StatCard label="Lists" value={lists.length} icon="📝" color="#c76dff" />
+                <StatCard label="List items" value={totalListItems} icon="🛒" color="#e8c364" />
+              </div>
+
+              {/* Dictionary by store type */}
+              <div className="bg-card rounded-xl p-3 border border-border">
+                <h3 className="text-xs font-bold mb-2 flex items-center justify-between">
+                  <span>🏪 Dictionary by store type</span>
+                  <span className="text-[10px] text-text-muted font-normal">{totalDict} total</span>
+                </h3>
+                {dictByStore.map(({ st, n }) => (
+                  <div key={st.id} className="flex items-center gap-2 py-1">
+                    <span className="text-sm w-5">{st.emoji}</span>
+                    <span className="text-[11px] text-text-soft flex-1 truncate">{(st as unknown as Record<string, string>)[lang] || st.en}</span>
+                    <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, (n / Math.max(1, totalDict)) * 100)}%`, background: "#f0883e" }} />
+                    </div>
+                    <span className="text-[10px] text-text-muted w-10 text-right">{n}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Dictionary by category */}
+              <div className="bg-card rounded-xl p-3 border border-border">
+                <h3 className="text-xs font-bold mb-2">🏷️ Dictionary by category</h3>
+                <div className="max-h-80 overflow-y-auto pr-1">
+                  {storeTypesWithCats.flatMap(st => st.categories.map(c => {
+                    const count = dictRows.filter(d => d.category === c.id).length;
+                    const localCount = LOCAL_DICTIONARY.filter(d => d.cat === c.id).length;
+                    const total = count + localCount;
+                    if (total === 0) return null;
+                    return (
+                      <div key={`${st.id}:${c.id}`} className="flex items-center gap-2 py-1">
+                        <span className="text-[10px] w-4">{c.emoji}</span>
+                        <span className="text-[10px] text-text-muted w-4">{st.emoji}</span>
+                        <span className="text-[11px] text-text-soft flex-1 truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</span>
+                        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, (total / Math.max(1, totalDict)) * 100 * 3)}%`, background: c.color || "#888" }} />
+                        </div>
+                        <span className="text-[10px] text-text-muted w-10 text-right">{total}</span>
+                      </div>
+                    );
+                  }))}
+                </div>
+              </div>
+
+              {/* Dictionary by language */}
+              <div className="bg-card rounded-xl p-3 border border-border">
+                <h3 className="text-xs font-bold mb-2">🌍 Dictionary coverage by language</h3>
+                {dictByLang.map(l => (
+                  <div key={l.code} className="flex items-center gap-2 py-1">
+                    <span className="text-sm w-5">{l.flag}</span>
+                    <span className="text-[11px] text-text-soft flex-1 truncate">{l.name} <span className="text-text-muted">{l.code}</span></span>
+                    <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, (l.n / Math.max(1, totalDict)) * 100)}%`, background: "#34d6c0" }} />
+                    </div>
+                    <span className="text-[10px] text-text-muted w-16 text-right">{l.n} / {totalDict}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Users by country / language */}
+              {!IS_DEMO && users.length > 0 && (
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="bg-card rounded-xl p-3 border border-border">
+                    <h3 className="text-xs font-bold mb-2">🗺️ Users by country</h3>
+                    {usersByCountryList.slice(0, 20).map(([code, n]) => {
+                      const c = COUNTRIES.find(cc => cc.code === code);
+                      return (
+                        <div key={code} className="flex items-center gap-2 py-1">
+                          <span className="text-sm w-5">{c?.flag || "🌍"}</span>
+                          <span className="text-[11px] text-text-soft flex-1 truncate">{c?.name || code}</span>
+                          <span className="text-[11px] text-text-muted">{n}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="bg-card rounded-xl p-3 border border-border">
+                    <h3 className="text-xs font-bold mb-2">💬 Users by language</h3>
+                    {usersByLangList.slice(0, 20).map(([code, n]) => {
+                      const l = ALL_LANGUAGES.find(ll => ll.code === code);
+                      return (
+                        <div key={code} className="flex items-center gap-2 py-1">
+                          <span className="text-sm w-5">{l?.flag || "🌍"}</span>
+                          <span className="text-[11px] text-text-soft flex-1 truncate">{l?.name || code}</span>
+                          <span className="text-[11px] text-text-muted">{n}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Lists summary */}
+              {!IS_DEMO && lists.length > 0 && (
+                <div className="bg-card rounded-xl p-3 border border-border">
+                  <h3 className="text-xs font-bold mb-2">📝 Lists summary</h3>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div className="text-lg font-bold text-text">{lists.length}</div>
+                      <div className="text-[10px] text-text-muted">Total lists</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-text">{totalListMembers}</div>
+                      <div className="text-[10px] text-text-muted">Active members</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-text">{totalListItems}</div>
+                      <div className="text-[10px] text-text-muted">Items total</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Catalog (Stores + Categories + Dictionary + Builder unified) ── */}
         {tab === "catalog" && (
@@ -427,7 +551,19 @@ export default function AdminPage(_: AdminPageProps) {
                           </div>
                         </div>
                         <button onClick={() => setEditingEntry(row)} className="text-accent text-xs cursor-pointer px-1">✏️</button>
-                        <button onClick={() => deleteEntry(row.key)} className="text-danger text-xs cursor-pointer px-1">🗑️</button>
+                        <button
+                          onClick={() => {
+                            if (confirmDeleteEntry === row.key) {
+                              deleteEntry(row.key);
+                              setConfirmDeleteEntry(null);
+                            } else {
+                              setConfirmDeleteEntry(row.key);
+                              setTimeout(() => setConfirmDeleteEntry(prev => prev === row.key ? null : prev), 3000);
+                            }
+                          }}
+                          className="text-xs cursor-pointer px-1 whitespace-nowrap"
+                          style={{ color: confirmDeleteEntry === row.key ? "#fff" : "#ff5c5c", background: confirmDeleteEntry === row.key ? "#b71c1c" : undefined, borderRadius: 4, padding: "2px 6px" }}
+                        >{confirmDeleteEntry === row.key ? "⚠️" : "🗑️"}</button>
                       </div>
                     );
                   })}
@@ -534,7 +670,7 @@ export default function AdminPage(_: AdminPageProps) {
               {storeTypesWithCats.map((st: StoreTypeWithCategories) => {
                 const isCollapsed = collapsedStores.has(st.id);
                 return (
-                  <div key={st.id} className="bg-card rounded-xl border border-border overflow-hidden">
+                  <div key={st.id} className="bg-card rounded-xl border border-border">
                     {/* Store type header */}
                     <div className="flex items-center gap-2 p-3">
                       <button
@@ -602,15 +738,24 @@ export default function AdminPage(_: AdminPageProps) {
                                   <div className="h-px bg-border my-1" />
                                   <button
                                     onClick={() => {
-                                      removeCustomStoreType(st.id);
-                                      setStoreCatVersion(v => v + 1);
-                                      showToast("Store type removed");
-                                      setOpenStoreMenu(null);
+                                      if (confirmDeleteStore === st.id) {
+                                        removeCustomStoreType(st.id);
+                                        setStoreCatVersion(v => v + 1);
+                                        showToast("Store type removed");
+                                        setConfirmDeleteStore(null);
+                                        setOpenStoreMenu(null);
+                                      } else {
+                                        setConfirmDeleteStore(st.id);
+                                        setTimeout(() => setConfirmDeleteStore(prev => prev === st.id ? null : prev), 3000);
+                                      }
                                     }}
                                     className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-danger/10 flex items-center gap-2"
-                                    style={{ color: "#ff5c5c" }}
+                                    style={{
+                                      color: confirmDeleteStore === st.id ? "#fff" : "#ff5c5c",
+                                      background: confirmDeleteStore === st.id ? "#b71c1c" : undefined,
+                                    }}
                                   >
-                                    <span>🗑️</span><span>Delete store type</span>
+                                    <span>🗑️</span><span>{confirmDeleteStore === st.id ? "Confirm delete" : "Delete store type"}</span>
                                   </button>
                                 </>
                               )}
@@ -701,14 +846,31 @@ export default function AdminPage(_: AdminPageProps) {
                                       <div className="text-xs font-semibold text-text truncate">{(c as unknown as Record<string, string>)[lang] || c.en}</div>
                                     </div>
                                   </button>
-                                  {c.custom && (
-                                    <button
-                                      onClick={() => { removeCustomCategory(c.id); setStoreCatVersion(v => v + 1); showToast("Category removed"); }}
-                                      className="w-6 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0"
-                                      style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
-                                      title="Delete this custom category"
-                                    >✕</button>
-                                  )}
+                                  {c.custom && (() => {
+                                    const isConfirming = confirmDeleteCat === c.id;
+                                    return (
+                                      <button
+                                        onClick={() => {
+                                          if (isConfirming) {
+                                            removeCustomCategory(c.id);
+                                            setStoreCatVersion(v => v + 1);
+                                            setConfirmDeleteCat(null);
+                                            showToast("Category removed");
+                                          } else {
+                                            setConfirmDeleteCat(c.id);
+                                            setTimeout(() => setConfirmDeleteCat(prev => prev === c.id ? null : prev), 3000);
+                                          }
+                                        }}
+                                        className="px-1.5 h-6 rounded-lg text-[10px] cursor-pointer flex items-center justify-center shrink-0 whitespace-nowrap"
+                                        style={{
+                                          background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                                          color: isConfirming ? "#fff" : "#ff5c5c",
+                                          border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                                        }}
+                                        title="Delete this custom category"
+                                      >{isConfirming ? "⚠️ Confirm" : "✕"}</button>
+                                    );
+                                  })()}
                                 </div>
                                 <div className="flex gap-2">
                                   <button
@@ -760,7 +922,19 @@ export default function AdminPage(_: AdminPageProps) {
                                             </div>
                                           </div>
                                           <button onClick={() => setEditingEntry(row)} className="text-accent text-[11px] cursor-pointer px-1 shrink-0">✏️</button>
-                                          <button onClick={() => deleteEntry(row.key)} className="text-danger text-[11px] cursor-pointer px-1 shrink-0">🗑️</button>
+                                          <button
+                                            onClick={() => {
+                                              if (confirmDeleteEntry === row.key) {
+                                                deleteEntry(row.key);
+                                                setConfirmDeleteEntry(null);
+                                              } else {
+                                                setConfirmDeleteEntry(row.key);
+                                                setTimeout(() => setConfirmDeleteEntry(prev => prev === row.key ? null : prev), 3000);
+                                              }
+                                            }}
+                                            className="text-[11px] cursor-pointer shrink-0 whitespace-nowrap"
+                                            style={{ color: confirmDeleteEntry === row.key ? "#fff" : "#ff5c5c", background: confirmDeleteEntry === row.key ? "#b71c1c" : undefined, borderRadius: 4, padding: "2px 6px" }}
+                                          >{confirmDeleteEntry === row.key ? "⚠️" : "🗑️"}</button>
                                         </div>
                                       ))}
                                       {dictItems.length > 50 && (
@@ -813,31 +987,11 @@ export default function AdminPage(_: AdminPageProps) {
             }
           };
 
-          const generateAllMissing = async () => {
-            const missing = enabled.filter(c => !hardcodedUI.includes(c) && !storedUI[c]);
-            if (missing.length === 0) { showToast("All languages have UI translations!"); return; }
-            for (const code of missing) {
-              await generateUI(code);
-              await new Promise(r => setTimeout(r, 1500));
-            }
-          };
-
           return (
           <div>
             {/* Enabled Languages */}
             <h3 className="text-sm font-bold mb-3">Active Languages ({enabledLangs.length})</h3>
             <p className="text-text-muted text-[10px] mb-3">These languages are available in the app. Toggle to enable/disable.</p>
-
-            {/* Generate all missing UI */}
-            {enabled.some(c => !hardcodedUI.includes(c) && !storedUI[c]) && (
-              <button
-                onClick={generateAllMissing}
-                className="w-full mb-4 py-3 rounded-xl font-semibold text-sm text-white cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
-              >
-                🌍 Generate UI translations for all languages
-              </button>
-            )}
 
             <div className="space-y-3 mb-6">
               {enabledLangs.map(lang => {
@@ -870,15 +1024,31 @@ export default function AdminPage(_: AdminPageProps) {
                           <span className="text-[9px] text-text-muted">{dictCoverage + localCoverage} dict</span>
                         </div>
                       </div>
-                      {!isCore && (
-                        <button
-                          onClick={() => { disableLang(lang.code); forceUpdate(n => n + 1); }}
-                          className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer"
-                          style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
-                        >
-                          ✕
-                        </button>
-                      )}
+                      {!isCore && (() => {
+                        const isConfirming = confirmDisableLang === lang.code;
+                        return (
+                          <button
+                            onClick={() => {
+                              if (isConfirming) {
+                                disableLang(lang.code);
+                                setConfirmDisableLang(null);
+                                forceUpdate(n => n + 1);
+                              } else {
+                                setConfirmDisableLang(lang.code);
+                                setTimeout(() => setConfirmDisableLang(prev => prev === lang.code ? null : prev), 3000);
+                              }
+                            }}
+                            className="px-2 py-1 rounded-lg text-[10px] font-semibold cursor-pointer whitespace-nowrap"
+                            style={{
+                              background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                              color: isConfirming ? "#fff" : "#ff5c5c",
+                              border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                            }}
+                          >
+                            {isConfirming ? "⚠️ Confirm" : "✕"}
+                          </button>
+                        );
+                      })()}
                     </div>
                     {/* Countries */}
                     <div className="flex flex-wrap gap-1.5 px-3 pb-3">
@@ -1162,7 +1332,7 @@ export default function AdminPage(_: AdminPageProps) {
                             style={{ background: `${color}20`, color }}
                           >{typeLabel[e.type]}</span>
                           <code className="text-[10px] font-mono text-text-muted">{e.hash}</code>
-                          <span className="text-[10px] text-text-muted">{e.date}</span>
+                          <span className="text-[10px] text-text-muted">{e.date}{e.time ? ` · ${e.time}` : ""}</span>
                           {isCurrent && (
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-auto" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>LIVE</span>
                           )}
