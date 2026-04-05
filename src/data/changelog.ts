@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.45",
+    version: "v0.46",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "18:25",
+    type: "feat",
+    title: "Run DB migrations from Admin + header fixes",
+    details: [
+      "New run-migration Edge Function with a whitelisted migration registry (currently just 005_store_phrases). Uses the service_role env var to execute DDL via a self-bootstrapped exec_admin_migration_sql function — no arbitrary SQL surface",
+      "Phrases banner now has a one-tap '▶︎ Run migration now' button instead of copy-SQL instructions. The admin never has to leave the app to apply pending DB changes",
+      "Header fix: title was rendering dim and the layout sometimes stacked vertically. Switched from ml-auto to justify-between, added explicit --color-text on the h1 and colored the status indicator text (red for Demo, green for Supabase) so both label and dot match",
+    ],
+  },
+  {
+    version: "v0.45",
+    hash: "22c7321",
     date: "2026-04-05",
     time: "18:00",
     type: "fix",

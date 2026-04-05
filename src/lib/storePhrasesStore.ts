@@ -57,6 +57,34 @@ export function isMigrationMissing(): boolean {
   return missingTable;
 }
 
+/** Call the run-migration Edge Function to apply migration 005 using the
+ *  server-side service role key. Avoids the trip to Supabase SQL editor. */
+export async function applyMigration005(): Promise<{ applied: number; failed: number; error?: string }> {
+  if (IS_DEMO) return { applied: 0, failed: 0, error: "Demo mode" };
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/run-migration`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ migrationId: "005_store_phrases" }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { applied: data.applied ?? 0, failed: data.failed ?? 0, error: data.error ?? `HTTP ${res.status}` };
+    }
+    missingTable = false;
+    await refreshStorePhrases();
+    return { applied: data.applied ?? 0, failed: data.failed ?? 0 };
+  } catch (err) {
+    return { applied: 0, failed: 0, error: (err as Error).message };
+  }
+}
+
 let cache: StorePhrase[] | null = null;
 let loadingPromise: Promise<StorePhrase[]> | null = null;
 const listeners = new Set<(phrases: StorePhrase[]) => void>();

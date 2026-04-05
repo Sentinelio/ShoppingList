@@ -31,6 +31,7 @@ import {
   fillPhrasesForLang,
   countMissingForLang,
   isMigrationMissing,
+  applyMigration005,
   type StorePhrase,
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
@@ -91,7 +92,7 @@ function PhrasesAdminSection() {
   const [fillingLang, setFillingLang] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [migrationMissing, setMigrationMissing] = useState(false);
-  const [sqlCopied, setSqlCopied] = useState(false);
+  const [applyingMigration, setApplyingMigration] = useState(false);
   const enabled = getEnabledLangs();
 
   useEffect(() => {
@@ -116,40 +117,20 @@ function PhrasesAdminSection() {
     }
   };
 
-  const MIGRATION_SQL = `CREATE TABLE IF NOT EXISTS store_phrases (
-    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    key          text UNIQUE NOT NULL,
-    emoji        text NOT NULL DEFAULT '💬',
-    translations jsonb NOT NULL DEFAULT '{}'::jsonb,
-    sort_order   int  NOT NULL DEFAULT 0,
-    usage_count  int  NOT NULL DEFAULT 0,
-    last_used_at timestamptz,
-    created_at   timestamptz DEFAULT now(),
-    updated_at   timestamptz DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_store_phrases_order ON store_phrases (sort_order);
-CREATE INDEX IF NOT EXISTS idx_store_phrases_usage ON store_phrases (usage_count DESC);
-
-CREATE OR REPLACE FUNCTION increment_store_phrase_usage(p_key text)
-RETURNS void AS $$
-BEGIN
-    UPDATE store_phrases SET usage_count = usage_count + 1, last_used_at = now() WHERE key = p_key;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-GRANT EXECUTE ON FUNCTION increment_store_phrase_usage(text) TO anon, authenticated;
-
-ALTER TABLE store_phrases ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "store_phrases_select_public" ON store_phrases FOR SELECT USING (true);
-CREATE POLICY "store_phrases_write_anon" ON store_phrases FOR ALL USING (true) WITH CHECK (true);`;
-
-  const copySql = async () => {
-    try {
-      await navigator.clipboard.writeText(MIGRATION_SQL);
-      setSqlCopied(true);
-      setTimeout(() => setSqlCopied(false), 2500);
-    } catch {
-      showToast("Copy failed — select and copy manually");
+  const runMigration = async () => {
+    setApplyingMigration(true);
+    const { applied, failed, error } = await applyMigration005();
+    setApplyingMigration(false);
+    if (error) {
+      showToast(`❌ ${error}`);
+      return;
     }
+    if (failed > 0) {
+      showToast(`⚠️ Applied ${applied}, ${failed} failed`);
+      return;
+    }
+    showToast(`✅ Migration applied (${applied} statements)`);
+    setMigrationMissing(false);
   };
 
   const handleFillLang = async (lang: string) => {
@@ -188,30 +169,23 @@ CREATE POLICY "store_phrases_write_anon" ON store_phrases FOR ALL USING (true) W
               </div>
               <div className="text-text-muted text-[11px]">
                 The <code className="text-[10px] bg-bg px-1 rounded">store_phrases</code> table
-                doesn't exist yet, so editing and deleting don't persist. Run the SQL below in
-                your Supabase SQL editor and reload this page.
+                doesn't exist yet. Tap the button below to create it now — it runs via a
+                server-side Edge Function using the service role key.
               </div>
             </div>
           </div>
           <button
-            onClick={copySql}
-            className="w-full py-2 rounded-lg text-[11px] font-semibold cursor-pointer"
+            onClick={runMigration}
+            disabled={applyingMigration}
+            className="w-full py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-60"
             style={{
-              background: sqlCopied ? "rgba(61,214,140,0.15)" : "rgba(255,176,61,0.15)",
-              color: sqlCopied ? "#3dd68c" : "#ffb03d",
-              border: `1px solid ${sqlCopied ? "rgba(61,214,140,0.3)" : "rgba(255,176,61,0.3)"}`,
+              background: "rgba(61,214,140,0.12)",
+              color: "#3dd68c",
+              border: "1px solid rgba(61,214,140,0.3)",
             }}
           >
-            {sqlCopied ? "✓ SQL copied to clipboard" : "📋 Copy migration SQL"}
+            {applyingMigration ? "⏳ Applying migration…" : "▶︎ Run migration now"}
           </button>
-          <a
-            href="https://supabase.com/dashboard/project/_/sql/new"
-            target="_blank"
-            rel="noreferrer"
-            className="block text-center mt-1.5 text-[10px] text-text-muted underline"
-          >
-            Open Supabase SQL editor →
-          </a>
         </div>
       )}
 
@@ -898,20 +872,29 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex items-center gap-3">
-        <h1 className="text-lg font-bold">🛠️ Admin Panel</h1>
-        <div className="ml-auto flex items-center gap-1.5">
+      {/* Header — title on the left, status pill on the right */}
+      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex items-center justify-between gap-3">
+        <h1
+          className="text-lg font-bold leading-none"
+          style={{ color: "var(--color-text, #e6e8ee)" }}
+        >
+          🛠️ Admin Panel
+        </h1>
+        <div className="flex items-center gap-1.5 shrink-0">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full"
             style={{
               background: IS_DEMO ? "#ff5c5c" : "#3dd68c",
-              boxShadow: IS_DEMO ? "0 0 0 0 rgba(255,92,92,0.7)" : "0 0 0 0 rgba(61,214,140,0.7)",
               animation: "admin-status-pulse 2s ease-in-out infinite",
             }}
             title={IS_DEMO ? "Running in Demo Mode (no Supabase connection)" : "Connected to Supabase"}
           />
-          <span className="text-text-muted text-xs">{IS_DEMO ? "Demo Mode" : "Supabase"}</span>
+          <span
+            className="text-xs font-semibold"
+            style={{ color: IS_DEMO ? "#ff5c5c" : "#3dd68c" }}
+          >
+            {IS_DEMO ? "Demo Mode" : "Supabase"}
+          </span>
         </div>
         <style>{`
           @keyframes admin-status-pulse {
