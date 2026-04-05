@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.40",
+    version: "v0.41",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "16:50",
+    type: "feat",
+    title: "Generate brands from the store type menu",
+    details: [
+      "Store type ⋯ menu now has a purple ®️ 'Generate all brands' action alongside 'Generate all items'",
+      "Seeds 15 brand names per category in the store in a single click — a full shop's worth of trademarked products in one go",
+      "buildManyCategories now takes a mode parameter ('generic' | 'brands') that propagates to buildOneCategory and the Edge Function",
+    ],
+  },
+  {
+    version: "v0.40",
+    hash: "36ca194",
     date: "2026-04-05",
     time: "16:35",
     type: "feat",

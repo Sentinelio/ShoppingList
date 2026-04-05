@@ -378,7 +378,11 @@ export default function AdminPage() {
     setBuildingCategory(null);
   };
 
-  const buildManyCategories = async (categoryIds: string[], label: string) => {
+  const buildManyCategories = async (
+    categoryIds: string[],
+    label: string,
+    mode: "generic" | "brands" = "generic",
+  ) => {
     if (IS_DEMO) { showToast("Connect Supabase first"); return; }
     const seeds = categoryIds
       .map(id => SEED_CATEGORIES.find(s => s.category === id))
@@ -387,12 +391,13 @@ export default function AdminPage() {
     setBulkRunning(label);
     let total = 0;
     for (const seed of seeds) {
-      await buildOneCategory(seed.category);
+      await buildOneCategory(seed.category, mode);
       total++;
       showToast(`(${total}/${seeds.length}) ${seed.name} done`);
     }
     setBulkRunning(null);
-    showToast(`✅ ${label}: ${seeds.length} categories generated`);
+    const what = mode === "brands" ? "brands" : "categories";
+    showToast(`✅ ${label}: ${seeds.length} ${what} generated`);
   };
 
   // Fetch data based on tab
@@ -954,13 +959,26 @@ export default function AdminPage() {
                                 disabled={!!bulkRunning || st.categories.length === 0}
                                 onClick={() => {
                                   const ids = st.categories.map(c => c.id);
-                                  buildManyCategories(ids, `store:${st.id}`);
+                                  buildManyCategories(ids, `store:${st.id}`, "generic");
                                   setOpenStoreMenu(null);
                                 }}
                                 className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
                                 style={{ color: "#3dd68c" }}
                               >
-                                <span>🧠</span><span>{bulkRunning === `store:${st.id}` ? "Generating..." : "Generate all"}</span>
+                                <span>🧠</span><span>{bulkRunning === `store:${st.id}` ? "Generating..." : "Generate all items"}</span>
+                              </button>
+                              <button
+                                disabled={!!bulkRunning || st.categories.length === 0}
+                                onClick={() => {
+                                  const ids = st.categories.map(c => c.id);
+                                  buildManyCategories(ids, `store-brands:${st.id}`, "brands");
+                                  setOpenStoreMenu(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
+                                style={{ color: "#a78bfa" }}
+                                title="Generate popular brand names for every category in this store type"
+                              >
+                                <span>®️</span><span>{bulkRunning === `store-brands:${st.id}` ? "Generating..." : "Generate all brands"}</span>
                               </button>
                               <button
                                 disabled={!!bulkRunning || st.categories.length === 0}
