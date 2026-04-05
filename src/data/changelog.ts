@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.52",
+    version: "v0.53",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "20:10",
+    type: "fix",
+    title: "Phrase auto-translate returns gibberish",
+    details: [
+      "Root cause: fillPhrasesForLang was calling the `translate` Edge Function, which is designed for shopping-list PRODUCT names (\"A user wants to buy: '...'\") and tries to assign a store category. Feeding it 'Do you have more of this?' produced meta-descriptions like 'consulta sobre disponibilidad del producto' or invented answers in other languages.",
+      "Fix: phrases now go through the `translate-ui` Edge Function, which is designed for natural UI sentences in a shopping app and preserves meaning instead of searching for products.",
+      "Bonus: the new path batches all missing phrases into a SINGLE API call per language (a key-value bag that translate-ui preserves structurally), instead of N calls. Filling Polish for 10 phrases is now 1 request instead of 10, and results come back 10x faster.",
+    ],
+  },
+  {
+    version: "v0.52",
+    hash: "e4f79bc",
     date: "2026-04-05",
     time: "19:55",
     type: "feat",

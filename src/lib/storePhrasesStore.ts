@@ -11,6 +11,7 @@
 
 import { supabase, IS_DEMO } from "./supabase";
 import { STORE_PHRASES as FALLBACK_PHRASES, type StorePhrase as LegacyStorePhrase } from "../data/storePhrases";
+import { ALL_LANGUAGES } from "../data/allLanguages";
 
 export const PHRASE_CATEGORY = "_phrase";
 const USAGE_STORAGE_KEY = "babelcart_phrase_usage_v1";
@@ -295,6 +296,11 @@ export function countMissingForLang(lang: string, phrases: StorePhrase[] = cache
   return phrases.filter(p => !p.translations[lang]?.trim()).length;
 }
 
+// Translate all missing phrases for a given language in a SINGLE API call by
+// piggybacking on the translate-ui Edge Function (already deployed, designed
+// for natural UI sentences — not the product-oriented `translate` function
+// which would misinterpret phrases like "Do you have more of this?" as a
+// shopping query).
 export async function fillPhrasesForLang(
   lang: string,
   onProgress?: (done: number, total: number) => void,
@@ -304,37 +310,60 @@ export async function fillPhrasesForLang(
   const missing = phrases.filter(p => !p.translations[lang]?.trim());
   if (missing.length === 0) return { filled: 0 };
 
+  const targetLangName = ALL_LANGUAGES.find(l => l.code === lang)?.name ?? lang;
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+  // Build a strings bag keyed by phrase key → English source. translate-ui
+  // preserves the keys and translates only the values.
+  const stringsToTranslate: Record<string, string> = {};
+  for (const p of missing) {
+    const source = p.translations.en ?? Object.values(p.translations).find(v => typeof v === "string");
+    if (source) stringsToTranslate[p.key] = source;
+  }
+  if (Object.keys(stringsToTranslate).length === 0) return { filled: 0 };
+
+  let translatedMap: Record<string, string> = {};
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/translate-ui`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({
+        strings: stringsToTranslate,
+        targetLang: lang,
+        targetLangName,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+    translatedMap = data?.translations ?? {};
+  } catch (err) {
+    throw new Error(`Translation request failed: ${(err as Error).message}`);
+  }
+
+  // Persist each translated phrase. We upsert one at a time rather than in
+  // parallel so the optimistic cache sync via refreshStorePhrases at the end
+  // reflects the final state without races.
   let filled = 0;
-  const CONCURRENCY = 3;
-  for (let i = 0; i < missing.length; i += CONCURRENCY) {
-    const slice = missing.slice(i, i + CONCURRENCY);
-    await Promise.all(slice.map(async phrase => {
-      const source = phrase.translations.en ?? Object.values(phrase.translations)[0];
-      if (!source) return;
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/translate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseKey}`,
-            "apikey": supabaseKey,
-          },
-          body: JSON.stringify({ text: source, langs: [lang] }),
-        });
-        const data = await res.json();
-        const translated = data?.t?.[lang] ?? data?.translations?.[lang];
-        if (!translated) return;
-        const next: StorePhrase = {
-          ...phrase,
-          translations: { ...phrase.translations, [lang]: translated },
-        };
-        await upsertStorePhrase(next);
-        filled++;
-      } catch { /* skip */ }
-    }));
-    onProgress?.(Math.min(i + CONCURRENCY, missing.length), missing.length);
+  const keys = Object.keys(stringsToTranslate);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const translation = translatedMap[key];
+    if (!translation || typeof translation !== "string" || !translation.trim()) continue;
+    const phrase = missing.find(p => p.key === key);
+    if (!phrase) continue;
+    try {
+      await upsertStorePhrase({
+        ...phrase,
+        translations: { ...phrase.translations, [lang]: translation.trim() },
+      });
+      filled++;
+    } catch { /* skip individual failures */ }
+    onProgress?.(i + 1, keys.length);
   }
   await refreshStorePhrases();
   return { filled };
