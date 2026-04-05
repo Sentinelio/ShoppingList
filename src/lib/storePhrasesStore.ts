@@ -66,10 +66,11 @@ function writeUsage(u: UsageMap) {
 }
 
 // ── Cache + pub/sub ───────────────────────────────────────────────────────
-
-let cache: StorePhrase[] | null = null;
-let loadingPromise: Promise<StorePhrase[]> | null = null;
-const listeners = new Set<(phrases: StorePhrase[]) => void>();
+// `cache` MUST be a stable reference between consecutive getStorePhrases()
+// calls, otherwise useSyncExternalStore (used by the useStorePhrases hook)
+// will enter an infinite re-render loop (React error #185). We replace the
+// reference only when the data actually changes (remote refetch, optimistic
+// mutation, usage bump) and call notify() to announce the change.
 
 function mergeUsage(phrases: StorePhrase[]): StorePhrase[] {
   const usage = readUsage();
@@ -80,8 +81,15 @@ function mergeUsage(phrases: StorePhrase[]): StorePhrase[] {
   }));
 }
 
+// Initialise the cache synchronously with the fallback+usage snapshot so the
+// very first getStorePhrases() call already returns a stable reference. The
+// remote fetch replaces this reference once the network round-trip completes.
+let cache: StorePhrase[] = mergeUsage(FALLBACK);
+let loadingPromise: Promise<StorePhrase[]> | null = null;
+const listeners = new Set<(phrases: StorePhrase[]) => void>();
+
 function notify() {
-  listeners.forEach(fn => fn(cache ?? FALLBACK));
+  listeners.forEach(fn => fn(cache));
 }
 
 // ── Remote fetch (dictionary rows with category = _phrase) ────────────────
@@ -179,28 +187,32 @@ export function isMigrationMissing(): boolean {
 
 // ── Public API ────────────────────────────────────────────────────────────
 
-/** Bump the per-device usage counter. Fire-and-forget from StoreMode. */
+/** Bump the per-device usage counter. Fire-and-forget from StoreMode.
+ *  Creates a NEW cache reference so subscribers re-render. */
 export async function incrementPhraseUsage(key: string): Promise<void> {
   const usage = readUsage();
   const prev = usage[key]?.count ?? 0;
   usage[key] = { count: prev + 1, last: new Date().toISOString() };
   writeUsage(usage);
-  if (cache) {
-    const row = cache.find(p => p.key === key);
-    if (row) {
-      row.usage_count = usage[key].count;
-      row.last_used_at = usage[key].last;
-      notify();
-    }
-  }
+  cache = cache.map(p =>
+    p.key === key
+      ? { ...p, usage_count: usage[key].count, last_used_at: usage[key].last }
+      : p,
+  );
+  notify();
 }
 
+// Tracks whether we've started the first remote load. Prevents every
+// subsequent useStorePhrases() mount from triggering a refetch.
+let hasLoadedRemote = false;
+
 export async function ensureStorePhrasesLoaded(): Promise<StorePhrase[]> {
-  if (cache) return cache;
+  if (hasLoadedRemote) return cache;
   if (loadingPromise) return loadingPromise;
   loadingPromise = (async () => {
     const remote = await fetchFromRemote();
     cache = mergeUsage(remote);
+    hasLoadedRemote = true;
     notify();
     return cache;
   })();
@@ -212,7 +224,7 @@ export async function ensureStorePhrasesLoaded(): Promise<StorePhrase[]> {
 }
 
 export function getStorePhrases(): StorePhrase[] {
-  return cache ?? mergeUsage(FALLBACK);
+  return cache;
 }
 
 export function subscribeStorePhrases(fn: (phrases: StorePhrase[]) => void): () => void {
@@ -223,6 +235,7 @@ export function subscribeStorePhrases(fn: (phrases: StorePhrase[]) => void): () 
 export async function refreshStorePhrases(): Promise<StorePhrase[]> {
   const remote = await fetchFromRemote();
   cache = mergeUsage(remote);
+  hasLoadedRemote = true;
   notify();
   return cache;
 }
@@ -292,7 +305,7 @@ export async function reorderStorePhrases(orderedKeys: string[]): Promise<void> 
   }
 }
 
-export function countMissingForLang(lang: string, phrases: StorePhrase[] = cache ?? FALLBACK): number {
+export function countMissingForLang(lang: string, phrases: StorePhrase[] = cache): number {
   return phrases.filter(p => !p.translations[lang]?.trim()).length;
 }
 

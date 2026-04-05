@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.53",
+    version: "v0.54",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "20:25",
+    type: "fix",
+    title: "Phrases tab: React error #185 infinite render loop",
+    details: [
+      "Root cause: storePhrasesStore.getStorePhrases() returned `cache ?? mergeUsage(FALLBACK)` — when the cache was null (first mount), mergeUsage created a brand-new array reference on every call. useSyncExternalStore then saw a changing snapshot and looped until it crashed with 'Maximum update depth exceeded'. Same class of bug as the one we fixed in themeStore earlier.",
+      "Fix: initialise cache synchronously with mergeUsage(FALLBACK) at module load so getStorePhrases() always returns a stable reference. We only create a new reference inside mutations (reorder, upsert, delete, usage bump) — i.e. when the data actually changes.",
+      "Added a hasLoadedRemote flag so ensureStorePhrasesLoaded() short-circuits after the first network fetch instead of refetching on every hook mount.",
+    ],
+  },
+  {
+    version: "v0.53",
+    hash: "89865fc",
     date: "2026-04-05",
     time: "20:10",
     type: "fix",
