@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.50",
+    version: "v0.51",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "19:35",
+    type: "feat",
+    title: "Phrases: drag-and-drop reorder",
+    details: [
+      "Each phrase row now has a ⋮⋮ drag handle on the left. Grab it with mouse or finger to reorder the list visually.",
+      "Implemented with pointer events (pointerdown/move/up + setPointerCapture) so it works on both desktop and mobile without any third-party DnD library — zero new deps.",
+      "touch-action:none on the handle prevents the page from scrolling during a drag.",
+      "Drop target is highlighted with a dashed accent border; the dragged row lifts with a shadow and scales slightly.",
+      "On drop, the new sort_order values are persisted as (index + 1) * 10 via reorderStorePhrases, leaving gaps for future inserts. Optimistic local update keeps the UI instant.",
+      "Default sort switched from 'by usage' to 'manual sort_order' now that the admin owns the order. Most-used phrase still shown as a caption under the list for quick reference.",
+    ],
+  },
+  {
+    version: "v0.50",
+    hash: "636ec7f",
     date: "2026-04-05",
     time: "19:10",
     type: "refactor",

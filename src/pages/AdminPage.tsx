@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { LANGS } from "../data/langs";
@@ -30,6 +30,7 @@ import {
   deleteStorePhrase,
   fillPhrasesForLang,
   countMissingForLang,
+  reorderStorePhrases,
   type StorePhrase,
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
@@ -80,6 +81,188 @@ const PREVIEW_MEMBERS: ListMember[] = [
   { list_id: "x", user_id: "u2", role: "member", status: "active", joined_at: "", user_name: "Manu",  user_lang: "es", user_country: "ES" },
 ];
 
+// ── Drag-and-drop phrase list ─────────────────────────────────────────────
+// Pointer-event based reorder so it works on mouse AND touch without any
+// third-party DnD library. The handle has touch-action:none to prevent the
+// page from scrolling while the user is dragging a row.
+
+interface PhraseDraggableListProps {
+  phrases: StorePhrase[];
+  maxUses: number;
+  enabled: string[];
+  dragKey: string | null;
+  dragOverIdx: number | null;
+  confirmDeleteKey: string | null;
+  onStartDrag: (key: string) => void;
+  onDragOver: (idx: number) => void;
+  onEndDrag: (targetIdx: number | null) => void;
+  onEdit: (p: StorePhrase) => void;
+  onToggleConfirmDelete: (key: string) => void;
+}
+
+function PhraseDraggableList({
+  phrases,
+  maxUses,
+  enabled,
+  dragKey,
+  dragOverIdx,
+  confirmDeleteKey,
+  onStartDrag,
+  onDragOver,
+  onEndDrag,
+  onEdit,
+  onToggleConfirmDelete,
+}: PhraseDraggableListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Convert a pointer Y coordinate to a target index by finding the row
+  // whose vertical midpoint the pointer has just crossed.
+  const computeTargetIdx = (clientY: number): number | null => {
+    const list = listRef.current;
+    if (!list) return null;
+    let idx = 0;
+    for (const p of phrases) {
+      const el = itemRefs.current[p.key];
+      if (!el) { idx++; continue; }
+      const rect = el.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (clientY < mid) return idx;
+      idx++;
+    }
+    return phrases.length - 1;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent, key: string) => {
+    // Only left-click / primary touch.
+    if (e.button !== 0 && e.pointerType !== "touch") return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    onStartDrag(key);
+    const idx = phrases.findIndex(p => p.key === key);
+    onDragOver(idx);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragKey) return;
+    const target = computeTargetIdx(e.clientY);
+    if (target != null && target !== dragOverIdx) onDragOver(target);
+  };
+
+  const handlePointerEnd = (e: React.PointerEvent) => {
+    if (!dragKey) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch { /* ignore */ }
+    onEndDrag(dragOverIdx);
+  };
+
+  return (
+    <div ref={listRef} className="space-y-2">
+      {phrases.map((p, i) => {
+        const uses = p.usage_count ?? 0;
+        const pct = maxUses === 0 ? 0 : Math.round((uses / maxUses) * 100);
+        const isConfirming = confirmDeleteKey === p.key;
+        const isDragging = dragKey === p.key;
+        const isDropTarget = dragKey !== null && dragOverIdx === i && dragKey !== p.key;
+        return (
+          <div
+            key={p.key}
+            ref={el => { itemRefs.current[p.key] = el; }}
+            className="rounded-xl border p-3 transition-all"
+            style={{
+              background: isDragging ? "rgba(240,136,62,0.12)" : "var(--color-card, #161b24)",
+              borderColor: isDragging
+                ? "var(--color-accent, #f0883e)"
+                : isDropTarget
+                  ? "var(--color-accent, #f0883e)"
+                  : "var(--color-border, rgba(255,255,255,0.06))",
+              borderStyle: isDropTarget ? "dashed" : "solid",
+              borderWidth: isDragging || isDropTarget ? 2 : 1,
+              opacity: isDragging ? 0.85 : 1,
+              boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.4)" : undefined,
+              transform: isDragging ? "scale(1.01)" : undefined,
+            }}
+          >
+            <div className="flex items-start gap-2">
+              {/* Drag handle */}
+              <div
+                role="button"
+                aria-label="Drag to reorder"
+                tabIndex={0}
+                onPointerDown={(e) => handlePointerDown(e, p.key)}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerEnd}
+                onPointerCancel={handlePointerEnd}
+                className="shrink-0 flex items-center justify-center text-text-muted select-none"
+                style={{
+                  width: 24,
+                  height: 32,
+                  cursor: isDragging ? "grabbing" : "grab",
+                  touchAction: "none",
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+                title="Drag to reorder"
+              >
+                ⋮⋮
+              </div>
+              <span className="text-2xl shrink-0" aria-hidden="true">{p.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-text truncate">
+                  {p.translations.en ?? p.key}
+                </div>
+                <div className="text-[10px] text-text-muted truncate mt-0.5">
+                  {Object.entries(p.translations)
+                    .filter(([l]) => l !== "en" && !l.startsWith("_") && enabled.includes(l))
+                    .slice(0, 4)
+                    .map(([l, v]) => `${l}:${v}`)
+                    .join(" · ")}
+                </div>
+              </div>
+              <button
+                onClick={() => onEdit(p)}
+                className="text-accent text-xs cursor-pointer px-1 shrink-0"
+                aria-label="Edit phrase"
+              >✏️</button>
+              <button
+                onClick={() => onToggleConfirmDelete(p.key)}
+                className="text-xs cursor-pointer whitespace-nowrap shrink-0"
+                style={{
+                  color: isConfirming ? "#fff" : "#ff5c5c",
+                  background: isConfirming ? "#b71c1c" : undefined,
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                }}
+              >{isConfirming ? "⚠️" : "🗑️"}</button>
+            </div>
+            {/* Usage bar */}
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-bg rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${pct}%`,
+                    background: "linear-gradient(90deg, #f09848, #e8c364)",
+                  }}
+                />
+              </div>
+              <div className="text-[10px] text-text-muted font-mono tabular-nums w-16 text-right">
+                {uses} {uses === 1 ? "use" : "uses"}
+              </div>
+            </div>
+            {p.last_used_at && (
+              <div className="text-[9px] text-text-muted mt-1">
+                last: {new Date(p.last_used_at).toLocaleString()}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Admin Phrases: CRUD + usage stats + per-language coverage ─────────────
 
 function PhrasesAdminSection() {
@@ -89,6 +272,11 @@ function PhrasesAdminSection() {
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [fillingLang, setFillingLang] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  // Drag-and-drop reorder: dragKey + current target index while the user
+  // is dragging. On drop we persist the new sort_order via reorderStorePhrases.
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   const enabled = getEnabledLangs();
 
   useEffect(() => { void ensureStorePhrasesLoaded(); }, []);
@@ -97,9 +285,13 @@ function PhrasesAdminSection() {
 
   const totalUses = phrases.reduce((n, p) => n + (p.usage_count ?? 0), 0);
   const maxUses = Math.max(1, ...phrases.map(p => p.usage_count ?? 0));
-  const sorted = [...phrases].sort(
-    (a, b) => (b.usage_count ?? 0) - (a.usage_count ?? 0) || a.sort_order - b.sort_order,
-  );
+  // Default order = manual sort_order. An optimistic localOrder overlay is
+  // used during an in-flight drag-and-drop persist so the UI doesn't flicker.
+  const baseSorted = [...phrases].sort((a, b) => a.sort_order - b.sort_order);
+  const sorted = localOrder
+    ? (localOrder.map(k => baseSorted.find(p => p.key === k)).filter((p): p is StorePhrase => !!p))
+    : baseSorted;
+  const mostUsed = [...phrases].sort((a, b) => (b.usage_count ?? 0) - (a.usage_count ?? 0))[0];
 
   const handleDelete = async (key: string) => {
     try {
@@ -189,76 +381,56 @@ function PhrasesAdminSection() {
         </div>
       )}
 
-      {/* Phrase list */}
-      <div className="space-y-2">
-        {sorted.map(p => {
-          const uses = p.usage_count ?? 0;
-          const pct = totalUses === 0 ? 0 : Math.round((uses / maxUses) * 100);
-          const isConfirming = confirmDeleteKey === p.key;
-          return (
-            <div key={p.key} className="bg-card rounded-xl border border-border p-3">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl shrink-0" aria-hidden="true">{p.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-text truncate">
-                    {p.translations.en ?? p.key}
-                  </div>
-                  <div className="text-[10px] text-text-muted truncate mt-0.5">
-                    {Object.entries(p.translations)
-                      .filter(([l]) => l !== "en" && enabled.includes(l))
-                      .slice(0, 4)
-                      .map(([l, v]) => `${l}:${v}`)
-                      .join(" · ")}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setEditing(p)}
-                  className="text-accent text-xs cursor-pointer px-1 shrink-0"
-                  aria-label="Edit phrase"
-                >✏️</button>
-                <button
-                  onClick={() => {
-                    if (isConfirming) {
-                      handleDelete(p.key);
-                      setConfirmDeleteKey(null);
-                    } else {
-                      setConfirmDeleteKey(p.key);
-                      setTimeout(() => setConfirmDeleteKey(prev => prev === p.key ? null : prev), 3000);
-                    }
-                  }}
-                  className="text-xs cursor-pointer whitespace-nowrap shrink-0"
-                  style={{
-                    color: isConfirming ? "#fff" : "#ff5c5c",
-                    background: isConfirming ? "#b71c1c" : undefined,
-                    borderRadius: 4,
-                    padding: "2px 6px",
-                  }}
-                >{isConfirming ? "⚠️" : "🗑️"}</button>
-              </div>
-              {/* Usage bar */}
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-bg rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${pct}%`,
-                      background: "linear-gradient(90deg, #f09848, #e8c364)",
-                    }}
-                  />
-                </div>
-                <div className="text-[10px] text-text-muted font-mono tabular-nums w-16 text-right">
-                  {uses} {uses === 1 ? "use" : "uses"}
-                </div>
-              </div>
-              {p.last_used_at && (
-                <div className="text-[9px] text-text-muted mt-1">
-                  last: {new Date(p.last_used_at).toLocaleString()}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Phrase list with drag-and-drop reorder */}
+      <div className="text-[10px] text-text-muted mb-1.5 px-1">
+        Drag the <span aria-hidden="true">⋮⋮</span> handle on the left to reorder.
       </div>
+      <PhraseDraggableList
+        phrases={sorted}
+        maxUses={maxUses}
+        enabled={enabled}
+        dragKey={dragKey}
+        dragOverIdx={dragOverIdx}
+        confirmDeleteKey={confirmDeleteKey}
+        onStartDrag={(key) => setDragKey(key)}
+        onDragOver={(idx) => setDragOverIdx(idx)}
+        onEndDrag={async (targetIdx) => {
+          const currentIdx = sorted.findIndex(p => p.key === dragKey);
+          setDragKey(null);
+          setDragOverIdx(null);
+          if (currentIdx < 0 || targetIdx == null || targetIdx === currentIdx) return;
+          // Build the new ordering: pull the dragged item out, insert at target.
+          const newKeys = sorted.map(p => p.key);
+          const [moved] = newKeys.splice(currentIdx, 1);
+          newKeys.splice(targetIdx, 0, moved);
+          setLocalOrder(newKeys);
+          try {
+            await reorderStorePhrases(newKeys);
+            showToast("Order updated");
+          } catch (err) {
+            showToast(`Error: ${(err as Error).message}`);
+          }
+          setLocalOrder(null);
+        }}
+        onEdit={(p) => setEditing(p)}
+        onToggleConfirmDelete={(key) => {
+          if (confirmDeleteKey === key) {
+            handleDelete(key);
+            setConfirmDeleteKey(null);
+          } else {
+            setConfirmDeleteKey(key);
+            setTimeout(
+              () => setConfirmDeleteKey(prev => prev === key ? null : prev),
+              3000,
+            );
+          }
+        }}
+      />
+      {mostUsed && mostUsed.usage_count! > 0 && (
+        <div className="text-[10px] text-text-muted mt-3 px-1">
+          Most used on this device: <span className="text-accent font-semibold">{mostUsed.emoji} {mostUsed.translations.en}</span>
+        </div>
+      )}
 
       {/* Edit modal */}
       {editing && (

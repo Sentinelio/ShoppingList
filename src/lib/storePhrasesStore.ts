@@ -262,6 +262,35 @@ export async function deleteStorePhrase(key: string): Promise<void> {
   await refreshStorePhrases();
 }
 
+/** Persist a new order for the entire phrase list. Assigns sort_order values
+ *  as (index + 1) * 10 so future manual inserts can slot in between without
+ *  touching every row. */
+export async function reorderStorePhrases(orderedKeys: string[]): Promise<void> {
+  if (IS_DEMO) throw new Error("Demo mode — phrases are read-only");
+  const current = await ensureStorePhrasesLoaded();
+  const byKey = new Map(current.map(p => [p.key, p]));
+  // Optimistic local update so the admin sees the new order instantly even
+  // before Supabase roundtrips complete.
+  const next: StorePhrase[] = [];
+  orderedKeys.forEach((key, i) => {
+    const p = byKey.get(key);
+    if (p) next.push({ ...p, sort_order: (i + 1) * 10 });
+  });
+  cache = mergeUsage(next);
+  notify();
+  // Persist each phrase's new sort_order by upserting the packed row.
+  try {
+    await Promise.all(
+      next.map(p => supabase.from("dictionary").upsert(packRow(p), { onConflict: "key" })),
+    );
+  } catch {
+    // If persistence fails we'll still have the optimistic local order.
+    // Refresh to reconcile with whatever actually landed.
+    await refreshStorePhrases();
+    throw new Error("Failed to persist new order");
+  }
+}
+
 export function countMissingForLang(lang: string, phrases: StorePhrase[] = cache ?? FALLBACK): number {
   return phrases.filter(p => !p.translations[lang]?.trim()).length;
 }
