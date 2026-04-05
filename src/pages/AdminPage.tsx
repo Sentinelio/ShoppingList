@@ -446,6 +446,21 @@ function PhrasesAdminSection() {
   );
 }
 
+// Curated emoji set for store-mode phrases — communication, questions,
+// money, navigation, politeness, shopping.
+const PHRASE_EMOJIS: string[] = [
+  "💬", "🗣️", "❓", "❔", "❗", "❕",
+  "🔍", "🔎", "📍", "🗺️", "🧭", "👉",
+  "💰", "💵", "💸", "🏷️", "💳", "🧾",
+  "🙏", "👋", "🤝", "🙋", "🫴", "👌",
+  "✅", "❌", "🔄", "🛑", "⚠️", "ℹ️",
+  "🛒", "🛍️", "📦", "🎁", "🧺", "🏪",
+  "⏰", "🕐", "📅", "⌛", "🕒", "📆",
+  "🌍", "💡", "📝", "🎯", "✨", "🌟",
+  "🟢", "🔴", "🟡", "🟠", "🟣", "🔵",
+  "😊", "🤔", "😇", "🤷", "😅", "🙇",
+];
+
 function PhraseEditModal({
   phrase,
   enabledLangs,
@@ -461,6 +476,7 @@ function PhraseEditModal({
 }) {
   const [key, setKey] = useState(phrase.key);
   const [emoji, setEmoji] = useState(phrase.emoji);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [translations, setTranslations] = useState<Record<string, string>>({ ...phrase.translations });
   const [saving, setSaving] = useState(false);
 
@@ -491,13 +507,23 @@ function PhraseEditModal({
           {isNew ? "New phrase" : `Edit: ${phrase.key}`}
         </h3>
 
-        <div className="flex gap-2 mb-3">
-          <input
-            value={emoji}
-            onChange={e => setEmoji(e.target.value)}
-            placeholder="💬"
-            className="w-14 bg-bg border border-border-light rounded-lg px-2 py-2 text-xl text-center outline-none"
-          />
+        <div className="flex gap-2 mb-2 items-stretch relative">
+          {/* Emoji picker trigger — shows the currently selected emoji and
+              opens a curated grid on click. */}
+          <button
+            type="button"
+            onClick={() => setEmojiPickerOpen(v => !v)}
+            className="shrink-0 flex items-center justify-center rounded-lg bg-bg border text-2xl cursor-pointer active:scale-95 transition-all"
+            style={{
+              width: 56,
+              borderColor: emojiPickerOpen
+                ? "var(--color-accent, #f0883e)"
+                : "var(--color-border-light, rgba(255,255,255,0.10))",
+            }}
+            aria-label="Pick emoji"
+          >
+            {emoji || "💬"}
+          </button>
           <input
             value={key}
             onChange={e => setKey(e.target.value)}
@@ -506,6 +532,45 @@ function PhraseEditModal({
             className="flex-1 bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none disabled:opacity-50"
           />
         </div>
+
+        {/* Emoji picker grid */}
+        {emojiPickerOpen && (
+          <div className="mb-3 bg-bg border border-border-light rounded-xl p-2">
+            <div
+              className="grid gap-1"
+              style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}
+            >
+              {PHRASE_EMOJIS.map(e => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => { setEmoji(e); setEmojiPickerOpen(false); }}
+                  className="flex items-center justify-center rounded-lg cursor-pointer active:scale-90 transition-all"
+                  style={{
+                    height: 40,
+                    fontSize: 22,
+                    background: emoji === e ? "rgba(240,136,62,0.2)" : "transparent",
+                    border: emoji === e ? "1px solid rgba(240,136,62,0.5)" : "1px solid transparent",
+                  }}
+                  aria-label={`Select ${e}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            {/* Custom emoji fallback for anything outside the curated set */}
+            <div className="mt-2 pt-2 border-t border-border-light flex items-center gap-2">
+              <span className="text-[10px] text-text-muted shrink-0">Custom:</span>
+              <input
+                value={emoji}
+                onChange={e => setEmoji(e.target.value)}
+                placeholder="paste any emoji"
+                className="flex-1 bg-card border border-border-light rounded-lg px-2 py-1.5 text-lg text-center outline-none"
+                maxLength={4}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           {enabledLangs.map(lang => (

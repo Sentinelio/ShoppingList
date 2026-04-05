@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.51",
+    version: "v0.52",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "19:55",
+    type: "feat",
+    title: "Phrase edit modal: emoji picker dropdown",
+    details: [
+      "Tapping the emoji box in the new/edit phrase modal now opens a 6-column grid of 60 curated emojis relevant to store phrases (speech, questions, money, navigation, politeness, shopping, time, status).",
+      "Clicking one applies it instantly and closes the picker. The selected emoji is highlighted in the grid with an accent border.",
+      "Custom-emoji input kept as a fallback so the admin can paste any emoji outside the curated set.",
+    ],
+  },
+  {
+    version: "v0.51",
+    hash: "23038d0",
     date: "2026-04-05",
     time: "19:35",
     type: "feat",
