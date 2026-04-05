@@ -30,8 +30,6 @@ import {
   deleteStorePhrase,
   fillPhrasesForLang,
   countMissingForLang,
-  isMigrationMissing,
-  applyMigration005,
   type StorePhrase,
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
@@ -91,13 +89,9 @@ function PhrasesAdminSection() {
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [fillingLang, setFillingLang] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const [migrationMissing, setMigrationMissing] = useState(false);
-  const [applyingMigration, setApplyingMigration] = useState(false);
   const enabled = getEnabledLangs();
 
-  useEffect(() => {
-    void ensureStorePhrasesLoaded().then(() => setMigrationMissing(isMigrationMissing()));
-  }, []);
+  useEffect(() => { void ensureStorePhrasesLoaded(); }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -113,24 +107,7 @@ function PhrasesAdminSection() {
       showToast(`Deleted '${key}'`);
     } catch (err) {
       showToast(`Error: ${(err as Error).message}`);
-      setMigrationMissing(isMigrationMissing());
     }
-  };
-
-  const runMigration = async () => {
-    setApplyingMigration(true);
-    const { applied, failed, error } = await applyMigration005();
-    setApplyingMigration(false);
-    if (error) {
-      showToast(`❌ ${error}`);
-      return;
-    }
-    if (failed > 0) {
-      showToast(`⚠️ Applied ${applied}, ${failed} failed`);
-      return;
-    }
-    showToast(`✅ Migration applied (${applied} statements)`);
-    setMigrationMissing(false);
   };
 
   const handleFillLang = async (lang: string) => {
@@ -149,43 +126,6 @@ function PhrasesAdminSection() {
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-card border border-accent/30 text-accent px-4 py-2 rounded-xl text-sm font-medium shadow-lg">
           {toast}
-        </div>
-      )}
-
-      {/* Migration-not-applied banner */}
-      {migrationMissing && (
-        <div
-          className="mb-3 rounded-xl p-3 border"
-          style={{
-            background: "rgba(255,176,61,0.08)",
-            borderColor: "rgba(255,176,61,0.3)",
-          }}
-        >
-          <div className="flex items-start gap-2 mb-2">
-            <span className="text-lg shrink-0" aria-hidden="true">⚠️</span>
-            <div className="text-[12px] text-text">
-              <div className="font-bold mb-0.5" style={{ color: "#ffb03d" }}>
-                Migration 005 not applied
-              </div>
-              <div className="text-text-muted text-[11px]">
-                The <code className="text-[10px] bg-bg px-1 rounded">store_phrases</code> table
-                doesn't exist yet. Tap the button below to create it now — it runs via a
-                server-side Edge Function using the service role key.
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={runMigration}
-            disabled={applyingMigration}
-            className="w-full py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-60"
-            style={{
-              background: "rgba(61,214,140,0.12)",
-              color: "#3dd68c",
-              border: "1px solid rgba(61,214,140,0.3)",
-            }}
-          >
-            {applyingMigration ? "⏳ Applying migration…" : "▶︎ Run migration now"}
-          </button>
         </div>
       )}
 

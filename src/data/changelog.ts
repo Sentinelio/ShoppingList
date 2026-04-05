@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.49",
+    version: "v0.50",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "19:10",
+    type: "refactor",
+    title: "Phrases live in the existing dictionary table — no migration",
+    details: [
+      "Root cause of the 'Failed to fetch' when running the migration: the run-migration Edge Function wasn't deployed in Supabase, and deploying it required touching Supabase — the exact friction we were trying to avoid.",
+      "Dropped the whole migration path. Store-mode phrases are now persisted as rows in the existing `dictionary` table under the reserved category '_phrase'. The emoji and sort_order are folded into the translations JSON under the underscore-prefixed keys '_emoji' and '_sort' so they can't collide with real language codes.",
+      "First load auto-seeds the 6 default phrases into dictionary if none exist. CRUD from the Admin uses the same `dictionary.*` operations every other admin feature already uses, so permissions, RLS and auth are guaranteed to be compatible.",
+      "Usage tracking moved to localStorage (per-device). A SQL RPC per tap was overkill for an admin-focused stat — device-local counters are still useful for the admin to see which phrases they themselves rely on most.",
+      "Migration banner + run-migration button removed from the Phrases tab — there's nothing to apply anymore. isMigrationMissing() now always returns false for back-compat.",
+      "Migration 005 SQL file and the run-migration Edge Function stay in the repo as reference for future migrations that truly need DDL, but are no longer on the happy path.",
+    ],
+  },
+  {
+    version: "v0.49",
+    hash: "2cff76c",
     date: "2026-04-05",
     time: "18:55",
     type: "style",
