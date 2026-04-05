@@ -14,8 +14,20 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.48",
+    version: "v0.49",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "18:55",
+    type: "style",
+    title: "Admin header: inline styles to force side-by-side",
+    details: [
+      "v0.48 still rendered wrong somehow (likely Tailwind class processing or a parent container interfering). Dropped every utility class on the <header> and its children and used explicit inline CSS: display:flex, justifyContent:space-between, flex:'0 0 auto' on each side",
+      "Title is now guaranteed to sit on the left with color var(--color-text) and the pulsing dot + colored label on the right — no ambiguity possible",
+    ],
+  },
+  {
+    version: "v0.48",
+    hash: "1f174ee",
     date: "2026-04-05",
     time: "18:45",
     type: "style",

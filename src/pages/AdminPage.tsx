@@ -872,8 +872,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
-      {/* Inline keyframes — kept outside <header> so it isn't treated as a
-          flex item and push the status indicator to a new line. */}
+      {/* Keyframes kept outside the header so they're not a 0-width flex item. */}
       <style>{`
         @keyframes admin-status-pulse {
           0%, 100% { box-shadow: 0 0 0 0 ${IS_DEMO ? "rgba(255,92,92,0.6)" : "rgba(61,214,140,0.6)"}; opacity: 1; }
@@ -881,26 +880,63 @@ export default function AdminPage() {
         }
       `}</style>
 
-      {/* Header — title on the LEFT, status pill on the RIGHT, same row */}
-      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex flex-row items-center justify-between gap-3">
+      {/* Header — bypass Tailwind utilities entirely to avoid any theme/flex
+          class ambiguity and force title LEFT / status RIGHT on a single row. */}
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "12px 16px",
+          background: "var(--color-bg, #0d1017)",
+          borderBottom: "1px solid var(--color-border-light, rgba(255,255,255,0.10))",
+          width: "100%",
+        }}
+      >
         <h1
-          className="text-lg font-bold leading-none"
-          style={{ color: "var(--color-text, #e6e8ee)" }}
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            lineHeight: 1,
+            margin: 0,
+            color: "var(--color-text, #e6e8ee)",
+            flex: "0 0 auto",
+            textAlign: "left",
+          }}
         >
           🛠️ Admin Panel
         </h1>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flex: "0 0 auto",
+          }}
+        >
           <span
-            className="inline-block w-2.5 h-2.5 rounded-full"
+            title={IS_DEMO ? "Running in Demo Mode (no Supabase connection)" : "Connected to Supabase"}
             style={{
+              display: "inline-block",
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
               background: IS_DEMO ? "#ff5c5c" : "#3dd68c",
               animation: "admin-status-pulse 2s ease-in-out infinite",
             }}
-            title={IS_DEMO ? "Running in Demo Mode (no Supabase connection)" : "Connected to Supabase"}
           />
           <span
-            className="text-xs font-bold"
-            style={{ color: IS_DEMO ? "#ff5c5c" : "#3dd68c" }}
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: IS_DEMO ? "#ff5c5c" : "#3dd68c",
+              whiteSpace: "nowrap",
+            }}
           >
             {IS_DEMO ? "Demo Mode" : "Supabase"}
           </span>
