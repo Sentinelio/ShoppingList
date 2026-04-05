@@ -59,6 +59,11 @@ const listeners = new Set<(s: Selection) => void>();
 function applyCssVars(selection: Selection) {
   const root = document.documentElement;
   for (const view of Object.keys(ALL_THEMES) as ThemeView[]) {
+    // The items view is 100% owned by its layout component (see
+    // src/layouts/items/layouts.tsx). Applying palette vars here would
+    // force every item to the same background, breaking per-category
+    // color coding in the Classic layout.
+    if (view === "items") continue;
     const theme = getThemeById(view, selection.themes[view]);
     for (const [key, value] of Object.entries(theme.vars)) {
       root.style.setProperty(key, value);

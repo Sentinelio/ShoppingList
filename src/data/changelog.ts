@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.36",
+    version: "v0.37",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "15:45",
+    type: "fix",
+    title: "Classic layout back to original look + always group by category",
+    details: [
+      "Root cause of 'categories look wrong': the items palette system was writing --item-card-bg (fixed orange tint) to document root, which overrode the per-category color coding in ItemCard. Every item ended up with the same background regardless of its category.",
+      "Fix: themeStore.applyCssVars now skips the items view entirely. The items palette defs stay in the file but are no longer applied — the items view's look is 100% owned by the selected layout component (21 full redesigns).",
+      "Classic layout: category headers now shown whenever there's at least one category — even a single item in a single category gets its correct category header (was previously hidden unless >1 category AND >3 items)",
+    ],
+  },
+  {
+    version: "v0.36",
+    hash: "b05b27d",
     date: "2026-04-05",
     time: "15:30",
     type: "feat",

@@ -140,8 +140,9 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     }));
   }, [uncheckedItems, userLang]);
 
-  // Only show category headers if >1 category AND >3 total unchecked items
-  const showCategoryHeaders = categoryGroups.length > 1 && uncheckedItems.length > 3;
+  // Always show category headers so every item lives under its correct
+  // category — even when there's only one category or a single item.
+  const showCategoryHeaders = categoryGroups.length > 0;
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
