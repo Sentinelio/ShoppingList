@@ -11,6 +11,27 @@ export interface ChangelogEntry {
 // Newest first. Update with each meaningful change.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    hash: "HEAD",
+    date: "2026-04-05",
+    type: "refactor",
+    title: "Store type actions grouped into dropdown menu",
+    details: [
+      "Replaces +Cat / Generate all / Clear all buttons with a single ⋯ menu",
+      "Delete store type also moved to the menu",
+    ],
+  },
+  {
+    hash: "8159eb6",
+    date: "2026-04-05",
+    type: "feat",
+    title: "Updates tab in Admin",
+    details: [
+      "Current build info (version, branch, commit subject, build date)",
+      "Runtime state counts with refresh button",
+      "Colored changelog list with LIVE badge",
+    ],
+  },
+  {
     hash: "01fe231",
     date: "2026-04-05",
     type: "ci",

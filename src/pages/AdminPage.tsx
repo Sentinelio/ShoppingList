@@ -81,6 +81,7 @@ export default function AdminPage(_: AdminPageProps) {
   const [confirmClearStore, setConfirmClearStore] = useState<string | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [bulkRunning, setBulkRunning] = useState<string | null>(null); // label of current bulk op
+  const [openStoreMenu, setOpenStoreMenu] = useState<string | null>(null);
 
   const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || `item_${Date.now()}`;
 
@@ -546,56 +547,78 @@ export default function AdminPage(_: AdminPageProps) {
                           <div className="font-bold text-sm truncate">{(st as unknown as Record<string, string>)[lang] || st.en}</div>
                         </div>
                       </button>
-                      <button
-                        onClick={() => { setAddingCatFor(st.id); setNewCatForm({ emoji: "📦", color: "#8b949e", name: "" }); }}
-                        className="px-2 py-1 rounded-lg text-[10px] font-semibold text-accent cursor-pointer"
-                        style={{ background: "rgba(240,136,62,0.1)", border: "1px solid rgba(240,136,62,0.2)" }}
-                      >+ Cat</button>
-                      {st.custom && (
+                      <div className="relative">
                         <button
-                          onClick={() => { removeCustomStoreType(st.id); setStoreCatVersion(v => v + 1); showToast("Store type removed"); }}
-                          className="w-6 h-6 rounded-lg text-[11px] cursor-pointer flex items-center justify-center"
-                          style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.15)" }}
-                        >✕</button>
-                      )}
-                    </div>
-
-                    {/* Store-level bulk actions */}
-                    {st.categories.length > 0 && (
-                      <div className="flex gap-2 px-3 pb-3">
-                        <button
-                          onClick={() => {
-                            const ids = st.categories.map(c => c.id);
-                            buildManyCategories(ids, `store:${st.id}`);
-                          }}
-                          disabled={!!bulkRunning}
-                          className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
-                          style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
-                        >
-                          {bulkRunning === `store:${st.id}` ? "⏳ Generating..." : "🧠 Generate all"}
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirmClearStore === st.id) {
-                              clearCategories(st.categories.map(c => c.id));
-                              setConfirmClearStore(null);
-                            } else {
-                              setConfirmClearStore(st.id);
-                              setTimeout(() => setConfirmClearStore(prev => prev === st.id ? null : prev), 3000);
-                            }
-                          }}
-                          disabled={!!bulkRunning}
-                          className="w-1/2 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
-                          style={{
-                            background: confirmClearStore === st.id ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                            color: confirmClearStore === st.id ? "#fff" : "#ff5c5c",
-                            border: confirmClearStore === st.id ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                          }}
-                        >
-                          {confirmClearStore === st.id ? "⚠️ Confirm clear" : "🧹 Clear all"}
-                        </button>
+                          onClick={() => setOpenStoreMenu(prev => prev === st.id ? null : st.id)}
+                          className="w-8 h-8 rounded-lg text-base cursor-pointer flex items-center justify-center text-text-muted"
+                          style={{ background: openStoreMenu === st.id ? "rgba(240,136,62,0.15)" : "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                          title="Actions"
+                        >⋯</button>
+                        {openStoreMenu === st.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => { setOpenStoreMenu(null); setConfirmClearStore(null); }} />
+                            <div className="absolute right-0 top-9 z-20 bg-card border border-border-light rounded-xl shadow-lg py-1 min-w-[180px]">
+                              <button
+                                onClick={() => {
+                                  setAddingCatFor(st.id);
+                                  setNewCatForm({ emoji: "📦", color: "#8b949e", name: "" });
+                                  setOpenStoreMenu(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-[12px] font-medium text-text cursor-pointer active:bg-accent/10 flex items-center gap-2"
+                              >
+                                <span>➕</span><span>Add category</span>
+                              </button>
+                              <button
+                                disabled={!!bulkRunning || st.categories.length === 0}
+                                onClick={() => {
+                                  const ids = st.categories.map(c => c.id);
+                                  buildManyCategories(ids, `store:${st.id}`);
+                                  setOpenStoreMenu(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
+                                style={{ color: "#3dd68c" }}
+                              >
+                                <span>🧠</span><span>{bulkRunning === `store:${st.id}` ? "Generating..." : "Generate all"}</span>
+                              </button>
+                              <button
+                                disabled={!!bulkRunning || st.categories.length === 0}
+                                onClick={() => {
+                                  if (confirmClearStore === st.id) {
+                                    clearCategories(st.categories.map(c => c.id));
+                                    setConfirmClearStore(null);
+                                    setOpenStoreMenu(null);
+                                  } else {
+                                    setConfirmClearStore(st.id);
+                                    setTimeout(() => setConfirmClearStore(prev => prev === st.id ? null : prev), 3000);
+                                  }
+                                }}
+                                className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-danger/10 flex items-center gap-2 disabled:opacity-40"
+                                style={{ color: confirmClearStore === st.id ? "#fff" : "#ff5c5c", background: confirmClearStore === st.id ? "#b71c1c" : undefined }}
+                              >
+                                <span>🧹</span><span>{confirmClearStore === st.id ? "Confirm clear" : "Clear all"}</span>
+                              </button>
+                              {st.custom && (
+                                <>
+                                  <div className="h-px bg-border my-1" />
+                                  <button
+                                    onClick={() => {
+                                      removeCustomStoreType(st.id);
+                                      setStoreCatVersion(v => v + 1);
+                                      showToast("Store type removed");
+                                      setOpenStoreMenu(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-danger/10 flex items-center gap-2"
+                                    style={{ color: "#ff5c5c" }}
+                                  >
+                                    <span>🗑️</span><span>Delete store type</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
-                    )}
+                    </div>
 
                     {/* Add category form */}
                     {addingCatFor === st.id && (
