@@ -1,21 +1,32 @@
-import { supabase, IS_DEMO } from './supabase';
+import { supabase, IS_DEMO, type DictEntry as DbDictEntry } from './supabase';
 import { LOCAL_DICTIONARY, type DictEntry } from '../data/localDictionary';
 
 export interface TranslateResult {
   translations: Record<string, string>;
   category: string;
+  isBrand?: boolean;
+}
+
+// Collapse brand spelling variants down to the same key: strip spaces,
+// hyphens, underscores, dots and punctuation, then lowercase. This makes
+// "coca-cola", "Coca Cola", "cocacola", "COCA-COLA" and "coca.cola" all
+// resolve to the same dictionary entry.
+function normalizeKey(s: string): string {
+  return s.toLowerCase().trim().replace(/[\s\-_.·'"]+/g, "");
 }
 
 // Build reverse lookup index: normalized word → dict entry
 const DICT_INDEX: Record<string, DictEntry> = {};
 const LANG_KEYS: (keyof DictEntry)[] = ['en', 'es', 'pl', 'de', 'fr', 'it', 'pt'];
 
-// Initialize index
+// Initialize index — store both the lowercased form AND the fully-normalized
+// form (punctuation-stripped) so we can match brand variants.
 LOCAL_DICTIONARY.forEach(entry => {
   for (const k of LANG_KEYS) {
     const v = entry[k];
     if (typeof v === 'string') {
       DICT_INDEX[v.toLowerCase()] = entry;
+      DICT_INDEX[normalizeKey(v)] = entry;
     }
   }
 });
@@ -25,6 +36,7 @@ export function addToDictIndex(entry: DictEntry) {
     const v = entry[k];
     if (typeof v === 'string') {
       DICT_INDEX[v.toLowerCase()] = entry;
+      DICT_INDEX[normalizeKey(v)] = entry;
     }
   }
 }
@@ -46,6 +58,9 @@ function depluralForms(w: string): string[] {
 
 function tryMatch(w: string): DictEntry | null {
   if (DICT_INDEX[w]) return DICT_INDEX[w];
+  // Try punctuation-stripped form ("coca-cola" → "cocacola")
+  const collapsed = normalizeKey(w);
+  if (collapsed !== w && DICT_INDEX[collapsed]) return DICT_INDEX[collapsed];
   for (const d of depluralForms(w)) {
     if (DICT_INDEX[d]) return DICT_INDEX[d];
   }
@@ -118,13 +133,37 @@ export async function translateProduct(
     return { translations, category: local?.category ?? 'other' };
   }
 
-  // 2. Supabase dictionary table
+  // 2. Supabase dictionary table. Brands live there under their canonical
+  // form, but the user may type any variant ("coca cola", "COCA-COLA") —
+  // we query by the punctuation-stripped key.
+  const normalizedKey = normalizeKey(text);
   try {
-    const { data: dbEntry } = await supabase
+    // First try the exact (lowercased) key for back-compat with older rows.
+    let dbEntry: DbDictEntry | null = null;
+    const { data: exactHit } = await supabase
       .from('dictionary')
       .select('*')
       .eq('key', text.toLowerCase().trim())
       .single();
+    if (exactHit) dbEntry = exactHit as DbDictEntry;
+
+    // If nothing, look for any row whose `en` translation collapses to the
+    // same normalized key (typical for brands stored as "Coca-Cola").
+    if (!dbEntry) {
+      const { data: candidates } = await supabase
+        .from('dictionary')
+        .select('*')
+        .eq('is_brand', true);
+      if (candidates) {
+        for (const row of candidates as DbDictEntry[]) {
+          const canonical = row.translations?.en ?? row.key;
+          if (canonical && normalizeKey(canonical) === normalizedKey) {
+            dbEntry = row;
+            break;
+          }
+        }
+      }
+    }
 
     if (dbEntry?.translations) {
       const translations: Record<string, string> = {};
@@ -133,10 +172,21 @@ export async function translateProduct(
           translations[lang] = dbEntry.translations[lang];
         }
       }
-      // Only return if ALL requested languages are covered
+      // For brands, fill any missing language with the canonical string —
+      // brand names don't translate.
+      if (dbEntry.is_brand) {
+        const canonical = dbEntry.translations.en ?? Object.values(dbEntry.translations)[0] ?? text;
+        for (const lang of targetLangs) {
+          if (!translations[lang]) translations[lang] = canonical;
+        }
+      }
       const missingLangs = targetLangs.filter(l => !translations[l]);
       if (missingLangs.length === 0) {
-        return { translations, category: dbEntry.category ?? 'other' };
+        return {
+          translations,
+          category: dbEntry.category ?? 'other',
+          isBrand: dbEntry.is_brand ?? false,
+        };
       }
       // Partial coverage — continue to API but merge with what we have
     }
@@ -164,9 +214,10 @@ export async function translateProduct(
       throw new Error(`Edge Function ${response.status}: ${JSON.stringify(fnData)}`);
     }
 
-    // Handle both formats: {translations, category} or {t, c}
+    // Handle both formats: {translations, category, isBrand} or {t, c, b}
     const apiTranslations = fnData.translations ?? fnData.t ?? {};
     const category = fnData.category ?? fnData.c ?? local?.category ?? 'other';
+    const isBrand: boolean = fnData.isBrand ?? fnData.b ?? false;
 
     // Merge: local dict + DB + API (API wins for conflicts)
     const translations: Record<string, string> = {
@@ -174,14 +225,29 @@ export async function translateProduct(
       ...apiTranslations,
     };
 
-    const result: TranslateResult = { translations, category };
+    // For brands, backfill any missing language with the canonical string —
+    // brand names are identical in every language.
+    if (isBrand) {
+      const canonical = translations.en ?? Object.values(translations)[0] ?? text;
+      for (const lang of targetLangs) {
+        if (!translations[lang]) translations[lang] = canonical;
+      }
+    }
 
-    // Save to dictionary for future lookups
+    const result: TranslateResult = { translations, category, isBrand };
+
+    // Save to dictionary for future lookups. Brands use their canonical
+    // english form as the key (lowercase, normalized) so duplicate variants
+    // resolve to the same row.
     try {
+      const dictKey = isBrand
+        ? normalizeKey(translations.en ?? text)
+        : text.toLowerCase().trim();
       await supabase.from('dictionary').upsert({
-        key: text.toLowerCase().trim(),
+        key: dictKey,
         translations: result.translations,
         category: result.category,
+        is_brand: isBrand,
       });
     } catch {
       // ignore upsert errors

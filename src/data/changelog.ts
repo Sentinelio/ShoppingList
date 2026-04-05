@@ -14,8 +14,26 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.39",
+    version: "v0.40",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "16:35",
+    type: "feat",
+    title: "Brand-name products (Coca-Cola, Nutella, …)",
+    details: [
+      "Migration 004: dictionary.is_brand boolean column + partial index",
+      "translate Edge Function: prompt teaches Claude to detect brand/trademarked products and return b:true with the same canonical string in every language. Generic products still get per-language translations as before",
+      "Client: translate.ts propagates the brand flag to all enabled languages, uses a punctuation-stripped normalized key ('coca-cola' == 'Coca Cola' == 'cocacola'), and stores brand rows in the dictionary under their canonical key so variants resolve to the same entry",
+      "Admin Catalog: every category ⋯ menu has a new purple ®️ Generate brands action that seeds 15 popular international + regional brands (from Spain, Poland, Germany, France, Italy, Portugal) for that category via the seed-dictionary Edge Function with mode:'brands'",
+      "seed-dictionary Edge Function: supports mode:'brands' and saves the entries with is_brand:true under a normalized key",
+      "Admin dictionary lists now show a small ®/® BRAND badge next to brand entries in both the search results and the per-category expanded view",
+      "Shopper experience: when you add 'coca cola' in Spanish, it auto-capitalizes to 'Coca-Cola', shows the same string in every language (no ugly 'Koka-Kola' translations), and in Show-in-store mode you won't see a useless 'Coca-Cola → Coca-Cola' line",
+      "Note: Migration 004 must be applied manually in the Supabase SQL editor — the client can't alter schemas",
+    ],
+  },
+  {
+    version: "v0.39",
+    hash: "00a5082",
     date: "2026-04-05",
     time: "16:05",
     type: "fix",

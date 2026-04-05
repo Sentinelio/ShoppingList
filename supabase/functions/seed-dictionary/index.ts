@@ -19,7 +19,9 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { count, prompt: catPrompt, category, storeType } = await req.json()
+    const { count, prompt: catPrompt, category, storeType, mode } = await req.json() as {
+      count: number; prompt: string; category?: string; storeType?: string; mode?: "generic" | "brands"
+    }
 
     if (!count || !catPrompt) {
       return new Response(
@@ -28,8 +30,22 @@ Deno.serve(async (req: Request) => {
       )
     }
 
+    const isBrandsMode = mode === "brands"
     const langs = "en, es, pl, de, fr, it, pt"
-    const prompt = `You are a product translation dictionary builder. Generate a list of ${count} common ${catPrompt} that people buy regularly.
+    const prompt = isBrandsMode
+      ? `You are building a brand-name dictionary for a shopping list app. Generate a list of ${count} popular BRAND / trademarked products sold in the "${catPrompt}" section of a store. Mix international brands (Coca-Cola, Nutella, Heinz…) with popular regional ones from Spain, Poland, Germany, France, Italy and Portugal.
+
+For EACH brand, return the SAME canonical name in all languages (brand names don't translate). Preserve the trademark's official spelling (capitalization, hyphens, accents).
+
+Return ONLY a JSON array, no markdown, no backticks:
+[{"en":"Coca-Cola","es":"Coca-Cola","pl":"Coca-Cola","de":"Coca-Cola","fr":"Coca-Cola","it":"Coca-Cola","pt":"Coca-Cola"},{"en":"Nutella","es":"Nutella","pl":"Nutella","de":"Nutella","fr":"Nutella","it":"Nutella","pt":"Nutella"},...]
+
+Rules:
+- Only real brands, no generic descriptions
+- Same exact string for all 7 languages
+- ${count} distinct brands, no duplicates
+- All 7 languages required per entry`
+      : `You are a product translation dictionary builder. Generate a list of ${count} common ${catPrompt} that people buy regularly.
 
 For EACH product, provide translations in these languages: ${langs}
 
@@ -70,11 +86,14 @@ Rules:
     const items = JSON.parse(jsonMatch[0])
     if (!Array.isArray(items)) throw new Error("Response is not an array")
 
-    // Insert each item into dictionary
+    // Insert each item into dictionary. Brand keys collapse punctuation so
+    // "Coca-Cola" and "Coca Cola" share a row.
+    const normalizeKey = (s: string) => s.toLowerCase().trim().replace(/[\s\-_.·'"]+/g, "")
     let inserted = 0
     for (const item of items) {
-      const key = (item.en || "").toLowerCase().trim()
-      if (!key) continue
+      const raw = (item.en || "").trim()
+      if (!raw) continue
+      const key = isBrandsMode ? normalizeKey(raw) : raw.toLowerCase()
 
       const translations: Record<string, string> = {}
       for (const [k, v] of Object.entries(item)) {
@@ -88,6 +107,7 @@ Rules:
         translations,
         category: category || "other",
         store_type: storeType || "grocery",
+        is_brand: isBrandsMode,
       })
 
       if (!error) inserted++

@@ -198,13 +198,20 @@ Deno.serve(async (req: Request) => {
     const prompt = `You are a shopping list assistant. A user wants to buy: "${text}"
 
 1. Fix typos/misspellings. If it's a description, identify the product.
-2. Translate into ALL these languages: ${langs.join(", ")}
-3. Assign the MOST SPECIFIC store category from this list. Only return the key (e.g. "tools", not "tools (hammer, ...)"). If unsure, pick the closest match. Do not default to "household" or "other" unless truly nothing fits.
+2. Decide if it is a BRAND / trademarked product (e.g. Coca-Cola, Nutella, Kleenex, Oreo, Pringles, Kinder, Danone, Heinz, Post-it, Red Bull, Doritos, Lay's). A brand is a proper noun that refers to a specific commercial product and should NOT be translated. Generic descriptions ("cola", "chocolate spread", "tissues") are NOT brands.
+3. If it IS a brand:
+   - Fix only the capitalization/spacing to the canonical form (e.g. "coca cola" → "Coca-Cola", "nutella" → "Nutella").
+   - Return the SAME exact canonical string in every language.
+   - Add "b": true to the JSON.
+4. If it is NOT a brand:
+   - Translate into ALL these languages using natural shopping-list terms: ${langs.join(", ")}
+   - Omit the "b" field (or set to false).
+5. Assign the MOST SPECIFIC store category from this list. Only return the key (e.g. "tools", not "tools (hammer, ...)"). If unsure, pick the closest match. Do not default to "household" or "other" unless truly nothing fits.
 
 Categories (key — examples):
 ${CATEGORIES_LIST.join("\n")}
 
-Return ONLY JSON, no markdown: {"t":{"en":"...","es":"...", ...},"c":"category_key"}`
+Return ONLY JSON, no markdown: {"t":{"en":"...","es":"...", ...},"c":"category_key","b":true|false}`
 
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

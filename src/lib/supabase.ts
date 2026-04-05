@@ -62,5 +62,6 @@ export interface DictEntry {
   key: string;
   translations: Record<string, string>;
   category: string;
+  is_brand?: boolean;
   created_at: string;
 }

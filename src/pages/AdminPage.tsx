@@ -31,6 +31,7 @@ interface DictRow {
   key: string;
   translations: Record<string, string>;
   category: string;
+  is_brand?: boolean;
   created_at: string;
 }
 
@@ -336,7 +337,7 @@ export default function AdminPage() {
     fetchDictionary();
   };
 
-  const buildOneCategory = async (categoryId: string) => {
+  const buildOneCategory = async (categoryId: string, mode: "generic" | "brands" = "generic") => {
     const seed = SEED_CATEGORIES.find(s => s.category === categoryId);
     if (!seed) { showToast("No seed config for this category"); return; }
     if (IS_DEMO) { showToast("Connect Supabase first"); return; }
@@ -353,15 +354,20 @@ export default function AdminPage() {
           "apikey": supabaseKey,
         },
         body: JSON.stringify({
-          count: seed.count,
+          count: mode === "brands" ? 15 : seed.count,
+          // For brands we reuse the seed prompt only as a section label to
+          // steer Claude toward the right product space (e.g. "drinks",
+          // "snacks, cookies, chocolate").
           prompt: seed.prompt,
           category: seed.category,
           storeType: seed.storeType,
+          mode,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`✅ ${seed.name}: ${data.inserted} products added`);
+        const label = mode === "brands" ? `${seed.name} brands` : seed.name;
+        showToast(`✅ ${label}: ${data.inserted} added`);
         fetchDictionary();
       } else {
         showToast(`❌ ${data.error}`);
@@ -778,7 +784,14 @@ export default function AdminPage() {
                       <div key={row.key} className="bg-card rounded-lg p-2 border border-border flex items-center gap-2">
                         <span className="text-base shrink-0">{catData.emoji}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold truncate">{row.key}</div>
+                          <div className="text-xs font-semibold truncate flex items-center gap-1">
+                            {row.key}
+                            {row.is_brand && (
+                              <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+                                ® BRAND
+                              </span>
+                            )}
+                          </div>
                           <div className="text-text-muted text-[10px] truncate">
                             {Object.entries(row.translations).slice(0, 3).map(([l, v]) => `${l}:${v}`).join(" · ")}
                           </div>
@@ -1093,11 +1106,20 @@ export default function AdminPage() {
                                         <div className="absolute right-0 top-9 z-20 bg-card border border-border-light rounded-xl shadow-lg py-1 min-w-[180px]">
                                           <button
                                             disabled={isBuilding || !seed}
-                                            onClick={() => { buildOneCategory(c.id); setOpenCatMenu(null); }}
+                                            onClick={() => { buildOneCategory(c.id, "generic"); setOpenCatMenu(null); }}
                                             className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
                                             style={{ color: "#3dd68c" }}
                                           >
                                             <span>🧠</span><span>{isBuilding ? "Generating..." : seed ? "Generate items" : "No seed available"}</span>
+                                          </button>
+                                          <button
+                                            disabled={isBuilding || !seed}
+                                            onClick={() => { buildOneCategory(c.id, "brands"); setOpenCatMenu(null); }}
+                                            className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
+                                            style={{ color: "#a78bfa" }}
+                                            title="Generate popular brand names for this category"
+                                          >
+                                            <span>®️</span><span>Generate brands</span>
                                           </button>
                                           <button
                                             disabled={dictItems.length === 0}
@@ -1164,7 +1186,14 @@ export default function AdminPage() {
                                       {dictItems.slice(0, 50).map(row => (
                                         <div key={row.key} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-b-0">
                                           <div className="flex-1 min-w-0">
-                                            <div className="text-[11px] font-medium truncate">{row.key}</div>
+                                            <div className="text-[11px] font-medium truncate flex items-center gap-1">
+                                              {row.key}
+                                              {row.is_brand && (
+                                                <span className="text-[7px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+                                                  ®
+                                                </span>
+                                              )}
+                                            </div>
                                             <div className="text-text-muted text-[9px] truncate">
                                               {Object.entries(row.translations).slice(0, 4).map(([l, v]) => `${l}:${v}`).join(" · ")}
                                             </div>
