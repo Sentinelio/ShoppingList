@@ -14,8 +14,25 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.42",
+    version: "v0.43",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "17:20",
+    type: "feat",
+    title: "Store-mode phrases: DB-backed + Admin CRUD + usage stats",
+    details: [
+      "Migration 005: new store_phrases table (key, emoji, translations jsonb, sort_order, usage_count, last_used_at) seeded with the 6 original phrases in 12 languages + atomic increment_store_phrase_usage(p_key) RPC",
+      "New storePhrasesStore + useStorePhrases hook: fetches from Supabase, falls back to the hardcoded list on error or in demo mode, exposes optimistic usage bumps so the Admin reflects taps instantly",
+      "StoreMode now reads from the DB and calls incrementPhraseUsage(key) fire-and-forget every time the shopper taps a phrase",
+      "Admin → new 💬 Phrases tab: list all phrases sorted by usage, full CRUD (add/edit/delete with 2-step confirm), per-phrase usage bar and last-used timestamp, 'most used' summary, language coverage row showing lang chips that turn green when complete and can be tapped to fill missing translations via the translate Edge Function (concurrency 3)",
+      "Edit modal: emoji + key + one input per enabled language; English is the required source",
+      "Enabling a new language in Admin → Languages now automatically backfills all store-mode phrases for that language, so a newly added Japanese or German is shop-ready immediately",
+      "Note: migration 005 must be applied manually in Supabase SQL editor",
+    ],
+  },
+  {
+    version: "v0.42",
+    hash: "8e4aef7",
     date: "2026-04-05",
     time: "16:55",
     type: "docs",

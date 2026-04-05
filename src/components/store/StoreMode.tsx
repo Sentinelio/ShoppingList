@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import type { Item } from "../../lib/supabase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
-import { STORE_PHRASES } from "../../data/storePhrases";
+import { useStorePhrases } from "../../hooks/useStorePhrases";
+import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
 import { getLangName } from "../../data/langs";
 
 interface StoreModeProps {
@@ -22,6 +23,7 @@ export default function StoreMode({
   onClose,
 }: StoreModeProps) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const phrases = useStorePhrases();
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -46,10 +48,10 @@ export default function StoreMode({
 
   // Active phrase in shelf language
   const activePhrase = activeKey
-    ? STORE_PHRASES.find((p) => p.key === activeKey)
+    ? phrases.find((p) => p.key === activeKey)
     : null;
   const activePhraseShelf = activePhrase
-    ? (activePhrase[shelfLang] as string) || activePhrase.en
+    ? activePhrase.translations[shelfLang] || activePhrase.translations.en
     : null;
 
   return (
@@ -142,15 +144,19 @@ export default function StoreMode({
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex flex-wrap gap-2 justify-center">
-          {STORE_PHRASES.map((phrase) => {
-            const userText = (phrase[userLang] as string) || phrase.en;
+          {phrases.map((phrase) => {
+            const userText = phrase.translations[userLang] || phrase.translations.en || phrase.key;
             const isActive = activeKey === phrase.key;
             return (
               <button
                 key={phrase.key}
-                onClick={() =>
-                  setActiveKey(isActive ? null : phrase.key)
-                }
+                onClick={() => {
+                  const next = isActive ? null : phrase.key;
+                  setActiveKey(next);
+                  // Count a usage only when the phrase is activated, not when
+                  // the shopper dismisses it.
+                  if (next) void incrementPhraseUsage(phrase.key);
+                }}
                 className={`rounded-full cursor-pointer transition-colors ${
                   isActive
                     ? "bg-accent text-white"

@@ -24,8 +24,17 @@ import { useSelection } from "../hooks/useTheme";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
 import type { Item, ListMember } from "../lib/supabase";
+import {
+  ensureStorePhrasesLoaded,
+  upsertStorePhrase,
+  deleteStorePhrase,
+  fillPhrasesForLang,
+  countMissingForLang,
+  type StorePhrase,
+} from "../lib/storePhrasesStore";
+import { useStorePhrases } from "../hooks/useStorePhrases";
 
-type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes";
+type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
 
 interface DictRow {
   key: string;
@@ -70,6 +79,296 @@ const PREVIEW_MEMBERS: ListMember[] = [
   { list_id: "x", user_id: "u1", role: "owner",  status: "active", joined_at: "", user_name: "Kasia", user_lang: "pl", user_country: "PL" },
   { list_id: "x", user_id: "u2", role: "member", status: "active", joined_at: "", user_name: "Manu",  user_lang: "es", user_country: "ES" },
 ];
+
+// ── Admin Phrases: CRUD + usage stats + per-language coverage ─────────────
+
+function PhrasesAdminSection() {
+  const phrases = useStorePhrases();
+  const [editing, setEditing] = useState<StorePhrase | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const [fillingLang, setFillingLang] = useState<string | null>(null);
+  const [toast, setToast] = useState("");
+  const enabled = getEnabledLangs();
+
+  useEffect(() => { void ensureStorePhrasesLoaded(); }, []);
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+
+  const totalUses = phrases.reduce((n, p) => n + (p.usage_count ?? 0), 0);
+  const maxUses = Math.max(1, ...phrases.map(p => p.usage_count ?? 0));
+  const sorted = [...phrases].sort(
+    (a, b) => (b.usage_count ?? 0) - (a.usage_count ?? 0) || a.sort_order - b.sort_order,
+  );
+
+  const handleDelete = async (key: string) => {
+    try {
+      await deleteStorePhrase(key);
+      showToast(`Deleted '${key}'`);
+    } catch (err) {
+      showToast(`Error: ${(err as Error).message}`);
+    }
+  };
+
+  const handleFillLang = async (lang: string) => {
+    setFillingLang(lang);
+    try {
+      const { filled } = await fillPhrasesForLang(lang);
+      showToast(filled > 0 ? `✅ Filled ${filled} ${lang} phrases` : `All phrases already have ${lang}`);
+    } catch (err) {
+      showToast(`Error: ${(err as Error).message}`);
+    }
+    setFillingLang(null);
+  };
+
+  return (
+    <div>
+      {toast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-card border border-accent/30 text-accent px-4 py-2 rounded-xl text-sm font-medium shadow-lg">
+          {toast}
+        </div>
+      )}
+
+      {/* Header + add button */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1">
+          <h3 className="text-sm font-bold">💬 Store-mode phrases</h3>
+          <p className="text-[10px] text-text-muted">
+            Shown as taps in the Show-in-store view. Translated to every enabled language.
+          </p>
+        </div>
+        <button
+          onClick={() => { setEditing({ key: "", emoji: "💬", sort_order: (phrases.length + 1) * 10, translations: {} }); setAdding(true); }}
+          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
+          style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+        >
+          + New phrase
+        </button>
+      </div>
+
+      {/* Language coverage panel */}
+      <div className="bg-card rounded-xl p-3 border border-border mb-3">
+        <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
+          Language coverage ({phrases.length} phrases × {enabled.length} langs)
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {enabled.map(code => {
+            const missing = countMissingForLang(code, phrases);
+            const isFilling = fillingLang === code;
+            const complete = missing === 0;
+            return (
+              <button
+                key={code}
+                onClick={() => !complete && handleFillLang(code)}
+                disabled={complete || !!fillingLang || IS_DEMO}
+                className="text-[10px] font-semibold px-2 py-1 rounded-lg cursor-pointer disabled:cursor-default"
+                style={{
+                  background: complete ? "rgba(61,214,140,0.1)" : "rgba(255,176,61,0.1)",
+                  color: complete ? "#3dd68c" : "#ffb03d",
+                  border: complete ? "1px solid rgba(61,214,140,0.2)" : "1px solid rgba(255,176,61,0.2)",
+                }}
+                title={complete ? `All ${phrases.length} phrases translated` : `${missing} missing — click to fill`}
+              >
+                {code} {complete ? "✓" : isFilling ? "⏳" : `${phrases.length - missing}/${phrases.length}`}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Usage stats summary */}
+      {totalUses > 0 && (
+        <div className="bg-card rounded-xl p-3 border border-border mb-3">
+          <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">
+            Usage
+          </div>
+          <div className="text-[11px] text-text-soft">
+            <span className="font-bold text-text">{totalUses}</span> total taps across all shoppers ·
+            most used: <span className="font-bold text-accent">{sorted[0]?.emoji} {sorted[0]?.translations.en}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Phrase list */}
+      <div className="space-y-2">
+        {sorted.map(p => {
+          const uses = p.usage_count ?? 0;
+          const pct = totalUses === 0 ? 0 : Math.round((uses / maxUses) * 100);
+          const isConfirming = confirmDeleteKey === p.key;
+          return (
+            <div key={p.key} className="bg-card rounded-xl border border-border p-3">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl shrink-0" aria-hidden="true">{p.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-text truncate">
+                    {p.translations.en ?? p.key}
+                  </div>
+                  <div className="text-[10px] text-text-muted truncate mt-0.5">
+                    {Object.entries(p.translations)
+                      .filter(([l]) => l !== "en" && enabled.includes(l))
+                      .slice(0, 4)
+                      .map(([l, v]) => `${l}:${v}`)
+                      .join(" · ")}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditing(p)}
+                  className="text-accent text-xs cursor-pointer px-1 shrink-0"
+                  aria-label="Edit phrase"
+                >✏️</button>
+                <button
+                  onClick={() => {
+                    if (isConfirming) {
+                      handleDelete(p.key);
+                      setConfirmDeleteKey(null);
+                    } else {
+                      setConfirmDeleteKey(p.key);
+                      setTimeout(() => setConfirmDeleteKey(prev => prev === p.key ? null : prev), 3000);
+                    }
+                  }}
+                  className="text-xs cursor-pointer whitespace-nowrap shrink-0"
+                  style={{
+                    color: isConfirming ? "#fff" : "#ff5c5c",
+                    background: isConfirming ? "#b71c1c" : undefined,
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                  }}
+                >{isConfirming ? "⚠️" : "🗑️"}</button>
+              </div>
+              {/* Usage bar */}
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-bg rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${pct}%`,
+                      background: "linear-gradient(90deg, #f09848, #e8c364)",
+                    }}
+                  />
+                </div>
+                <div className="text-[10px] text-text-muted font-mono tabular-nums w-16 text-right">
+                  {uses} {uses === 1 ? "use" : "uses"}
+                </div>
+              </div>
+              {p.last_used_at && (
+                <div className="text-[9px] text-text-muted mt-1">
+                  last: {new Date(p.last_used_at).toLocaleString()}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Edit modal */}
+      {editing && (
+        <PhraseEditModal
+          phrase={editing}
+          enabledLangs={enabled}
+          isNew={adding}
+          onClose={() => { setEditing(null); setAdding(false); }}
+          onSaved={(msg) => { showToast(msg); setEditing(null); setAdding(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PhraseEditModal({
+  phrase,
+  enabledLangs,
+  isNew,
+  onClose,
+  onSaved,
+}: {
+  phrase: StorePhrase;
+  enabledLangs: string[];
+  isNew: boolean;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
+  const [key, setKey] = useState(phrase.key);
+  const [emoji, setEmoji] = useState(phrase.emoji);
+  const [translations, setTranslations] = useState<Record<string, string>>({ ...phrase.translations });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!key.trim() || !translations.en?.trim()) return;
+    setSaving(true);
+    try {
+      await upsertStorePhrase({
+        ...phrase,
+        key: key.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
+        emoji: emoji.trim() || "💬",
+        translations,
+      });
+      onSaved(isNew ? `Phrase '${key}' added` : `Phrase '${key}' updated`);
+    } catch (err) {
+      onSaved(`Error: ${(err as Error).message}`);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="bg-card rounded-t-2xl p-5 pb-7 w-full max-w-[500px] max-h-[85vh] overflow-auto border-t border-border-light"
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 className="text-base font-bold mb-3">
+          {isNew ? "New phrase" : `Edit: ${phrase.key}`}
+        </h3>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            value={emoji}
+            onChange={e => setEmoji(e.target.value)}
+            placeholder="💬"
+            className="w-14 bg-bg border border-border-light rounded-lg px-2 py-2 text-xl text-center outline-none"
+          />
+          <input
+            value={key}
+            onChange={e => setKey(e.target.value)}
+            placeholder="key (e.g. thanks)"
+            disabled={!isNew}
+            className="flex-1 bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none disabled:opacity-50"
+          />
+        </div>
+
+        <div className="space-y-2">
+          {enabledLangs.map(lang => (
+            <div key={lang} className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-text-muted uppercase w-8 tabular-nums">{lang}</span>
+              <input
+                value={translations[lang] ?? ""}
+                onChange={e => setTranslations(prev => ({ ...prev, [lang]: e.target.value }))}
+                placeholder={lang === "en" ? "Required (source)" : "optional"}
+                className="flex-1 bg-bg border border-border-light rounded-lg px-3 py-2 text-sm text-text outline-none"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={handleSave}
+            disabled={!key.trim() || !translations.en?.trim() || saving}
+            className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white cursor-pointer disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-lg text-sm text-text-muted border border-border-light cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ItemsLayoutsPicker({ selectedId }: { selectedId: string }) {
   return (
@@ -506,6 +805,7 @@ export default function AdminPage() {
     { key: "lists", label: "Lists", icon: "📝" },
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
     { key: "themes", label: "Themes", icon: "🎨" },
+    { key: "phrases", label: "Phrases", icon: "💬" },
     { key: "changelog", label: "Updates", icon: "📰" },
   ];
 
@@ -1396,7 +1696,18 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => { enableLang(lang.code); forceUpdate(n => n + 1); }}
+                    onClick={async () => {
+                      enableLang(lang.code);
+                      forceUpdate(n => n + 1);
+                      // Auto-backfill store-mode phrases for the newly
+                      // enabled language so the shopper sees them immediately.
+                      if (!IS_DEMO) {
+                        try {
+                          const { filled } = await fillPhrasesForLang(lang.code);
+                          if (filled > 0) showToast(`✅ Filled ${filled} ${lang.code} phrases`);
+                        } catch { /* ignore */ }
+                      }
+                    }}
                     className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                     style={{ background: "linear-gradient(135deg, #f09848, #e07028)", color: "white" }}
                   >
@@ -1675,6 +1986,11 @@ export default function AdminPage() {
             </div>
           );
         })()}
+
+        {/* ── Phrases (store-mode helper sentences) ── */}
+        {tab === "phrases" && (
+          <PhrasesAdminSection />
+        )}
 
         {/* ── Themes ── */}
         {tab === "themes" && (() => {
