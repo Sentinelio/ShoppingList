@@ -14,6 +14,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "09:40",
+    type: "fix",
+    title: "Remove category overlap + stats double-count bug",
+    details: [
+      "Grocery: removed 'Meat & Fish' and 'Bakery' (handled by Butcher, Fishmonger, Bakery stores)",
+      "Grocery: added 'Grains & Pasta' seed (rice, pasta, flour, cereals, beans)",
+      "Grocery drinks prompt no longer includes beer/wine (stay in Liquor store)",
+      "Clothing accessories prompt no longer includes sunglasses (stay in Optician)",
+      "Local dictionary items remapped: meat/fish → butcher/fishmonger categories, bread → breads",
+      "Stats: fixed double counting — no longer adds LOCAL_DICTIONARY on top of dictRows (they're the same in demo mode)",
+    ],
+  },
+  {
+    hash: "9169f78",
+    date: "2026-04-05",
     time: "09:25",
     type: "feat",
     title: "Counts in headers + 4 more store types",

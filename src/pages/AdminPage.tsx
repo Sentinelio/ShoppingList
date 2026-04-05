@@ -369,18 +369,17 @@ export default function AdminPage(_: AdminPageProps) {
         {/* ── Stats ── */}
         {tab === "stats" && !loading && (() => {
           const enabledLangsList = getEnabledLangs();
-          const totalDict = dictRows.length + LOCAL_DICTIONARY.length;
+          // In demo mode dictRows is sourced from LOCAL_DICTIONARY so we must not add it again.
+          const totalDict = dictRows.length;
           // dict by store type
           const dictByStore = storeTypesWithCats.map(st => {
             const catIds = new Set(st.categories.map(c => c.id));
-            const n = dictRows.filter(d => catIds.has(d.category)).length
-              + LOCAL_DICTIONARY.filter(d => catIds.has(d.cat)).length;
+            const n = dictRows.filter(d => catIds.has(d.category)).length;
             return { st, n };
           }).sort((a, b) => b.n - a.n);
           // dict by language coverage
           const dictByLang = enabledLangsList.map(code => {
-            const n = dictRows.filter(d => d.translations && d.translations[code]).length
-              + LOCAL_DICTIONARY.filter(d => (d as unknown as Record<string, unknown>)[code]).length;
+            const n = dictRows.filter(d => d.translations && d.translations[code]).length;
             const meta = ALL_LANGUAGES.find(l => l.code === code);
             return { code, name: meta?.name || code, flag: meta?.flag || "🌍", n };
           }).sort((a, b) => b.n - a.n);
@@ -442,9 +441,7 @@ export default function AdminPage(_: AdminPageProps) {
                 <h3 className="text-xs font-bold mb-2">🏷️ Dictionary by category</h3>
                 <div className="max-h-80 overflow-y-auto pr-1">
                   {storeTypesWithCats.flatMap(st => st.categories.map(c => {
-                    const count = dictRows.filter(d => d.category === c.id).length;
-                    const localCount = LOCAL_DICTIONARY.filter(d => d.cat === c.id).length;
-                    const total = count + localCount;
+                    const total = dictRows.filter(d => d.category === c.id).length;
                     if (total === 0) return null;
                     return (
                       <div key={`${st.id}:${c.id}`} className="flex items-center gap-2 py-1">

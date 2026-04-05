@@ -3,8 +3,6 @@ export const CATEGORIES: Record<string, { emoji: string; color: string; en: stri
   fruits:       { emoji: "🍎", color: "#4ade80", en: "Fruits",            es: "Frutas",              pl: "Owoce" },
   vegetables:   { emoji: "🥬", color: "#22c55e", en: "Vegetables",        es: "Verduras",            pl: "Warzywa" },
   dairy:        { emoji: "🥛", color: "#60a5fa", en: "Dairy & Eggs",      es: "Lácteos",             pl: "Nabiał" },
-  meat:         { emoji: "🥩", color: "#f87171", en: "Meat & Fish",       es: "Carne y Pescado",     pl: "Mięso i Ryby" },
-  bakery:       { emoji: "🍞", color: "#d4a04a", en: "Bakery",            es: "Panadería",           pl: "Pieczywo" },
   grains:       { emoji: "🌾", color: "#c4a04a", en: "Grains & Pasta",    es: "Cereales y Pasta",    pl: "Zboża i Makaron" },
   drinks:       { emoji: "🥤", color: "#38bdf8", en: "Drinks",            es: "Bebidas",             pl: "Napoje" },
   snacks:       { emoji: "🍪", color: "#fb923c", en: "Snacks & Sweets",   es: "Snacks",              pl: "Przekąski" },
@@ -171,7 +169,7 @@ export const CATEGORIES: Record<string, { emoji: string; color: string; en: stri
 
 export const CATEGORY_ORDER = [
   // Grocery
-  "fruits", "vegetables", "dairy", "meat", "bakery", "grains", "drinks", "condiments", "snacks", "frozen", "household", "baby",
+  "fruits", "vegetables", "dairy", "grains", "drinks", "condiments", "snacks", "frozen", "household", "baby",
   // Drugstore
   "skincare", "haircare", "bodycare", "oralcare", "makeup", "cleaning",
   // Pharmacy

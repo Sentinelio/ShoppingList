@@ -21,23 +21,31 @@ export const LOCAL_DICTIONARY: DictEntry[] = [
   { en: "cream cheese",  es: "queso crema",      pl: "serek kremowy",   de: "Frischkäse",       fr: "fromage frais",    it: "formaggio cremoso", pt: "cream cheese",   cat: "dairy" },
   { en: "eggs",          es: "huevos",           pl: "jajka",           de: "Eier",             fr: "œufs",             it: "uova",             pt: "ovos",             cat: "dairy" },
 
-  // ── Meat & Fish ────────────────────────────────────────
-  { en: "chicken",        es: "pollo",            pl: "kurczak",         de: "Hähnchen",         fr: "poulet",           it: "pollo",            pt: "frango",           cat: "meat" },
-  { en: "chicken breast", es: "pechuga de pollo", pl: "pierś kurczaka",  de: "Hähnchenbrust",    fr: "blanc de poulet",  it: "petto di pollo",   pt: "peito de frango",  cat: "meat" },
-  { en: "beef",           es: "carne de res",     pl: "wołowina",        de: "Rindfleisch",      fr: "bœuf",             it: "manzo",            pt: "carne bovina",     cat: "meat" },
-  { en: "pork",           es: "cerdo",            pl: "wieprzowina",     de: "Schweinefleisch",  fr: "porc",             it: "maiale",           pt: "porco",            cat: "meat" },
-  { en: "ham",            es: "jamón",            pl: "szynka",          de: "Schinken",         fr: "jambon",           it: "prosciutto",       pt: "presunto",         cat: "meat" },
-  { en: "bacon",          es: "tocino",           pl: "boczek",          de: "Speck",            fr: "bacon",            it: "pancetta",         pt: "bacon",            cat: "meat" },
-  { en: "sausage",        es: "salchicha",        pl: "kiełbasa",        de: "Wurst",            fr: "saucisse",         it: "salsiccia",        pt: "salsicha",         cat: "meat" },
-  { en: "ground beef",    es: "carne molida",     pl: "mielona wołowa",  de: "Hackfleisch",      fr: "viande hachée",    it: "carne macinata",   pt: "carne moída",      cat: "meat" },
-  { en: "turkey",         es: "pavo",             pl: "indyk",           de: "Truthahn",         fr: "dinde",            it: "tacchino",         pt: "peru",             cat: "meat" },
-  { en: "salmon",         es: "salmón",           pl: "łosoś",           de: "Lachs",            fr: "saumon",           it: "salmone",          pt: "salmão",           cat: "meat" },
-  { en: "tuna",           es: "atún",             pl: "tuńczyk",         de: "Thunfisch",        fr: "thon",             it: "tonno",            pt: "atum",             cat: "meat" },
-  { en: "shrimp",         es: "camarones",        pl: "krewetki",        de: "Garnelen",         fr: "crevettes",        it: "gamberetti",       pt: "camarão",          cat: "meat" },
-  { en: "fish",           es: "pescado",          pl: "ryba",            de: "Fisch",            fr: "poisson",          it: "pesce",            pt: "peixe",            cat: "meat" },
+  // ── Butcher: Poultry ──────────────────────────────────
+  { en: "chicken",        es: "pollo",            pl: "kurczak",         de: "Hähnchen",         fr: "poulet",           it: "pollo",            pt: "frango",           cat: "poultry" },
+  { en: "chicken breast", es: "pechuga de pollo", pl: "pierś kurczaka",  de: "Hähnchenbrust",    fr: "blanc de poulet",  it: "petto di pollo",   pt: "peito de frango",  cat: "poultry" },
+  { en: "turkey",         es: "pavo",             pl: "indyk",           de: "Truthahn",         fr: "dinde",            it: "tacchino",         pt: "peru",             cat: "poultry" },
 
-  // ── Bakery ─────────────────────────────────────────────
-  { en: "bread",          es: "pan",              pl: "chleb",           de: "Brot",             fr: "pain",             it: "pane",             pt: "pão",              cat: "bakery" },
+  // ── Butcher: Beef & Pork ──────────────────────────────
+  { en: "beef",           es: "carne de res",     pl: "wołowina",        de: "Rindfleisch",      fr: "bœuf",             it: "manzo",            pt: "carne bovina",     cat: "beef_pork" },
+  { en: "pork",           es: "cerdo",            pl: "wieprzowina",     de: "Schweinefleisch",  fr: "porc",             it: "maiale",           pt: "porco",            cat: "beef_pork" },
+  { en: "ground beef",    es: "carne molida",     pl: "mielona wołowa",  de: "Hackfleisch",      fr: "viande hachée",    it: "carne macinata",   pt: "carne moída",      cat: "beef_pork" },
+
+  // ── Butcher: Cold Cuts & Sausages ─────────────────────
+  { en: "ham",            es: "jamón",            pl: "szynka",          de: "Schinken",         fr: "jambon",           it: "prosciutto",       pt: "presunto",         cat: "cold_cuts" },
+  { en: "bacon",          es: "tocino",           pl: "boczek",          de: "Speck",            fr: "bacon",            it: "pancetta",         pt: "bacon",            cat: "cold_cuts" },
+  { en: "sausage",        es: "salchicha",        pl: "kiełbasa",        de: "Wurst",            fr: "saucisse",         it: "salsiccia",        pt: "salsicha",         cat: "cold_cuts" },
+
+  // ── Fishmonger: Fresh Fish ────────────────────────────
+  { en: "salmon",         es: "salmón",           pl: "łosoś",           de: "Lachs",            fr: "saumon",           it: "salmone",          pt: "salmão",           cat: "fish_fresh" },
+  { en: "tuna",           es: "atún",             pl: "tuńczyk",         de: "Thunfisch",        fr: "thon",             it: "tonno",            pt: "atum",             cat: "fish_fresh" },
+  { en: "fish",           es: "pescado",          pl: "ryba",            de: "Fisch",            fr: "poisson",          it: "pesce",            pt: "peixe",            cat: "fish_fresh" },
+
+  // ── Fishmonger: Shellfish ─────────────────────────────
+  { en: "shrimp",         es: "camarones",        pl: "krewetki",        de: "Garnelen",         fr: "crevettes",        it: "gamberetti",       pt: "camarão",          cat: "shellfish" },
+
+  // ── Bakery: Breads ────────────────────────────────────
+  { en: "bread",          es: "pan",              pl: "chleb",           de: "Brot",             fr: "pain",             it: "pane",             pt: "pão",              cat: "breads" },
 
   // ── Grains & Pasta ────────────────────────────────────
   { en: "rice",           es: "arroz",            pl: "ryż",             de: "Reis",             fr: "riz",              it: "riso",             pt: "arroz",            cat: "grains" },

@@ -8,13 +8,12 @@ export interface SeedCategory {
 }
 
 export const SEED_CATEGORIES: SeedCategory[] = [
-  // Grocery (370)
+  // Grocery — dry/shelf goods only; meat → Butcher, fish → Fishmonger, bread → Bakery, alcohol → Liquor
   { id: "grocery_dairy", name: "Dairy & Eggs", count: 35, storeType: "grocery", category: "dairy", prompt: "dairy products: types of milk, cheese varieties, yogurts, cream, butter types, eggs" },
-  { id: "grocery_meat", name: "Meat & Fish", count: 40, storeType: "grocery", category: "meat", prompt: "meats: cuts of beef/pork/chicken/turkey/lamb, cold cuts, sausages, fish, seafood" },
   { id: "grocery_fruits", name: "Fruits", count: 30, storeType: "grocery", category: "fruits", prompt: "fruits including tropical, berries, dried fruits, nuts" },
   { id: "grocery_vegetables", name: "Vegetables", count: 40, storeType: "grocery", category: "vegetables", prompt: "vegetables including leafy greens, root veg, mushrooms, herbs, salad items" },
-  { id: "grocery_bakery", name: "Bakery & Grains", count: 35, storeType: "grocery", category: "bakery", prompt: "breads, pastries, cakes, cereals, pasta types, rice types, flour types, grains" },
-  { id: "grocery_drinks", name: "Drinks", count: 35, storeType: "grocery", category: "drinks", prompt: "water, juices, sodas, energy drinks, tea types, coffee types, plant milks, beer, wine" },
+  { id: "grocery_grains", name: "Grains & Pasta", count: 30, storeType: "grocery", category: "grains", prompt: "rice varieties, pasta shapes, noodles, couscous, quinoa, bulgur, oats, cereal, flour types, beans, lentils, chickpeas" },
+  { id: "grocery_drinks", name: "Drinks", count: 30, storeType: "grocery", category: "drinks", prompt: "water, sparkling water, juices, sodas, energy drinks, tea bags, loose tea, coffee beans, ground coffee, plant milks, iced tea, lemonade — no alcohol" },
   { id: "grocery_condiments", name: "Condiments & Spices", count: 40, storeType: "grocery", category: "condiments", prompt: "sauces, oils, vinegars, spices, herbs, dressings, spreads, sweeteners, baking" },
   { id: "grocery_frozen", name: "Frozen & Canned", count: 30, storeType: "grocery", category: "frozen", prompt: "frozen meals, frozen vegetables, ice cream, canned beans, soups, canned fish" },
   { id: "grocery_snacks", name: "Snacks & Sweets", count: 30, storeType: "grocery", category: "snacks", prompt: "chips, crackers, cookies, chocolate, candy, nuts, dried fruit, popcorn, bars" },
@@ -73,7 +72,7 @@ export const SEED_CATEGORIES: SeedCategory[] = [
   { id: "clothing_bottom", name: "Bottoms", count: 20, storeType: "clothing", category: "bottoms", prompt: "pants, jeans, shorts, skirt, dress, suit, leggings, tracksuit, overalls, chinos" },
   { id: "clothing_underwear", name: "Underwear & Socks", count: 20, storeType: "clothing", category: "underwear", prompt: "boxers, briefs, bra, sports bra, panties, socks, stockings, tights, thermal underwear, shapewear" },
   { id: "clothing_sleep", name: "Sleepwear", count: 15, storeType: "clothing", category: "sleepwear", prompt: "pyjamas, nightgown, robe, slippers, lounge pants, sleep shirt, onesie" },
-  { id: "clothing_access", name: "Accessories", count: 20, storeType: "clothing", category: "accessories", prompt: "belt, scarf, hat, cap, beanie, gloves, tie, bow tie, suspenders, wallet, umbrella, sunglasses, hair accessories" },
+  { id: "clothing_access", name: "Accessories", count: 20, storeType: "clothing", category: "accessories", prompt: "belt, scarf, hat, cap, beanie, gloves, tie, bow tie, suspenders, wallet, umbrella, hair accessories, handkerchief, bandana" },
   { id: "clothing_shoes", name: "Footwear", count: 20, storeType: "clothing", category: "footwear", prompt: "shoes, boots, sandals, sneakers, slippers, heels, loafers, flip flops, ankle boots, moccasins, espadrilles" },
   { id: "clothing_bags", name: "Bags & Luggage", count: 20, storeType: "clothing", category: "bags_luggage", prompt: "handbag, shoulder bag, tote bag, backpack, suitcase, duffel bag, laptop bag, wallet, clutch, fanny pack, travel bag" },
   { id: "clothing_jewelry", name: "Jewelry & Watches", count: 20, storeType: "clothing", category: "jewelry", prompt: "necklace, bracelet, ring, earrings, watch, pendant, anklet, brooch, cufflinks, chain, charm" },
