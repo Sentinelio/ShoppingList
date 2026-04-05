@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.41",
+    version: "v0.42",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "16:55",
+    type: "docs",
+    title: "Roadmap audit — mark completed items",
+    details: [
+      "Moved 7 items from 🔴 Siguiente to ✅ MVP: Autocomplete, List search, Brand products, 21 items layouts, Theme palettes, Code audit, Security hardening",
+      "Clarified 'Modo compra (estante GRANDE)' as already done — it's the 'Show in store' feature that has existed since the MVP, accessible from each item's detail modal",
+      "Remaining in 🔴 Siguiente: Export WhatsApp bilingüe, Bulk add desde WhatsApp, Diccionario fuzzy avanzado, Rediseños completos para Lists/Details/Store mode",
+    ],
+  },
+  {
+    version: "v0.41",
+    hash: "8bb08bf",
     date: "2026-04-05",
     time: "16:50",
     type: "feat",
