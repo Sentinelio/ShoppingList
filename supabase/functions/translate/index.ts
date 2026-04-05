@@ -1,10 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { corsHeadersFor, requireAuth } from "../_shared/auth.ts"
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-client-info, apikey",
-}
 
 // All categories across 27 store types. Keep in sync with src/data/categories.ts
 const CATEGORIES_LIST = [
@@ -176,9 +172,13 @@ const CATEGORIES_LIST = [
 ]
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = corsHeadersFor(req)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
+
+  const unauthorized = requireAuth(req)
+  if (unauthorized) return unauthorized
 
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY")

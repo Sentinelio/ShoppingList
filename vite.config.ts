@@ -22,4 +22,17 @@ export default defineConfig({
     __BUILD_SUBJECT__: JSON.stringify(gitSubject),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/@supabase/')) return 'supabase'
+          if (id.includes('node_modules/react-dom/')) return 'react-dom'
+          if (id.includes('node_modules/react/')) return 'react'
+          return undefined
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 })

@@ -1,15 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-client-info, apikey",
-}
+import { corsHeadersFor, requireAuth } from "../_shared/auth.ts"
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = corsHeadersFor(req)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
+
+  const unauthorized = requireAuth(req)
+  if (unauthorized) return unauthorized
 
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY")

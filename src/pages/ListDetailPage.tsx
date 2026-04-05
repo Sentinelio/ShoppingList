@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
@@ -61,6 +61,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [failedIds] = useState<Set<string>>(new Set());
   const [showMembers, setShowMembers] = useState(false);
   const [confirmRemoveMember, setConfirmRemoveMember] = useState<string | null>(null);
+  const [confirmRejectPending, setConfirmRejectPending] = useState<string | null>(null);
   const [showListSettings, setShowListSettings] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -124,12 +125,12 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     });
   };
 
-  const handleToggle = async (itemId: string, checked: boolean) => {
+  const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked } : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
-  };
+  }, [setItems]);
 
-  const handleUpdate = async (
+  const handleUpdate = useCallback(async (
     itemId: string,
     updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>,
   ) => {
@@ -139,13 +140,17 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       setLocallyImportant(itemId, updates.important);
     }
     try { await updateItem(itemId, updates); } catch { /* realtime will sync */ }
-  };
+  }, [setItems]);
 
-  const handleDelete = async (itemId: string) => {
+  const handleDelete = useCallback(async (itemId: string) => {
     setItems(prev => prev.filter(i => i.id !== itemId));
     setEditingItemId(null);
     try { await deleteItem(itemId); } catch { /* realtime will sync */ }
-  };
+  }, [setItems]);
+
+  const handleCardClick = useCallback((item: Item) => {
+    setEditingItemId(item.id);
+  }, []);
 
   const countryFlag = list ? getCountryFlag(user?.country ?? "") : "";
 
@@ -164,7 +169,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
             isPending={pendingIds.has(item.id)}
             isFailed={failedIds.has(item.id)}
             onToggle={handleToggle}
-            onClick={(item) => setEditingItemId(item.id)}
+            onClick={handleCardClick}
           />
         </div>
       ))}
@@ -194,7 +199,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         <button
           onClick={() => onNavigate("lists")}
           className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-text-soft active:bg-card transition-colors cursor-pointer"
-          aria-label="Back"
+          aria-label={t(lang, "back")}
         >
           <svg
             width="22"
@@ -457,7 +462,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                 </div>
               </div>
               {isMe && (
-                <span className="text-[10px] font-semibold text-accent px-2 py-1 rounded-lg" style={{ background: "rgba(240,136,62,0.1)" }}>You</span>
+                <span className="text-[10px] font-semibold text-accent px-2 py-1 rounded-lg" style={{ background: "rgba(240,136,62,0.1)" }}>{t(lang, "you")}</span>
               )}
               {canRemove && (
                 <button
@@ -522,18 +527,34 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                 >
                   {t(lang, "accept")}
                 </button>
-                <button
-                  onClick={async () => {
-                    // Optimistic: remove immediately
-                    setMembers(prev => prev.filter(x => x.user_id !== m.user_id));
-                    try { await rejectMember(listId, m.user_id); } catch { /* realtime will sync */ }
-                    refresh();
-                  }}
-                  className="px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-                  style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
-                >
-                  ✕
-                </button>
+                {(() => {
+                  const isConfirmingReject = confirmRejectPending === m.user_id;
+                  return (
+                    <button
+                      onClick={async () => {
+                        if (!isConfirmingReject) {
+                          setConfirmRejectPending(m.user_id);
+                          setTimeout(() => setConfirmRejectPending(prev => prev === m.user_id ? null : prev), 3000);
+                          return;
+                        }
+                        setConfirmRejectPending(null);
+                        // Optimistic: remove immediately
+                        setMembers(prev => prev.filter(x => x.user_id !== m.user_id));
+                        try { await rejectMember(listId, m.user_id); } catch { /* realtime will sync */ }
+                        refresh();
+                      }}
+                      className="px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap"
+                      style={{
+                        background: isConfirmingReject ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                        color: isConfirmingReject ? "#fff" : "#ff5c5c",
+                        border: isConfirmingReject ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.2)",
+                      }}
+                      aria-label={isConfirmingReject ? t(lang, "confirm") : t(lang, "removeMember")}
+                    >
+                      {isConfirmingReject ? `⚠️ ${t(lang, "confirm") || "Confirm"}` : "✕"}
+                    </button>
+                  );
+                })()}
               </div>
             ))}
           </div>

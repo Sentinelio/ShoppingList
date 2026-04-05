@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Item } from "../../lib/supabase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { getCategoryColor } from "../../data/categories";
@@ -14,7 +15,7 @@ interface ItemCardProps {
   onRetry?: (item: Item) => void;
 }
 
-export default function ItemCard({
+function ItemCard({
   item,
   userLang,
   shelfLang,
@@ -35,8 +36,17 @@ export default function ItemCard({
   const hasUnit = item.unit && item.unit !== "";
   const qtyDisplay = [hasQty && item.qty, hasUnit && item.unit].filter(Boolean).join("");
 
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick(item);
+    }
+  };
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={displayName}
       className={`relative flex flex-col items-center justify-center rounded-2xl cursor-pointer active:scale-[0.97] transition-transform ${item.important ? "babelcart-important" : ""}`}
       style={{
         padding: "14px 6px 10px",
@@ -47,8 +57,7 @@ export default function ItemCard({
         ["--babelcart-cat-bg" as string]: `${catColor}26`,
       }}
       onClick={() => onClick(item)}
-      role="button"
-      tabIndex={0}
+      onKeyDown={handleCardKeyDown}
     >
       {/* Checkbox - top left */}
       <div
@@ -59,8 +68,16 @@ export default function ItemCard({
           onToggle(item.id, !item.checked);
         }}
         role="checkbox"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggle(item.id, !item.checked);
+          }
+        }}
         aria-checked={item.checked}
-        aria-label={item.checked ? "Uncheck" : "Check"}
+        aria-label={item.checked ? t(lang, "uncheck") : t(lang, "check")}
       >
         <div
           className="flex items-center justify-center rounded-full border-2"
@@ -106,9 +123,15 @@ export default function ItemCard({
 
       {/* Center: photo or emoji */}
       {item.photo ? (
-        <img src={item.photo} className="rounded-xl object-cover" style={{ width: 52, height: 52 }} alt="" />
+        <img
+          src={item.photo}
+          className="rounded-xl object-cover"
+          style={{ width: 52, height: 52 }}
+          alt={displayName}
+          loading="lazy"
+        />
       ) : (
-        <span className="select-none" style={{ fontSize: 48, lineHeight: 1 }}>
+        <span className="select-none" style={{ fontSize: 48, lineHeight: 1 }} aria-hidden="true">
           {emoji}
         </span>
       )}
@@ -155,3 +178,5 @@ export default function ItemCard({
     </div>
   );
 }
+
+export default memo(ItemCard);

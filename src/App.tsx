@@ -1,11 +1,15 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { IS_DEMO } from './lib/supabase'
 import SetupWizard from './components/setup/SetupWizard'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
 import SettingsPage from './pages/SettingsPage'
-import AdminPage from './pages/AdminPage'
+
+// AdminPage is only used via #admin hash and imports the whole admin surface
+// area (changelog, stats, seed categories). Lazy-load it so the main bundle
+// stays lean.
+const AdminPage = lazy(() => import('./pages/AdminPage'))
 
 type Page = 'setup' | 'lists' | 'list-detail' | 'settings' | 'admin'
 
@@ -42,7 +46,17 @@ function App() {
 
   // Admin page — accessible without auth
   if (route.page === 'admin') {
-    return <AdminPage />
+    return (
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center h-full bg-bg">
+            <div className="text-text-soft animate-pulse">Loading admin…</div>
+          </div>
+        }
+      >
+        <AdminPage />
+      </Suspense>
+    )
   }
 
   if (loading) {

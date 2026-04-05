@@ -18,7 +18,7 @@ interface ItemDetailProps {
   lang?: string;
 }
 
-function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (photo: string | null) => void }) {
+function PhotoSection({ photo, onUpdate, lang }: { photo: string | null; onUpdate: (photo: string | null) => void; lang: string }) {
   const [editing, setEditing] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -111,7 +111,7 @@ function PhotoSection({ photo, onUpdate }: { photo: string | null; onUpdate: (ph
           onClick={() => setEditing(true)}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-bg border border-border-light text-text-soft active:bg-card transition-colors cursor-pointer text-sm"
         >
-          🔗 Add photo URL
+          🔗 {t(lang, "addPhotoUrl")}
         </button>
       ) : (
         <div className="flex gap-2">
@@ -168,7 +168,6 @@ export default function ItemDetail({
   // Sync local state when a different item is opened. Depending on `item.id`
   // (not the full `item` object) avoids wiping local edits on every realtime
   // update of the same row.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (item) {
       setQty(item.qty || "");
@@ -176,6 +175,7 @@ export default function ItemDetail({
       setNote(item.note || "");
       setDeleteStep(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, open]);
 
   if (!item) return null;
@@ -219,6 +219,7 @@ export default function ItemDetail({
         <PhotoSection
           photo={item.photo}
           onUpdate={(photo) => onUpdate(item.id, { photo })}
+          lang={lang}
         />
 
         {/* Fields row: qty + unit + note */}
@@ -302,7 +303,7 @@ export default function ItemDetail({
           }}
         >
           <span>{item.important ? "🔴" : "⚪"}</span>
-          <span style={{ fontSize: 14 }}>{item.important ? "Important" : "Mark as important"}</span>
+          <span style={{ fontSize: 14 }}>{item.important ? t(lang, "important") : t(lang, "markImportant")}</span>
         </button>
 
         {/* Show in store button */}

@@ -14,8 +14,27 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.30",
+    version: "v0.31",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "13:30",
+    type: "refactor",
+    title: "Full audit: security, performance, a11y, i18n",
+    details: [
+      "DB: migration 003 — ON DELETE CASCADE on lists.created_by, SET NULL on items.added_by, indexes on list_members(user_id), list_members(list_id,status), lists(created_by), items(added_by), dictionary(category)",
+      "Edge Functions: shared _shared/auth.ts — all 3 functions now reject requests without Authorization bearer token and restrict CORS to GitHub Pages + localhost (was 'Access-Control-Allow-Origin: *' with no auth, abuse vector)",
+      "Bundle: lazy-loaded AdminPage with Suspense + Vite manualChunks split — main chunk dropped from 597 KB to 130 KB, AdminPage (96 KB) only loaded when visiting #admin, react/react-dom/supabase now cached independently",
+      "Perf: React.memo on ItemCard + useCallback on handleToggle/handleUpdate/handleDelete/handleCardClick in ListDetailPage so memoization actually works",
+      "Perf: narrowed list_members/lists .select() columns in useListDetail (excluded JSON blobs from initial fetch)",
+      "a11y: ItemCard with proper role/tabIndex/onKeyDown keyboard handler, product photos now have descriptive alt text, emoji marked aria-hidden, loading='lazy' on photos",
+      "i18n: new keys check/uncheck/you/back/important/markImportant/addPhotoUrl in en/es/pl, applied to ItemCard, ItemDetail and ListDetailPage",
+      "UX: reject pending request now requires 2-step confirmation (was single tap, inconsistent with other destructive actions)",
+      "Final: 0 errors, 0 warnings from tsc and eslint",
+    ],
+  },
+  {
+    version: "v0.30",
+    hash: "2b79c21",
     date: "2026-04-05",
     time: "12:45",
     type: "refactor",
