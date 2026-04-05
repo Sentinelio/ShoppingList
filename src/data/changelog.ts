@@ -14,8 +14,20 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.38",
+    version: "v0.39",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "16:05",
+    type: "fix",
+    title: "List search: remove duplicate clear button",
+    details: [
+      "The search input was type='search', which makes Chrome/Safari render a native X clear button. Combined with our custom X button there were two clear buttons side by side.",
+      "Switched to type='text' inputMode='search' — we keep the on-screen keyboard affordances (search button) but drop the native clear button, leaving only our themed one.",
+    ],
+  },
+  {
+    version: "v0.38",
+    hash: "abacbb6",
     date: "2026-04-05",
     time: "15:55",
     type: "style",

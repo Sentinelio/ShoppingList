@@ -323,7 +323,9 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
               🔍
             </span>
             <input
-              type="search"
+              type="text"
+              inputMode="search"
+              autoComplete="off"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t(lang, "searchInList")}
