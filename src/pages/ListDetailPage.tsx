@@ -386,42 +386,20 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                 const isCollapsed = collapsedCategories.has(group.key);
                 return (
                   <div key={group.key} className="mb-2">
-                    {/* Category header */}
+                    {/* Category header — thin row: emoji + name on the left,
+                        count on the right, no big button shell. */}
                     <button
                       onClick={() => toggleCategory(group.key)}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 bg-bg sticky top-0 z-10 cursor-pointer active:bg-card transition-colors"
+                      className="w-full flex items-center gap-2 px-4 pt-3 pb-1.5 cursor-pointer active:opacity-70 transition-opacity"
                     >
-                      <span className="text-base">{group.emoji}</span>
-                      <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+                      <span className="text-[11px]" aria-hidden="true">{group.emoji}</span>
+                      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
                         {group.name}
                       </span>
-                      <span
-                        className="text-text-muted rounded-full flex items-center justify-center"
-                        style={{
-                          fontSize: 10,
-                          width: 20,
-                          height: 20,
-                          backgroundColor: "rgba(139, 146, 168, 0.15)",
-                        }}
-                      >
+                      <div className="flex-1 h-px bg-border-light/50" />
+                      <span className="text-[10px] text-text-muted tabular-nums">
                         {group.items.length}
                       </span>
-                      <div className="flex-1 h-px bg-border-light ml-2" />
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`text-text-muted transition-transform duration-200 ${
-                          isCollapsed ? "-rotate-90" : ""
-                        }`}
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
                     </button>
 
                     {/* Items grid */}

@@ -14,8 +14,20 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.37",
+    version: "v0.38",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "15:55",
+    type: "style",
+    title: "Classic category header — thin line",
+    details: [
+      "Replaced the big sticky category button with a thin row: small emoji + category name on the left, count on the right, a subtle divider in between",
+      "No more chevron icon, no more sticky background, no more rounded count badge — just a minimal label that lets the items breathe below it",
+    ],
+  },
+  {
+    version: "v0.37",
+    hash: "01fc721",
     date: "2026-04-05",
     time: "15:45",
     type: "fix",
