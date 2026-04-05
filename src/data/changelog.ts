@@ -14,8 +14,27 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.35",
+    version: "v0.36",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "15:30",
+    type: "feat",
+    title: "Items view: 21 complete layout redesigns",
+    details: [
+      "Ported the 20 layouts from the v5 HTML mockup as real React components plus a 'Classic Grid' default, for 21 total",
+      "Layouts: Aisle Walk, Card Grid, Chat Bubbles, Compact Chips, Hero Cards, Horizontal Scroll, Timeline, Masonry, Minimal Text, Photo Cards, Swipeable Stack, Color Bars, Split Bilingual, Dense Table, Accordion, Progress Dashboard, Grouped by Person, Magazine Editorial, Sticky Notes, Terminal",
+      "Each layout is a full reimagining: they handle their own grouping (by category, by person, by time) and their own visual structure — not just color swaps",
+      "New registry at src/layouts/items/layouts.tsx + layouts.css; themeStore now persists the selected layout id alongside the palette selection",
+      "ListDetailPage dispatches to the selected layout when non-classic; classic keeps the original category-grouped 3-col grid",
+      "Admin → Themes → Items: replaced the 20-color palette grid with a 21-layout picker that renders each layout at 55% scale against hand-crafted sample data — true WYSIWYG for both structure and content",
+      "Important-item treatment supported everywhere: red pulse background for card layouts, red text + glowing dot for inline/list layouts",
+      "Lists / Details / Store sub-tabs still show the 20-color palettes (full redesigns for those views to follow in a later pass)",
+      "Bundle: main chunk 142 → 161 KB (+19 KB for 20 layout components + their CSS), AdminPage 106 → 111 KB",
+    ],
+  },
+  {
+    version: "v0.35",
+    hash: "d6f7aed",
     date: "2026-04-05",
     time: "15:05",
     type: "fix",

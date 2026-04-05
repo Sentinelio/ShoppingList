@@ -19,9 +19,11 @@ import {
 import { SEED_CATEGORIES } from "../data/seedCategories";
 import { CHANGELOG, type ChangeType } from "../data/changelog";
 import { ALL_THEMES, VIEW_LABELS, type ThemeView } from "../data/themes";
-import { setThemeId, resetThemes } from "../lib/themeStore";
-import { useSelectedThemeIds } from "../hooks/useTheme";
+import { setThemeId, setItemsLayoutId, resetThemes } from "../lib/themeStore";
+import { useSelection } from "../hooks/useTheme";
 import ThemePreview from "../components/admin/ThemePreview";
+import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
+import type { Item, ListMember } from "../lib/supabase";
 
 type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes";
 
@@ -48,12 +50,105 @@ interface ListRow {
   created_at: string;
 }
 
+// ── Themes tab: Items layout picker ────────────────────────────────────────
+// Renders a grid of miniature previews of every items layout (the 21 entries
+// in ITEMS_LAYOUTS). Each preview runs the real layout component against a
+// small hand-crafted sample so the admin sees exactly how their data will
+// look.
+
+const PREVIEW_ITEMS: Item[] = [
+  { id: "p1", list_id: "x", original: "milk",    translations: { en: "Milk",    es: "Leche",    pl: "Mleko" },    category: "dairy",       qty: "2",   unit: "L",  note: "",              photo: null, important: true,  checked: false, added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:00:00Z" },
+  { id: "p2", list_id: "x", original: "bread",   translations: { en: "Bread",   es: "Pan",      pl: "Chleb" },    category: "breads",      qty: "",    unit: "",   note: "rye",           photo: null, important: false, checked: false, added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:01:00Z" },
+  { id: "p3", list_id: "x", original: "chicken", translations: { en: "Chicken", es: "Pollo",    pl: "Kurczak" },  category: "poultry",     qty: "1",   unit: "kg", note: "",              photo: null, important: true,  checked: false, added_by: "u2", added_by_name: "Manu",  created_at: "2026-04-05T10:02:00Z" },
+  { id: "p4", list_id: "x", original: "tomato",  translations: { en: "Tomatoes",es: "Tomates",  pl: "Pomidory" }, category: "vegetables",  qty: "500", unit: "g",  note: "",              photo: null, important: false, checked: false, added_by: "u2", added_by_name: "Manu",  created_at: "2026-04-05T10:03:00Z" },
+  { id: "p5", list_id: "x", original: "apple",   translations: { en: "Apples",  es: "Manzanas", pl: "Jabłka" },   category: "fruits",      qty: "6",   unit: "",   note: "",              photo: null, important: false, checked: true,  added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:04:00Z" },
+  { id: "p6", list_id: "x", original: "coffee",  translations: { en: "Coffee",  es: "Café",     pl: "Kawa" },     category: "drinks",      qty: "250", unit: "g",  note: "ground",        photo: null, important: false, checked: false, added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:05:00Z" },
+];
+
+const PREVIEW_MEMBERS: ListMember[] = [
+  { list_id: "x", user_id: "u1", role: "owner",  status: "active", joined_at: "", user_name: "Kasia", user_lang: "pl", user_country: "PL" },
+  { list_id: "x", user_id: "u2", role: "member", status: "active", joined_at: "", user_name: "Manu",  user_lang: "es", user_country: "ES" },
+];
+
+function ItemsLayoutsPicker({ selectedId }: { selectedId: string }) {
+  return (
+    <>
+      <div className="text-[10px] text-text-muted mb-2 px-1">
+        {ITEMS_LAYOUTS.length} full redesigns · tap to apply instantly
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {ITEMS_LAYOUTS.map(layout => {
+          const isActive = layout.id === selectedId;
+          const Comp = layout.Component;
+          return (
+            <button
+              key={layout.id}
+              onClick={() => setItemsLayoutId(layout.id)}
+              className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
+              style={{
+                background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
+                border: isActive
+                  ? "2px solid var(--color-accent, #f0883e)"
+                  : "1px solid var(--color-border, rgba(255,255,255,0.08))",
+              }}
+            >
+              {/* Scaled-down preview. overflow hidden + fixed height keeps
+                  all 21 previews visually comparable. */}
+              <div
+                className="mb-1.5 pointer-events-none rounded-lg"
+                style={{
+                  height: 180,
+                  overflow: "hidden",
+                  background: "var(--color-bg, #0d1017)",
+                  position: "relative",
+                }}
+              >
+                <div
+                  style={{
+                    transform: "scale(0.55)",
+                    transformOrigin: "top left",
+                    width: "181.8%", // 1/0.55
+                    paddingTop: 8,
+                  }}
+                >
+                  <Comp
+                    items={PREVIEW_ITEMS}
+                    members={PREVIEW_MEMBERS}
+                    userLang="es"
+                    shelfLang="pl"
+                    onToggle={() => {}}
+                    onClick={() => {}}
+                    preview
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-1 px-0.5">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-text truncate">{layout.name}</div>
+                  <div className="text-[9px] text-text-muted truncate">{layout.tag}</div>
+                </div>
+                {isActive && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>
+                    ACTIVE
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
   const [tab, setTab] = useState<Tab>("stats");
   const [themeSubView, setThemeSubView] = useState<ThemeView>("items");
-  const selectedThemes = useSelectedThemeIds();
+  const selection = useSelection();
+  const selectedThemes = selection.themes;
+  const selectedItemsLayoutId = selection.itemsLayout;
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [collapsedStores, setCollapsedStores] = useState<Set<string>>(() => {
@@ -1537,8 +1632,6 @@ export default function AdminPage() {
         {/* ── Themes ── */}
         {tab === "themes" && (() => {
           const views: ThemeView[] = ["items", "lists", "details", "store"];
-          const currentThemes = ALL_THEMES[themeSubView];
-          const currentSelectedId = selectedThemes[themeSubView];
           return (
             <div>
               {/* Summary of current selection */}
@@ -1547,9 +1640,15 @@ export default function AdminPage() {
                   Current selection
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  {views.map(v => (
+                  <div className="bg-bg rounded-lg px-2 py-1.5">
+                    <div className="text-text-muted text-[9px]">Items layout</div>
+                    <div className="text-text font-semibold truncate">
+                      {getItemsLayout(selectedItemsLayoutId).name}
+                    </div>
+                  </div>
+                  {(["lists", "details", "store"] as ThemeView[]).map(v => (
                     <div key={v} className="bg-bg rounded-lg px-2 py-1.5">
-                      <div className="text-text-muted text-[9px]">{VIEW_LABELS[v]}</div>
+                      <div className="text-text-muted text-[9px]">{VIEW_LABELS[v]} palette</div>
                       <div className="text-text font-semibold truncate">
                         {ALL_THEMES[v].find(t => t.id === selectedThemes[v])?.name ?? "—"}
                       </div>
@@ -1586,41 +1685,51 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div className="text-[10px] text-text-muted mb-2 px-1">
-                {currentThemes.length} themes · tap to apply instantly
-              </div>
-
-              {/* Grid of theme previews */}
-              <div className="grid grid-cols-2 gap-3">
-                {currentThemes.map(theme => {
-                  const isActive = theme.id === currentSelectedId;
+              {themeSubView === "items" ? (
+                <ItemsLayoutsPicker selectedId={selectedItemsLayoutId} />
+              ) : (
+                (() => {
+                  const currentThemes = ALL_THEMES[themeSubView];
+                  const currentSelectedId = selectedThemes[themeSubView];
                   return (
-                    <button
-                      key={theme.id}
-                      onClick={() => setThemeId(themeSubView, theme.id)}
-                      className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
-                      style={{
-                        background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
-                        border: isActive
-                          ? "2px solid var(--color-accent, #f0883e)"
-                          : "1px solid var(--color-border, rgba(255,255,255,0.08))",
-                      }}
-                    >
-                      <div className="mb-1.5 pointer-events-none">
-                        <ThemePreview theme={theme} view={themeSubView} />
+                    <>
+                      <div className="text-[10px] text-text-muted mb-2 px-1">
+                        {currentThemes.length} palettes · tap to apply instantly
                       </div>
-                      <div className="flex items-center justify-between px-0.5">
-                        <div className="text-[11px] font-bold text-text truncate">{theme.name}</div>
-                        {isActive && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>
-                            ACTIVE
-                          </span>
-                        )}
+                      <div className="grid grid-cols-2 gap-3">
+                        {currentThemes.map(theme => {
+                          const isActive = theme.id === currentSelectedId;
+                          return (
+                            <button
+                              key={theme.id}
+                              onClick={() => setThemeId(themeSubView, theme.id)}
+                              className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
+                              style={{
+                                background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
+                                border: isActive
+                                  ? "2px solid var(--color-accent, #f0883e)"
+                                  : "1px solid var(--color-border, rgba(255,255,255,0.08))",
+                              }}
+                            >
+                              <div className="mb-1.5 pointer-events-none">
+                                <ThemePreview theme={theme} view={themeSubView} />
+                              </div>
+                              <div className="flex items-center justify-between px-0.5">
+                                <div className="text-[11px] font-bold text-text truncate">{theme.name}</div>
+                                {isActive && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>
+                                    ACTIVE
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
-                    </button>
+                    </>
                   );
-                })}
-              </div>
+                })()
+              )}
             </div>
           );
         })()}

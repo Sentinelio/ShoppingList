@@ -15,6 +15,8 @@ import ItemDetail from "../components/items/ItemDetail";
 import StoreMode from "../components/store/StoreMode";
 import Modal from "../components/ui/Modal";
 import Avatar from "../components/ui/Avatar";
+import { useItemsLayoutId } from "../hooks/useTheme";
+import { getItemsLayout } from "../layouts/items/layouts";
 
 interface ListDetailPageProps {
   listId: string;
@@ -186,6 +188,10 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     setEditingItemId(item.id);
   }, []);
 
+  const layoutId = useItemsLayoutId();
+  const isClassicLayout = layoutId === "items-classic";
+  const activeItemsLayout = getItemsLayout(layoutId);
+
   const countryFlag = list ? getCountryFlag(user?.country ?? "") : "";
 
   // Render a grid of ItemCards
@@ -356,6 +362,20 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
             <p className="text-text-soft font-medium text-lg mb-2">
               {t(lang, "noLists")}
             </p>
+          </div>
+        ) : !isClassicLayout ? (
+          // Full-redesign layouts take over the entire items area. They handle
+          // their own grouping, sections and visual styling — we just hand them
+          // the filtered items + members.
+          <div className="pt-3">
+            <activeItemsLayout.Component
+              items={filteredItems}
+              members={activeMembers}
+              userLang={userLang}
+              shelfLang={shelfLang}
+              onToggle={handleToggle}
+              onClick={handleCardClick}
+            />
           </div>
         ) : (
           <>
