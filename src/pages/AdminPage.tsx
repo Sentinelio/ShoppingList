@@ -18,8 +18,12 @@ import {
 } from "../lib/customStoreConfig";
 import { SEED_CATEGORIES } from "../data/seedCategories";
 import { CHANGELOG, type ChangeType } from "../data/changelog";
+import { ALL_THEMES, VIEW_LABELS, type ThemeView } from "../data/themes";
+import { setThemeId, resetThemes } from "../lib/themeStore";
+import { useSelectedThemeIds } from "../hooks/useTheme";
+import ThemePreview from "../components/admin/ThemePreview";
 
-type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog";
+type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes";
 
 interface DictRow {
   key: string;
@@ -48,6 +52,8 @@ export default function AdminPage() {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
   const [tab, setTab] = useState<Tab>("stats");
+  const [themeSubView, setThemeSubView] = useState<ThemeView>("items");
+  const selectedThemes = useSelectedThemeIds();
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [collapsedStores, setCollapsedStores] = useState<Set<string>>(() => {
@@ -393,6 +399,7 @@ export default function AdminPage() {
     { key: "users", label: "Users", icon: "👥" },
     { key: "lists", label: "Lists", icon: "📝" },
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
+    { key: "themes", label: "Themes", icon: "🎨" },
     { key: "changelog", label: "Updates", icon: "📰" },
   ];
 
@@ -1522,6 +1529,97 @@ export default function AdminPage() {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Themes ── */}
+        {tab === "themes" && (() => {
+          const views: ThemeView[] = ["items", "lists", "details", "store"];
+          const currentThemes = ALL_THEMES[themeSubView];
+          const currentSelectedId = selectedThemes[themeSubView];
+          return (
+            <div>
+              {/* Summary of current selection */}
+              <div className="bg-card rounded-xl p-3 border border-border mb-3">
+                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
+                  Current selection
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  {views.map(v => (
+                    <div key={v} className="bg-bg rounded-lg px-2 py-1.5">
+                      <div className="text-text-muted text-[9px]">{VIEW_LABELS[v]}</div>
+                      <div className="text-text font-semibold truncate">
+                        {ALL_THEMES[v].find(t => t.id === selectedThemes[v])?.name ?? "—"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => resetThemes()}
+                  className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                  style={{
+                    background: "rgba(255,176,61,0.1)",
+                    color: "#ffb03d",
+                    border: "1px solid rgba(255,176,61,0.2)",
+                  }}
+                >
+                  ↺ Reset all to defaults
+                </button>
+              </div>
+
+              {/* Sub-tabs */}
+              <div className="flex gap-1 mb-3 overflow-x-auto">
+                {views.map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setThemeSubView(v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                      themeSubView === v
+                        ? "bg-accent text-white"
+                        : "bg-card text-text-soft active:bg-accent/20"
+                    }`}
+                  >
+                    {VIEW_LABELS[v]}
+                  </button>
+                ))}
+              </div>
+
+              <div className="text-[10px] text-text-muted mb-2 px-1">
+                {currentThemes.length} themes · tap to apply instantly
+              </div>
+
+              {/* Grid of theme previews */}
+              <div className="grid grid-cols-2 gap-3">
+                {currentThemes.map(theme => {
+                  const isActive = theme.id === currentSelectedId;
+                  return (
+                    <button
+                      key={theme.id}
+                      onClick={() => setThemeId(themeSubView, theme.id)}
+                      className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
+                      style={{
+                        background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
+                        border: isActive
+                          ? "2px solid var(--color-accent, #f0883e)"
+                          : "1px solid var(--color-border, rgba(255,255,255,0.08))",
+                      }}
+                    >
+                      <div className="mb-1.5 pointer-events-none">
+                        <ThemePreview theme={theme} view={themeSubView} />
+                      </div>
+                      <div className="flex items-center justify-between px-0.5">
+                        <div className="text-[11px] font-bold text-text truncate">{theme.name}</div>
+                        {isActive && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>
+                            ACTIVE
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );

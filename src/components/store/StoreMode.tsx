@@ -53,7 +53,10 @@ export default function StoreMode({
     : null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-bg">
+    <div
+      className="fixed inset-0 z-[200] flex flex-col"
+      style={{ background: "var(--store-bg, var(--color-bg, #0d1017))" }}
+    >
       {/* Close button — top right */}
       <div className="flex justify-end p-4">
         <button
@@ -75,49 +78,62 @@ export default function StoreMode({
         </div>
       )}
 
-      {/* Product area — centered */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {item.photo ? (
-          <img
-            src={item.photo}
-            className="mb-4 rounded-2xl object-contain border border-border-light"
-            style={{ maxWidth: "80%", maxHeight: "35vh" }}
-            alt=""
-          />
-        ) : emoji ? (
-          <span className="mb-3" style={{ fontSize: 56, lineHeight: 1 }}>
-            {emoji}
-          </span>
-        ) : null}
-
-        <h1
-          className="text-center font-bold text-text leading-tight"
-          style={{ fontSize: 36 }}
+      {/* Product area — centered, themed card wrapper */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4">
+        <div
+          className="flex flex-col items-center w-full max-w-[460px] px-6 py-8"
+          style={{
+            background: "var(--store-card-bg, rgba(255,255,255,0.04))",
+            border: "var(--store-card-border, 2px solid rgba(240,136,62,0.35))",
+            borderRadius: "var(--store-card-radius, 24px)",
+          }}
         >
-          {shelfName}
-        </h1>
+          {item.photo ? (
+            <img
+              src={item.photo}
+              className="mb-4 rounded-2xl object-contain"
+              style={{ maxWidth: "80%", maxHeight: "35vh", border: "1px solid var(--color-border-light)" }}
+              alt={shelfName}
+            />
+          ) : emoji ? (
+            <span className="mb-3" style={{ fontSize: 56, lineHeight: 1 }} aria-hidden="true">
+              {emoji}
+            </span>
+          ) : null}
 
-        {qtyLabel && (
-          <p className="text-accent mt-2" style={{ fontSize: 20 }}>
-            {qtyLabel}
-          </p>
-        )}
-
-        {item.note && (
-          <p
-            className="text-text-muted mt-2 italic text-center"
-            style={{ fontSize: 15 }}
+          <h1
+            className="text-center leading-tight"
+            style={{
+              fontSize: 40,
+              fontWeight: "var(--store-title-weight, 800)" as unknown as number,
+              color: "var(--store-title-color, var(--color-accent, #f0883e))",
+            }}
           >
-            {item.note}
-          </p>
-        )}
+            {shelfName}
+          </h1>
 
-        {shelfLang !== userLang &&
-          userName.toLowerCase() !== shelfName.toLowerCase() && (
-            <p className="text-text-muted mt-2" style={{ fontSize: 15 }}>
-              ({userName} — {getLangName(userLang)})
+          {qtyLabel && (
+            <p className="mt-2" style={{ fontSize: 22, color: "var(--store-accent, var(--color-accent, #f0883e))" }}>
+              {qtyLabel}
             </p>
           )}
+
+          {item.note && (
+            <p
+              className="text-text-muted mt-2 italic text-center"
+              style={{ fontSize: 15 }}
+            >
+              {item.note}
+            </p>
+          )}
+
+          {shelfLang !== userLang &&
+            userName.toLowerCase() !== shelfName.toLowerCase() && (
+              <p className="mt-2" style={{ fontSize: 15, color: "var(--store-subtitle-color, var(--color-text-muted))" }}>
+                ({userName} — {getLangName(userLang)})
+              </p>
+            )}
+        </div>
       </div>
 
       {/* Phrase buttons — bottom */}

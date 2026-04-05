@@ -47,13 +47,16 @@ function ItemCard({
       role="button"
       tabIndex={0}
       aria-label={displayName}
-      className={`relative flex flex-col items-center justify-center rounded-2xl cursor-pointer active:scale-[0.97] transition-transform ${item.important ? "babelcart-important" : ""}`}
+      className={`relative flex flex-col items-center justify-center cursor-pointer active:scale-[0.97] transition-transform ${item.important ? "babelcart-important" : ""}`}
       style={{
         padding: "14px 6px 10px",
-        backgroundColor: `${catColor}26`,
-        border: item.important ? "none" : `1px solid ${catColor}40`,
+        // Theme can override background/border/radius/shadow; otherwise fall
+        // back to the category color tint that has always been the default.
+        background: `var(--item-card-bg, ${catColor}26)`,
+        border: item.important ? "none" : `var(--item-card-border, 1px solid ${catColor}40)`,
+        borderRadius: "var(--item-card-radius, 16px)",
+        boxShadow: "var(--item-card-shadow, none)",
         opacity: isPending ? 0.6 : 1,
-        boxShadow: "none",
         ["--babelcart-cat-bg" as string]: `${catColor}26`,
       }}
       onClick={() => onClick(item)}
@@ -99,7 +102,7 @@ function ItemCard({
       {/* Qty badge - top right */}
       {qtyDisplay && (
         <div
-          className="absolute flex items-center justify-center rounded-md text-text"
+          className="absolute flex items-center justify-center rounded-md"
           style={{
             top: 6,
             right: 6,
@@ -107,7 +110,8 @@ function ItemCard({
             fontWeight: 700,
             padding: "1px 5px",
             lineHeight: 1.4,
-            backgroundColor: `${catColor}4D`,
+            backgroundColor: `var(--item-qty-bg, ${catColor}4D)`,
+            color: "var(--item-qty-color, #e6e8ee)",
           }}
         >
           {qtyDisplay}
@@ -131,15 +135,23 @@ function ItemCard({
           loading="lazy"
         />
       ) : (
-        <span className="select-none" style={{ fontSize: 48, lineHeight: 1 }} aria-hidden="true">
+        <span
+          className="select-none"
+          style={{ fontSize: "var(--item-emoji-size, 48px)", lineHeight: 1 }}
+          aria-hidden="true"
+        >
           {emoji}
         </span>
       )}
 
       {/* Product name */}
       <p
-        className="text-center text-text font-bold leading-tight mt-1 w-full truncate px-1"
-        style={{ fontSize: 12 }}
+        className="text-center leading-tight mt-1 w-full truncate px-1"
+        style={{
+          fontSize: 12,
+          fontWeight: "var(--item-name-weight, 700)" as unknown as number,
+          color: "var(--item-name-color, var(--color-text, #e6e8ee))",
+        }}
       >
         {displayName}
       </p>
@@ -148,7 +160,7 @@ function ItemCard({
       {showShelf && !isPending && !isFailed && (
         <p
           className="text-center leading-tight truncate w-full px-1"
-          style={{ fontSize: 10, color: "#e8c364" }}
+          style={{ fontSize: 10, color: "var(--item-shelf-color, #e8c364)" }}
         >
           {shelfName}
         </p>

@@ -143,7 +143,13 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                   onClick={() =>
                     onNavigate("list-detail", { listId: info.list.id })
                   }
-                  className="w-full text-left bg-card rounded-xl border border-border p-3.5 active:brightness-95 transition-all cursor-pointer"
+                  className="w-full text-left p-3.5 active:brightness-95 transition-all cursor-pointer"
+                  style={{
+                    background: "var(--list-card-bg, var(--color-card, #151922))",
+                    border: "var(--list-card-border, 1px solid var(--color-border, rgba(255,255,255,0.08)))",
+                    borderRadius: "var(--list-card-radius, 12px)",
+                    boxShadow: "var(--list-card-shadow, none)",
+                  }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     {/* Left: name + date */}
@@ -159,7 +165,13 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                     {/* Right: badges + avatars + chevron */}
                     <div className="flex items-center gap-2 shrink-0">
                       {info.uncheckedCount > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-accent/15 text-accent text-[11px] font-bold">
+                        <span
+                          className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold"
+                          style={{
+                            background: "var(--list-badge-bg, rgba(240,136,62,0.15))",
+                            color: "var(--list-badge-color, var(--color-accent, #f0883e))",
+                          }}
+                        >
                           {info.uncheckedCount}
                         </span>
                       )}

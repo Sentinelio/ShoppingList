@@ -198,7 +198,7 @@ export default function ItemDetail({
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} themed>
       <div className="space-y-4">
         {/* Header: icon + name + added by */}
         <div className="flex items-center gap-3">

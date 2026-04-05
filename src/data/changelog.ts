@@ -14,8 +14,26 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.33",
+    version: "v0.34",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "14:50",
+    type: "feat",
+    title: "Themes: 80 dark palettes across 4 views",
+    details: [
+      "New Admin tab 'Themes' with sub-tabs for Items · Lists · Details · Show in store",
+      "20 dark theme variants per view (80 total), all built from a 20-color palette × 5 card-style groups (radius, border, shadow, gradient) so adjacent themes feel distinct",
+      "CSS variable based: each theme exposes --item-card-bg, --list-card-radius, --details-modal-bg, --store-title-color, etc. Components fall back to the classic orange style when no theme is set",
+      "Live previews: each option renders a miniature ItemCard/ListRow/Modal/StoreMode sample scoped to the theme's variables — what you see is what you get",
+      "Selection persisted per view in localStorage (babelcart_themes_v1) and applied to document.documentElement before first render",
+      "useSyncExternalStore-based hook keeps the UI reactive without a context provider",
+      "'Reset all to defaults' button to revert every view to the original orange palette",
+      "Wired into ItemCard, ListsPage list rows, Modal (themed=true for ItemDetail), StoreMode card wrapper",
+    ],
+  },
+  {
+    version: "v0.33",
+    hash: "73cf7c5",
     date: "2026-04-05",
     time: "14:20",
     type: "feat",
