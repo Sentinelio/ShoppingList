@@ -872,15 +872,16 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
-      {/* Header — title on the left, status pill on the right */}
-      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-3 flex items-center justify-between gap-3">
+      {/* Header — centered: title on top, pulsing status dot + label below */}
+      <header className="sticky top-0 z-20 bg-bg border-b border-border-light px-4 py-5 flex flex-col items-center justify-center gap-1.5">
         <h1
-          className="text-lg font-bold leading-none"
+          className="text-2xl font-bold leading-tight flex items-center gap-2"
           style={{ color: "var(--color-text, #e6e8ee)" }}
         >
-          🛠️ Admin Panel
+          <span aria-hidden="true">🛠️</span>
+          <span>Admin Panel</span>
         </h1>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5">
           <span
             className="inline-block w-2.5 h-2.5 rounded-full"
             style={{
@@ -890,7 +891,7 @@ export default function AdminPage() {
             title={IS_DEMO ? "Running in Demo Mode (no Supabase connection)" : "Connected to Supabase"}
           />
           <span
-            className="text-xs font-semibold"
+            className="text-xs font-bold"
             style={{ color: IS_DEMO ? "#ff5c5c" : "#3dd68c" }}
           >
             {IS_DEMO ? "Demo Mode" : "Supabase"}

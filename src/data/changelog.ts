@@ -14,8 +14,20 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.46",
+    version: "v0.47",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "18:35",
+    type: "style",
+    title: "Admin header: centered stacked layout",
+    details: [
+      "Misread the desired layout in v0.46 — the user wants the header centered with the title on top and the status dot + label below, not side-by-side",
+      "Switched to flex-col items-center, bumped the title to text-2xl, increased vertical padding and kept the green pulsing dot + colored 'Supabase' label underneath",
+    ],
+  },
+  {
+    version: "v0.46",
+    hash: "7b30a2f",
     date: "2026-04-05",
     time: "18:25",
     type: "feat",
