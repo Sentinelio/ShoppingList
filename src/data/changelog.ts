@@ -14,8 +14,22 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.44",
+    version: "v0.45",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "18:00",
+    type: "fix",
+    title: "Phrases: clear banner when migration 005 isn't applied",
+    details: [
+      "Root cause of 'Could not find the table public.store_phrases': the user hadn't run migration 005 in Supabase yet, and the error bubbled up as an obscure PostgREST message.",
+      "Admin → Phrases now detects the PGRST205 / 42P01 / 'Could not find the table' errors and shows an amber banner with a one-click 'Copy migration SQL' button and a link to the Supabase SQL editor.",
+      "upsertStorePhrase and deleteStorePhrase now translate the missing-table error into the friendly message 'Migration 005 not applied — the store_phrases table doesn't exist yet'.",
+      "Also restored the cache/loadingPromise/listeners declarations that were accidentally removed in a previous edit (the build was passing but the module was borderline).",
+    ],
+  },
+  {
+    version: "v0.44",
+    hash: "6fdd3d3",
     date: "2026-04-05",
     time: "17:40",
     type: "fix",

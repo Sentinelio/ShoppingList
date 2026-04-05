@@ -35,6 +35,28 @@ function legacyToNew(p: LegacyStorePhrase, i: number): StorePhrase {
 
 const FALLBACK: StorePhrase[] = FALLBACK_PHRASES.map(legacyToNew);
 
+// Module-level flag that turns true when a remote call fails because the
+// store_phrases table doesn't exist yet (migration 005 not applied).
+// Surfaced through getStorePhrasesState so the Admin can render a helpful
+// banner instead of cryptic PostgREST errors.
+let missingTable = false;
+
+function isMissingTableError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = (err as { message?: string }).message ?? String(err);
+  const code = (err as { code?: string }).code;
+  return (
+    code === "PGRST205" ||
+    code === "42P01" ||
+    /Could not find the table/i.test(msg) ||
+    /relation .* does not exist/i.test(msg)
+  );
+}
+
+export function isMigrationMissing(): boolean {
+  return missingTable;
+}
+
 let cache: StorePhrase[] | null = null;
 let loadingPromise: Promise<StorePhrase[]> | null = null;
 const listeners = new Set<(phrases: StorePhrase[]) => void>();
@@ -65,9 +87,11 @@ async function fetchFromRemote(): Promise<StorePhrase[]> {
       .from("store_phrases")
       .select("id, key, emoji, translations, sort_order, usage_count, last_used_at")
       .order("sort_order", { ascending: true });
-    // Actual error (missing table, permission denied, network) — fall back
-    // to the hardcoded list so StoreMode still shows phrases to shoppers.
-    if (error) return FALLBACK;
+    if (error) {
+      missingTable = isMissingTableError(error);
+      return FALLBACK;
+    }
+    missingTable = false;
     // Table exists but has no rows — seed it from the fallback once so the
     // admin's CRUD actions land on real rows. Without this, deletes and
     // edits silently do nothing because the admin is editing in-memory data.
@@ -80,7 +104,8 @@ async function fetchFromRemote(): Promise<StorePhrase[]> {
       return (seeded as StorePhrase[] | null) ?? FALLBACK;
     }
     return data as StorePhrase[];
-  } catch {
+  } catch (err) {
+    missingTable = isMissingTableError(err);
     return FALLBACK;
   }
 }
@@ -161,7 +186,13 @@ export async function upsertStorePhrase(p: StorePhrase): Promise<void> {
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase.from("store_phrases").upsert(payload, { onConflict: "key" });
-  if (error) throw error;
+  if (error) {
+    if (isMissingTableError(error)) {
+      missingTable = true;
+      throw new Error("Migration 005 not applied — the store_phrases table doesn't exist yet");
+    }
+    throw error;
+  }
   await refreshStorePhrases();
 }
 
@@ -175,7 +206,13 @@ export async function deleteStorePhrase(key: string): Promise<void> {
     .delete()
     .eq("key", key)
     .select();
-  if (error) throw error;
+  if (error) {
+    if (isMissingTableError(error)) {
+      missingTable = true;
+      throw new Error("Migration 005 not applied — the store_phrases table doesn't exist yet");
+    }
+    throw error;
+  }
   if (!data || data.length === 0) {
     // The row wasn't in the DB. Seed the fallback and retry so the admin
     // can actually remove defaults they don't want.

@@ -30,6 +30,7 @@ import {
   deleteStorePhrase,
   fillPhrasesForLang,
   countMissingForLang,
+  isMigrationMissing,
   type StorePhrase,
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
@@ -89,9 +90,13 @@ function PhrasesAdminSection() {
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [fillingLang, setFillingLang] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const [migrationMissing, setMigrationMissing] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
   const enabled = getEnabledLangs();
 
-  useEffect(() => { void ensureStorePhrasesLoaded(); }, []);
+  useEffect(() => {
+    void ensureStorePhrasesLoaded().then(() => setMigrationMissing(isMigrationMissing()));
+  }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -107,6 +112,43 @@ function PhrasesAdminSection() {
       showToast(`Deleted '${key}'`);
     } catch (err) {
       showToast(`Error: ${(err as Error).message}`);
+      setMigrationMissing(isMigrationMissing());
+    }
+  };
+
+  const MIGRATION_SQL = `CREATE TABLE IF NOT EXISTS store_phrases (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    key          text UNIQUE NOT NULL,
+    emoji        text NOT NULL DEFAULT '💬',
+    translations jsonb NOT NULL DEFAULT '{}'::jsonb,
+    sort_order   int  NOT NULL DEFAULT 0,
+    usage_count  int  NOT NULL DEFAULT 0,
+    last_used_at timestamptz,
+    created_at   timestamptz DEFAULT now(),
+    updated_at   timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_phrases_order ON store_phrases (sort_order);
+CREATE INDEX IF NOT EXISTS idx_store_phrases_usage ON store_phrases (usage_count DESC);
+
+CREATE OR REPLACE FUNCTION increment_store_phrase_usage(p_key text)
+RETURNS void AS $$
+BEGIN
+    UPDATE store_phrases SET usage_count = usage_count + 1, last_used_at = now() WHERE key = p_key;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+GRANT EXECUTE ON FUNCTION increment_store_phrase_usage(text) TO anon, authenticated;
+
+ALTER TABLE store_phrases ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "store_phrases_select_public" ON store_phrases FOR SELECT USING (true);
+CREATE POLICY "store_phrases_write_anon" ON store_phrases FOR ALL USING (true) WITH CHECK (true);`;
+
+  const copySql = async () => {
+    try {
+      await navigator.clipboard.writeText(MIGRATION_SQL);
+      setSqlCopied(true);
+      setTimeout(() => setSqlCopied(false), 2500);
+    } catch {
+      showToast("Copy failed — select and copy manually");
     }
   };
 
@@ -126,6 +168,50 @@ function PhrasesAdminSection() {
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-card border border-accent/30 text-accent px-4 py-2 rounded-xl text-sm font-medium shadow-lg">
           {toast}
+        </div>
+      )}
+
+      {/* Migration-not-applied banner */}
+      {migrationMissing && (
+        <div
+          className="mb-3 rounded-xl p-3 border"
+          style={{
+            background: "rgba(255,176,61,0.08)",
+            borderColor: "rgba(255,176,61,0.3)",
+          }}
+        >
+          <div className="flex items-start gap-2 mb-2">
+            <span className="text-lg shrink-0" aria-hidden="true">⚠️</span>
+            <div className="text-[12px] text-text">
+              <div className="font-bold mb-0.5" style={{ color: "#ffb03d" }}>
+                Migration 005 not applied
+              </div>
+              <div className="text-text-muted text-[11px]">
+                The <code className="text-[10px] bg-bg px-1 rounded">store_phrases</code> table
+                doesn't exist yet, so editing and deleting don't persist. Run the SQL below in
+                your Supabase SQL editor and reload this page.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={copySql}
+            className="w-full py-2 rounded-lg text-[11px] font-semibold cursor-pointer"
+            style={{
+              background: sqlCopied ? "rgba(61,214,140,0.15)" : "rgba(255,176,61,0.15)",
+              color: sqlCopied ? "#3dd68c" : "#ffb03d",
+              border: `1px solid ${sqlCopied ? "rgba(61,214,140,0.3)" : "rgba(255,176,61,0.3)"}`,
+            }}
+          >
+            {sqlCopied ? "✓ SQL copied to clipboard" : "📋 Copy migration SQL"}
+          </button>
+          <a
+            href="https://supabase.com/dashboard/project/_/sql/new"
+            target="_blank"
+            rel="noreferrer"
+            className="block text-center mt-1.5 text-[10px] text-text-muted underline"
+          >
+            Open Supabase SQL editor →
+          </a>
         </div>
       )}
 
