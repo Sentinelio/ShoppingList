@@ -842,7 +842,7 @@ export default function AdminPage(_: AdminPageProps) {
 
                     {/* Categories list */}
                     {!isCollapsed && st.categories.length > 0 && (
-                      <div className="border-t border-border">
+                      <div className="border-t border-border ml-4 pl-2 my-1 rounded-lg" style={{ borderLeft: "2px solid rgba(240,136,62,0.25)", background: "rgba(255,255,255,0.015)" }}>
                         {st.categories.map(c => {
                           const dictItems = dictRows.filter(d => d.category === c.id);
                           const seed = SEED_CATEGORIES.find(s => s.category === c.id);
@@ -1097,7 +1097,7 @@ export default function AdminPage(_: AdminPageProps) {
             </div>
 
             {/* Available Languages */}
-            <h3 className="text-sm font-bold mb-2">Add Language ({availableLangs.length} available)</h3>
+            <h3 className="text-sm font-bold mb-2">Add Language ({availableLangs.length} languages · {availableLangs.reduce((n, l) => n + l.countries.length, 0)} countries available)</h3>
             <p className="text-text-muted text-[10px] mb-3">Enable a language to add its countries to the app</p>
 
             <div className="space-y-1.5">

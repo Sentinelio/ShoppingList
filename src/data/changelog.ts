@@ -14,6 +14,17 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "08:40",
+    type: "style",
+    title: "Categories indented under store type",
+    details: [
+      "Categories now visually nested inside their store type with left accent border",
+      "Languages tab shows total countries available next to language count",
+    ],
+  },
+  {
+    hash: "f3b09f6",
+    date: "2026-04-05",
     time: "08:25",
     type: "feat",
     title: "Category dropdown menu + header status indicator",
