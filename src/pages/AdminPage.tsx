@@ -35,7 +35,7 @@ import {
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
 
-type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
+type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases" | "itemlab";
 
 interface DictRow {
   key: string;
@@ -1042,6 +1042,7 @@ export default function AdminPage() {
     { key: "lists", label: "Lists", icon: "📝" },
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
     { key: "themes", label: "Themes", icon: "🎨" },
+    { key: "itemlab", label: "Item Detail", icon: "🧪" },
     { key: "phrases", label: "Phrases", icon: "💬" },
     { key: "changelog", label: "Updates", icon: "📰" },
   ];
@@ -2271,6 +2272,23 @@ export default function AdminPage() {
             </div>
           );
         })()}
+
+        {/* ── Item Detail Lab ── */}
+        {tab === "itemlab" && (
+          <div style={{ margin: "-16px", marginTop: 0 }}>
+            <iframe
+              src={`${import.meta.env.BASE_URL}item-detail-lab.html`}
+              title="Item Detail Lab"
+              style={{
+                width: "100%",
+                height: "calc(100vh - 140px)",
+                border: "none",
+                borderRadius: 12,
+                background: "var(--color-bg, #0d1017)",
+              }}
+            />
+          </div>
+        )}
 
         {/* ── Phrases (store-mode helper sentences) ── */}
         {tab === "phrases" && (

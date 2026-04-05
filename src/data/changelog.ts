@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.54",
+    version: "v0.55",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "20:45",
+    type: "feat",
+    title: "Admin tab: Item Detail Lab (placeholder)",
+    details: [
+      "New 🧪 Item Detail tab in Admin that embeds the Side Tab Lab as a full-height iframe",
+      "The lab is a standalone HTML file at public/item-detail-lab.html with its own CSS/JS, sharing variant selections with the React app via localStorage key 'babelcart_item_detail_lab_v1'",
+      "Currently shows a placeholder; the full lab content (7 panels × 10 variants = 70 designs for Show/Edit/Price/Translations/Stats/Comments/History) will be populated in a follow-up commit",
+    ],
+  },
+  {
+    version: "v0.54",
+    hash: "657288f",
     date: "2026-04-05",
     time: "20:25",
     type: "fix",

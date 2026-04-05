@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item Detail Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1017;--surface:#10121a;--card:#161b26;--accent:#f0883e;--accentSoft:rgba(240,136,62,0.10);--shelf:#e8c364;--shelfSoft:rgba(232,195,100,0.06);--shelfBorder:rgba(232,195,100,0.15);--text:#e6e8ee;--soft:#8b92a8;--muted:#555d74;--border:rgba(255,255,255,0.06);--borderL:rgba(255,255,255,0.10);--green:#3dd68c;--red:#ff5c5c;--blue:#6c8aff;--purple:#c76dff;--cyan:#34d6c0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+.app{display:flex;gap:24px;max-width:1200px;margin:0 auto;padding:24px 16px;align-items:flex-start}
+@media(max-width:900px){.app{flex-direction:column;align-items:center}}
+.controls{flex:1;max-width:500px;position:sticky;top:24px}
+.controls h1{font-size:22px;font-weight:800;margin-bottom:4px;background:linear-gradient(135deg,var(--text),var(--shelf));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.controls .sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.ctrl-section{margin-bottom:16px;background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border)}
+.ctrl-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-bottom:8px}
+.ctrl-label .cl-icon{font-size:16px}
+.ctrl-label .cl-active{margin-left:auto;font-size:10px;color:var(--accent);font-weight:600;background:var(--accentSoft);padding:2px 8px;border-radius:6px}
+.ctrl-grid{display:flex;gap:4px;flex-wrap:wrap}
+.ctrl-btn{width:40px;height:34px;border-radius:8px;border:1.5px solid var(--borderL);background:var(--card);color:var(--soft);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.ctrl-btn:hover{border-color:var(--muted);background:rgba(255,255,255,0.04)}
+.ctrl-btn.active{border-color:var(--accent);background:var(--accentSoft);color:var(--accent)}
+.ctrl-desc{font-size:10px;color:var(--muted);margin-top:6px;min-height:14px}
+.phone-wrap{flex-shrink:0;position:sticky;top:24px}
+.phone{width:360px;height:700px;background:var(--bg);border-radius:28px;border:2px solid var(--borderL);overflow:hidden;position:relative;box-shadow:0 16px 48px rgba(0,0,0,0.5);display:flex}
+.phone-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:90px;height:5px;background:var(--borderL);border-radius:0 0 8px 8px;z-index:20}
+.tabs{width:42px;background:var(--surface);display:flex;flex-direction:column;gap:2px;padding:32px 3px 10px;border-right:1px solid var(--border);flex-shrink:0}
+.tab{width:36px;height:38px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;position:relative}
+.tab:hover{background:rgba(255,255,255,0.04)}
+.tab.active{background:var(--card);border:1px solid var(--borderL)}
+.tab.active::after{content:'';position:absolute;right:-4px;top:50%;transform:translateY(-50%);width:3px;height:12px;background:var(--accent);border-radius:2px}
+.tab-spacer{flex:1}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bg)}
+.content-close{position:absolute;top:8px;right:10px;width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,0.05);border:1px solid var(--borderL);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--soft);cursor:pointer;z-index:10}
+.pane-area{flex:1;display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
+.p{padding:36px 16px 16px;flex:1;display:flex;flex-direction:column}
+.p-center{align-items:center;justify-content:center;text-align:center}
+.shelf-xl{font-size:36px;font-weight:900;color:var(--shelf);line-height:1.1}
+.shelf-md{font-size:20px;font-weight:700;color:var(--shelf)}
+.name-md{font-size:16px;font-weight:700}
+.qty-md{font-size:14px;font-weight:700;color:var(--accent)}
+.divider{height:1px;background:var(--border);margin:8px 0}
+.switch{width:38px;height:22px;border-radius:11px;background:var(--muted);position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0}
+.switch.on{background:var(--red)}
+.switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s}
+.switch.on::after{transform:translateX(16px)}
+.input{width:100%;padding:10px 12px;border:1.5px solid var(--borderL);border-radius:10px;background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.input:focus{border-color:var(--accent)}
+.label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.btn-primary{padding:10px 16px;border-radius:10px;background:linear-gradient(135deg,#f09848,#e07028);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-outline{padding:10px 16px;border-radius:10px;background:transparent;color:var(--accent);border:1.5px solid rgba(240,136,62,0.25);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.ph-area{display:none;flex-shrink:0;text-align:center;padding:16px 16px 12px;background:linear-gradient(135deg,#f09848,#e07028);cursor:pointer;user-select:none;position:relative;overflow:hidden}
+.ph-area::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.08),transparent);pointer-events:none}
+.ph-area .ph-active-emoji{font-size:24px;display:block;margin-bottom:4px}
+.ph-area .ph-active-text{font-size:22px;font-weight:800;color:#fff;line-height:1.2;text-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.ph-area .ph-area-hint{font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px}
+.ph-area.ph-visible{display:block;animation:phSlideIn 0.3s ease-out}
+@keyframes phSlideIn{from{max-height:0;padding-top:0;padding-bottom:0;opacity:0}to{max-height:200px;opacity:1}}
+</style>
+</head>
+<body>
+<div id="labLoading" style="text-align:center;color:var(--muted);padding:60px 20px">
+<div style="font-size:48px;margin-bottom:12px">🧪</div>
+<div style="font-size:18px;font-weight:700;color:var(--text)">Item Detail Lab</div>
+<div style="font-size:12px;margin-top:4px">Cargando variantes...</div>
+</div>
+<script>
+// Persistence key — shared with the React app via localStorage
+const STORAGE_KEY = 'babelcart_item_detail_lab_v1';
+function loadState(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||{}}catch{return{}}}
+function saveState(s){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s))}catch{}}
+</script>
+</body>
+</html>
