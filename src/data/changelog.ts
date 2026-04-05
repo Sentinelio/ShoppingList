@@ -14,6 +14,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     hash: "HEAD",
     date: "2026-04-05",
+    time: "08:55",
+    type: "feat",
+    title: "Category rework across store types",
+    details: [
+      "Pets: replaced dog/cat/small_pets with generic Food · Accessories & Toys · Hygiene · Health · Habitat",
+      "Stationery: expanded from 2 to 6 (Pens, Paper, Art, Desk Org, Gift Wrap, School)",
+      "Bazaar: expanded from 2 to 6 (Deco, Kitchen, Storage, Party, Seasonal, Gifts)",
+      "Auto: expanded from 3 to 6 (added Tools, Cleaning, Tires)",
+      "Pharmacy: expanded from 3 to 6 (added Natural, Eye & Ear, Sexual Health)",
+      "Clothing: expanded from 4 to 8 (added Underwear, Sleepwear, Bags, Jewelry)",
+      "Updated seed prompts so Generate items produces the right items for each new category",
+    ],
+  },
+  {
+    hash: "b441057",
+    date: "2026-04-05",
     time: "08:40",
     type: "style",
     title: "Categories indented under store type",
