@@ -14,8 +14,27 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.29",
+    version: "v0.30",
     hash: "HEAD",
+    date: "2026-04-05",
+    time: "12:45",
+    type: "refactor",
+    title: "Code audit: fix lint errors, dead code and data inconsistencies",
+    details: [
+      "Edge Function translate: regenerated hardcoded CATEGORIES_LIST to match all 138 current categories (was stale with old pet/meat/bakery keys, causing wrong category assignments)",
+      "Removed dead props: AddItemBar.items + onDuplicateFound (never wired), AdminPage.onBack, AdminPage._builtIds setter",
+      "Removed unused export setCategoryStoreType from customStoreConfig",
+      "Fixed useSwipe ref-during-render lint error by moving isSwiping to state",
+      "Typed all `any` in useList.ts: DemoDb shape + supabase join responses",
+      "AdminPage: typed list_members/items casts instead of any[]",
+      "Fixed empty catch block in ListDetailPage",
+      "ESLint: disabled overly-strict react-hooks/set-state-in-effect (legitimate localStorage hydration pattern)",
+      "0 errors, 0 warnings from eslint + tsc",
+    ],
+  },
+  {
+    version: "v0.29",
+    hash: "f84dcab",
     date: "2026-04-05",
     time: "12:15",
     type: "fix",

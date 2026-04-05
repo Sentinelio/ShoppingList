@@ -7,6 +7,31 @@ import {
 } from "../lib/demoStore";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+// ── types for demo localStorage shape ───────────────────
+
+interface DemoMemberRow {
+  list_id: string;
+  user_id: string;
+  status: "active" | "pending" | "rejected" | string;
+  role?: "owner" | "member";
+  joined_at?: string;
+}
+interface DemoUserRow { id: string; name?: string; lang?: string; country?: string }
+interface DemoListRow { id: string; name?: string; code?: string }
+interface DemoDb {
+  users?: DemoUserRow[];
+  lists?: DemoListRow[];
+  list_members?: DemoMemberRow[];
+}
+
+function readDemoDb(): DemoDb {
+  try {
+    return JSON.parse(localStorage.getItem("polyglot_demo_db") ?? "{}") as DemoDb;
+  } catch {
+    return {};
+  }
+}
+
 // ── helpers ─────────────────────────────────────────────
 
 function generateCode(): string {
@@ -46,9 +71,16 @@ export function useLists(userId: string | undefined) {
       .eq("status", "active");
 
     if (!error && data) {
-      const fetched = data
-        .map((row: any) => row.lists as List)
-        .filter(Boolean);
+      // Supabase typegen reports `lists` as an array for this join even though
+      // it's a belongs-to (single row). Narrow through unknown.
+      const rows = data as unknown as Array<{ lists: List | List[] | null }>;
+      const fetched: List[] = [];
+      for (const row of rows) {
+        const l = row.lists;
+        if (!l) continue;
+        if (Array.isArray(l)) fetched.push(...l);
+        else fetched.push(l);
+      }
       setLists(fetched);
     }
 
@@ -85,12 +117,18 @@ export function useMyPendingRequests(userId: string | undefined) {
     if (!userId) { setRequests([]); return; }
 
     if (IS_DEMO) {
-      const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"list_members":[],"lists":[]}');
-      const pending = (db.list_members ?? [])
-        .filter((m: any) => m.user_id === userId && m.status === 'pending')
-        .map((m: any) => {
-          const list = (db.lists ?? []).find((l: any) => l.id === m.list_id);
-          return { list_id: m.list_id, list_name: list?.name ?? '?', list_code: list?.code ?? '', status: m.status, joined_at: m.joined_at };
+      const db = readDemoDb();
+      const pending: PendingRequest[] = (db.list_members ?? [])
+        .filter(m => m.user_id === userId && m.status === "pending")
+        .map(m => {
+          const list = (db.lists ?? []).find(l => l.id === m.list_id);
+          return {
+            list_id: m.list_id,
+            list_name: list?.name ?? "?",
+            list_code: list?.code ?? "",
+            status: m.status,
+            joined_at: m.joined_at ?? "",
+          };
         });
       setRequests(pending);
       return;
@@ -103,10 +141,11 @@ export function useMyPendingRequests(userId: string | undefined) {
       .eq("status", "pending");
 
     if (data) {
-      setRequests(data.map((r: any) => ({
+      type JoinRow = { list_id: string; status: string; joined_at: string; lists: { name?: string; code?: string } | null };
+      setRequests((data as JoinRow[]).map(r => ({
         list_id: r.list_id,
-        list_name: r.lists?.name ?? '?',
-        list_code: r.lists?.code ?? '',
+        list_name: r.lists?.name ?? "?",
+        list_code: r.lists?.code ?? "",
         status: r.status,
         joined_at: r.joined_at,
       })));
@@ -125,9 +164,9 @@ export function useMyPendingRequests(userId: string | undefined) {
 
 export async function cancelJoinRequest(listId: string, userId: string): Promise<void> {
   if (IS_DEMO) {
-    const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"list_members":[]}');
-    db.list_members = (db.list_members ?? []).filter((m: any) => !(m.list_id === listId && m.user_id === userId));
-    localStorage.setItem('polyglot_demo_db', JSON.stringify(db));
+    const db = readDemoDb();
+    db.list_members = (db.list_members ?? []).filter(m => !(m.list_id === listId && m.user_id === userId));
+    localStorage.setItem("polyglot_demo_db", JSON.stringify(db));
     return;
   }
   const { error } = await supabase
@@ -160,9 +199,9 @@ export function useListDetail(listId: string | undefined) {
     if (IS_DEMO) {
       setList(demoGetList(listId));
       // Enrich demo members with user names
+      const db = readDemoDb();
       const demoMembers = demoGetMembers(listId).map(m => {
-        const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"users":[]}');
-        const u = (db.users ?? []).find((u: any) => u.id === m.user_id);
+        const u = (db.users ?? []).find(u => u.id === m.user_id);
         return { ...m, user_name: u?.name, user_lang: u?.lang, user_country: u?.country };
       });
       setMembers(demoMembers);
@@ -183,7 +222,8 @@ export function useListDetail(listId: string | undefined) {
 
     if (!listRes.error && listRes.data) setList(listRes.data as List);
     if (!membersRes.error && membersRes.data) {
-      setMembers((membersRes.data as any[]).map(m => ({
+      type MemberRow = ListMember & { users: { name?: string; lang?: string; country?: string } | null };
+      setMembers((membersRes.data as MemberRow[]).map(m => ({
         ...m,
         user_name: m.users?.name,
         user_lang: m.users?.lang,
@@ -348,9 +388,14 @@ export async function leaveList(listId: string, userId: string): Promise<void> {
 
 export async function approveMember(listId: string, userId: string): Promise<void> {
   if (IS_DEMO) {
-    const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"list_members":[]}');
-    const idx = (db.list_members ?? []).findIndex((m: any) => m.list_id === listId && m.user_id === userId);
-    if (idx >= 0) { db.list_members[idx].status = 'active'; localStorage.setItem('polyglot_demo_db', JSON.stringify(db)); }
+    const db = readDemoDb();
+    const members = db.list_members ?? [];
+    const idx = members.findIndex(m => m.list_id === listId && m.user_id === userId);
+    if (idx >= 0) {
+      members[idx].status = "active";
+      db.list_members = members;
+      localStorage.setItem("polyglot_demo_db", JSON.stringify(db));
+    }
     return;
   }
   const { error } = await supabase
@@ -363,9 +408,9 @@ export async function approveMember(listId: string, userId: string): Promise<voi
 
 export async function rejectMember(listId: string, userId: string): Promise<void> {
   if (IS_DEMO) {
-    const db = JSON.parse(localStorage.getItem('polyglot_demo_db') ?? '{"list_members":[]}');
-    db.list_members = (db.list_members ?? []).filter((m: any) => !(m.list_id === listId && m.user_id === userId));
-    localStorage.setItem('polyglot_demo_db', JSON.stringify(db));
+    const db = readDemoDb();
+    db.list_members = (db.list_members ?? []).filter(m => !(m.list_id === listId && m.user_id === userId));
+    localStorage.setItem("polyglot_demo_db", JSON.stringify(db));
     return;
   }
   const { error } = await supabase

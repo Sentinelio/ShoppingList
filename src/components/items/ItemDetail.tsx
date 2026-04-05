@@ -165,7 +165,10 @@ export default function ItemDetail({
   const [note, setNote] = useState("");
   const [deleteStep, setDeleteStep] = useState<0 | 1>(0);
 
-  // Sync local state when item changes
+  // Sync local state when a different item is opened. Depending on `item.id`
+  // (not the full `item` object) avoids wiping local edits on every realtime
+  // update of the same row.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (item) {
       setQty(item.qty || "");

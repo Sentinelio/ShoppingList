@@ -42,7 +42,7 @@ function App() {
 
   // Admin page — accessible without auth
   if (route.page === 'admin') {
-    return <AdminPage onBack={() => { window.location.hash = ''; setRoute({ page: 'lists' }); }} />
+    return <AdminPage />
   }
 
   if (loading) {

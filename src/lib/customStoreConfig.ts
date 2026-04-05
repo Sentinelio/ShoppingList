@@ -80,18 +80,12 @@ export function removeCustomCategory(id: string) {
 // ── Category → Store Type mapping overrides ─────────────
 // Allows moving built-in categories to different store types
 
-export function getCategoryStoreTypeOverrides(): Record<string, string> {
+function getCategoryStoreTypeOverrides(): Record<string, string> {
   try {
     const raw = localStorage.getItem(MAPPING_KEY);
     if (raw) return JSON.parse(raw) as Record<string, string>;
   } catch { /* ignore */ }
   return {};
-}
-
-export function setCategoryStoreType(categoryId: string, storeTypeId: string) {
-  const map = getCategoryStoreTypeOverrides();
-  map[categoryId] = storeTypeId;
-  localStorage.setItem(MAPPING_KEY, JSON.stringify(map));
 }
 
 // ── Combined helpers ────────────────────────────────────

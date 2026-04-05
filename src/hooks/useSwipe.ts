@@ -19,6 +19,7 @@ export function useSwipe<T extends HTMLElement = HTMLDivElement>(
   const ref = useRef<T | null>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   const startX = useRef(0);
   const startY = useRef(0);
@@ -45,6 +46,7 @@ export function useSwipe<T extends HTMLElement = HTMLDivElement>(
     if (!swiping.current) {
       if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
         swiping.current = true;
+        setIsSwiping(true);
       } else {
         return;
       }
@@ -56,6 +58,7 @@ export function useSwipe<T extends HTMLElement = HTMLDivElement>(
   const onTouchEnd = useCallback(() => {
     if (!swiping.current) {
       setOffsetX(0);
+      setIsSwiping(false);
       return;
     }
 
@@ -73,11 +76,12 @@ export function useSwipe<T extends HTMLElement = HTMLDivElement>(
     }
 
     swiping.current = false;
+    setIsSwiping(false);
   }, [offsetX, onSwipeLeft, onSwipeRight]);
 
   const style: CSSProperties = {
     transform: `translateX(${offsetX}px)`,
-    transition: swiping.current ? "none" : "transform 0.2s ease-out",
+    transition: isSwiping ? "none" : "transform 0.2s ease-out",
     willChange: "transform",
   };
 

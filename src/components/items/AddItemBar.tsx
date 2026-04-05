@@ -3,7 +3,6 @@ import { parseQty } from "../../lib/qtyParser";
 import { translateProduct } from "../../lib/translate";
 import { addItem } from "../../hooks/useItems";
 import { t } from "../../data/i18n";
-import type { Item } from "../../lib/supabase";
 import { getEnabledLangs } from "../../lib/langConfig";
 
 interface AddItemBarProps {
@@ -12,15 +11,7 @@ interface AddItemBarProps {
   shelfLang: string;
   userId: string;
   userName: string;
-  items: Item[];
   onItemAdded: () => void;
-  onDuplicateFound?: (
-    existing: Item,
-    newTranslations: Record<string, string>,
-    category: string,
-    qty: string,
-    unit: string,
-  ) => void; // TODO: wire up duplicate modal in ListDetailPage
 }
 
 const UNITS = [
@@ -40,9 +31,7 @@ export default function AddItemBar({
   shelfLang,
   userId,
   userName,
-  items: _items,
   onItemAdded,
-  onDuplicateFound: _onDuplicateFound,
 }: AddItemBarProps) {
   const lang = userLang;
 

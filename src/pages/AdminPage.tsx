@@ -44,15 +44,10 @@ interface ListRow {
   created_at: string;
 }
 
-interface AdminPageProps {
-  onBack: () => void;
-}
-
-export default function AdminPage(_: AdminPageProps) {
+export default function AdminPage() {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
   const [tab, setTab] = useState<Tab>("stats");
-  const [, setBuiltIds] = useState<string[]>([]);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [collapsedStores, setCollapsedStores] = useState<Set<string>>(() => {
@@ -266,7 +261,6 @@ export default function AdminPage(_: AdminPageProps) {
       const data = await res.json();
       if (res.ok) {
         showToast(`✅ ${seed.name}: ${data.inserted} products added`);
-        setBuiltIds(prev => [...prev, seed.id]);
         fetchDictionary();
       } else {
         showToast(`❌ ${data.error}`);
@@ -342,14 +336,18 @@ export default function AdminPage(_: AdminPageProps) {
       const { data: members } = await supabase.from("list_members").select("list_id, status");
       if (members) {
         const counts: Record<string, number> = {};
-        (members as any[]).forEach(m => { if (m.status === "active") counts[m.list_id] = (counts[m.list_id] || 0) + 1; });
+        (members as Array<{ list_id: string; status: string }>).forEach(m => {
+          if (m.status === "active") counts[m.list_id] = (counts[m.list_id] || 0) + 1;
+        });
         setListMembers(counts);
       }
       // Fetch item counts
       const { data: items } = await supabase.from("items").select("list_id");
       if (items) {
         const counts: Record<string, number> = {};
-        (items as any[]).forEach(i => { counts[i.list_id] = (counts[i.list_id] || 0) + 1; });
+        (items as Array<{ list_id: string }>).forEach(i => {
+          counts[i.list_id] = (counts[i.list_id] || 0) + 1;
+        });
         setListItems(counts);
       }
     }

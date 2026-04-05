@@ -19,5 +19,10 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Legitimate pattern for hydrating React state from localStorage / async
+      // fetches. The stricter rule produces many false positives in this codebase.
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ])

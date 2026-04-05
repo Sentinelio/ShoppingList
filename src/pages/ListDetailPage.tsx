@@ -419,9 +419,8 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           shelfLang={shelfLang}
           userId={user.id}
           userName={user.name}
-          items={items}
           onItemAdded={() => {
-            // Items update via realtime
+            /* items update via realtime */
           }}
         />
       )}
@@ -569,7 +568,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         <button
           onClick={async () => {
             if (confirmLeave) {
-              try { await deleteList(listId); } catch {}
+              try { await deleteList(listId); } catch { /* realtime will sync */ }
               setConfirmLeave(false);
               setShowListSettings(false);
               onNavigate("lists");
