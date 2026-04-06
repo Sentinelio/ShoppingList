@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "v0.56",
+    hash: "HEAD",
+    date: "2026-04-06",
+    time: "22:00",
+    type: "chore",
+    title: "CI deploy test",
+    details: [],
+  },
+  {
     version: "v0.55",
     hash: "HEAD",
     date: "2026-04-05",
