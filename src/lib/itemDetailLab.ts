@@ -9,7 +9,7 @@ const STORAGE_KEY = "babelcart_item_detail_lab_v1";
 
 export interface LabSelection {
   show: number;  // 0-9  → StoreMode variant
-  edit: number;  // 0-4  → ItemDetail variant
+  edit: number;  // (unused — edit pane is now fixed, kept for back-compat)
   price: number; // 0-4
   trans: number; // 0-4
   stats: number; // 0-4
