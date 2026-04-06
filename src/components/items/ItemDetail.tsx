@@ -252,43 +252,99 @@ export default function ItemDetail({
     </div>
   );
 
-  // ── TRANSLATIONS PANE ──────────────────────────────────────────────────
-  const transPane = (
-    <div style={{ padding: "12px 16px", flex: 1 }}>
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
-        <span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}
-        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{qty}{unit}</span>
-      </div>
-      {/* Your language + shelf language highlighted */}
+  // ── TRANSLATIONS PANE (5 variants from the lab) ─────────────────────────
+  const otherLangs = Object.entries(item.translations || {}).filter(([c]) => c !== userLang && c !== shelfLang);
+
+  const transVariants: React.ReactNode[] = [
+    // v1: Flag List — yours + shelf highlighted, others below divider
+    <div key="t0" style={{ padding: "12px 16px", flex: 1 }}>
+      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{qty}{unit}</span></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
-        {[
-          { flag: getLangFlag(userLang), word: displayName, label: "Tu idioma", bg: "rgba(108,138,255,0.08)", border: "rgba(108,138,255,0.2)", color: "var(--color-text)" },
+        {[{ flag: getLangFlag(userLang), word: displayName, label: "Tu idioma", bg: "rgba(108,138,255,0.08)", border: "rgba(108,138,255,0.2)", color: "var(--color-text)" },
           ...(showShelf ? [{ flag: getLangFlag(shelfLang) || countryFlag, word: shelfName, label: "Estante", bg: "rgba(232,195,100,0.08)", border: "rgba(232,195,100,0.2)", color: "var(--color-shelf, #e8c364)" }] : []),
         ].map((row, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, background: row.bg, border: `1.5px solid ${row.border}` }}>
-            <span style={{ fontSize: 20 }}>{row.flag}</span>
-            <span style={{ fontSize: 17, fontWeight: 800, flex: 1, color: row.color }}>{row.word}</span>
-            <span style={{ fontSize: 9, color: "#555d74", fontWeight: 600 }}>{row.label}</span>
+            <span style={{ fontSize: 20 }}>{row.flag}</span><span style={{ fontSize: 17, fontWeight: 800, flex: 1, color: row.color }}>{row.word}</span><span style={{ fontSize: 9, color: "#555d74", fontWeight: 600 }}>{row.label}</span>
           </div>
         ))}
       </div>
-      {/* Divider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0 8px" }}>
-        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
-        <span style={{ fontSize: 9, color: "#555d74", fontWeight: 600 }}>Otros idiomas</span>
-        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
-      </div>
-      {/* Other languages */}
-      {Object.entries(item.translations || {})
-        .filter(([code]) => code !== userLang && code !== shelfLang)
-        .map(([code, word]) => (
-          <div key={code} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px", borderRadius: 8 }}>
-            <span style={{ fontSize: 14 }}>{getLangFlag(code)}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#8b92a8" }}>{word}</span>
-          </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0 8px" }}><div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} /><span style={{ fontSize: 9, color: "#555d74", fontWeight: 600 }}>Otros idiomas</span><div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} /></div>
+      {otherLangs.map(([code, word]) => (
+        <div key={code} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px", borderRadius: 8 }}><span style={{ fontSize: 14 }}>{getLangFlag(code)}</span><span style={{ fontSize: 13, fontWeight: 600, color: "#8b92a8" }}>{word}</span></div>
+      ))}
+    </div>,
+
+    // v2: Bridge Visual — yours → emoji → shelf
+    <div key="t1" style={{ padding: "12px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#6c8aff", textTransform: "uppercase", letterSpacing: "0.1em" }}>🇵🇱 Tu idioma</div>
+      <div style={{ fontSize: 24, fontWeight: 800 }}>{displayName}</div>
+      <div style={{ fontSize: 28, margin: "8px 0", color: "var(--color-accent)" }}>↓ {emojiChar} ↓</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "var(--color-shelf, #e8c364)", textTransform: "uppercase", letterSpacing: "0.1em" }}>🇪🇸 En la tienda</div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>
+      <div style={{ height: 1, width: "80%", background: "rgba(255,255,255,0.06)", margin: "12px auto" }} />
+      <div style={{ fontSize: 10, color: "#555d74", marginBottom: 4 }}>Otros idiomas</div>
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center" }}>
+        {otherLangs.map(([code, word]) => (
+          <span key={code} style={{ padding: "4px 10px", borderRadius: 8, background: "var(--color-card, #161b26)", fontSize: 11, color: "#8b92a8" }}>{getLangFlag(code)} {word}</span>
         ))}
-    </div>
-  );
+      </div>
+    </div>,
+
+    // v3: Tag Cloud — all translations as colored chips
+    <div key="t2" style={{ padding: "12px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+      <span style={{ fontSize: 48 }}>{emojiChar}</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+        {Object.entries(item.translations || {}).map(([code, word]) => {
+          const isYours = code === userLang;
+          const isShelf = code === shelfLang;
+          return (
+            <span key={code} style={{ padding: "7px 14px", borderRadius: 20, background: isYours ? "rgba(108,138,255,0.1)" : isShelf ? "rgba(232,195,100,0.1)" : "rgba(255,255,255,0.04)", border: `1px solid ${isYours ? "rgba(108,138,255,0.2)" : isShelf ? "rgba(232,195,100,0.2)" : "var(--color-border)"}`, fontSize: 13, fontWeight: 700, color: isShelf ? "var(--color-shelf, #e8c364)" : isYours ? "#6c8aff" : "#8b92a8" }}>
+              {getLangFlag(code)} {word}
+            </span>
+          );
+        })}
+      </div>
+    </div>,
+
+    // v4: Card Grid — 2-column cards with flags
+    <div key="t3" style={{ padding: "12px 16px", flex: 1 }}>
+      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ fontSize: 24 }}>{emojiChar}</span></div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        {Object.entries(item.translations || {}).map(([code, word]) => {
+          const isYours = code === userLang;
+          const isShelf = code === shelfLang;
+          return (
+            <div key={code} style={{ padding: 10, borderRadius: 10, background: isYours ? "rgba(108,138,255,0.06)" : isShelf ? "rgba(232,195,100,0.06)" : "var(--color-card, #161b26)", border: `1px solid ${isYours ? "rgba(108,138,255,0.15)" : isShelf ? "rgba(232,195,100,0.15)" : "var(--color-border)"}`, textAlign: "center" }}>
+              <div style={{ fontSize: 18 }}>{getLangFlag(code)}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: isShelf ? "var(--color-shelf, #e8c364)" : "var(--color-text)", marginTop: 2 }}>{word}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>,
+
+    // v5: Comparison Columns — side by side
+    <div key="t4" style={{ padding: "12px 16px", flex: 1 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ padding: "8px 12px", background: "rgba(108,138,255,0.06)", fontSize: 10, fontWeight: 700, color: "#6c8aff", textAlign: "center", borderBottom: "1px solid var(--color-border)" }}>Tu idioma</div>
+        <div style={{ padding: "8px 12px", background: "rgba(232,195,100,0.06)", fontSize: 10, fontWeight: 700, color: "var(--color-shelf, #e8c364)", textAlign: "center", borderBottom: "1px solid var(--color-border)" }}>Estante</div>
+        <div style={{ padding: 14, textAlign: "center", borderRight: "1px solid var(--color-border)" }}>
+          <div style={{ fontSize: 32 }}>{emojiChar}</div><div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{displayName}</div>
+        </div>
+        <div style={{ padding: 14, textAlign: "center" }}>
+          <div style={{ fontSize: 32 }}>{emojiChar}</div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--color-shelf, #e8c364)", marginTop: 4 }}>{shelfName}</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>También se dice...</div>
+        {otherLangs.map(([code, word]) => (
+          <div key={code} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 12 }}><span>{getLangFlag(code)}</span><span style={{ fontWeight: 600 }}>{word}</span></div>
+        ))}
+      </div>
+    </div>,
+  ];
+
+  const transPane = transVariants[labSel.trans] ?? transVariants[0];
 
   // ── DELETE PANE ────────────────────────────────────────────────────────
   const delPane = (
@@ -339,11 +395,11 @@ export default function ItemDetail({
         style={{
           position: "relative",
           display: "flex",
-          width: "calc(100% - 32px)",
+          width: "calc(100% - 64px)",
           maxWidth: 460,
-          height: "calc(100% - 32px)",
-          maxHeight: "calc(100vh - 32px)",
-          margin: "16px auto",
+          height: "calc(100% - 64px)",
+          maxHeight: "calc(100vh - 64px)",
+          margin: "32px auto",
           background: "var(--color-bg, #0d1017)",
           overflow: "hidden",
           zIndex: 1,
