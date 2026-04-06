@@ -205,10 +205,42 @@ export default function ItemDetail({
     </div>
   );
 
-  // ── EDIT PANE ──────────────────────────────────────────────────────────
-  const editPane = (
-    <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-      {/* Header */}
+  // ── EDIT PANE (5 variants synced from lab) ───────────────────────────────
+  // Shared blocks used by all edit variants
+  const photoBlock = item.photo ? (
+    <img src={item.photo} style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }} alt="" />
+  ) : !editingPhoto ? (
+    <button type="button" onClick={() => setEditingPhoto(true)}
+      style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+      🔗 {t(lang, "addPhotoUrl")}
+    </button>
+  ) : (
+    <div style={{ display: "flex", gap: 6 }}>
+      <input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..." autoFocus
+        onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
+        className="input" style={{ flex: 1, fontSize: 13, padding: "8px 12px" }} />
+      <button onClick={savePhotoUrl} style={{ padding: "8px 14px", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>OK</button>
+    </div>
+  );
+
+  const importantBlock = (
+    <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 11, border: `1.5px solid ${item.important ? "rgba(255,92,92,0.3)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.04)" : "transparent", cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
+      <span style={{ width: 10, height: 10, borderRadius: "50%", background: item.important ? "#ff5c5c" : "#555d74", boxShadow: item.important ? "0 0 6px rgba(255,92,92,0.4)" : "none" }} />
+      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: item.important ? "#ff5c5c" : "var(--color-text, #e6e8ee)", textAlign: "left" }}>{item.important ? t(lang, "important") : t(lang, "markImportant")}</span>
+    </button>
+  );
+
+  const saveBtn = (
+    <button type="button" onClick={handleSave}
+      style={{ width: "100%", padding: "12px 0", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: "auto" }}>
+      💾 {t(lang, "save")}
+    </button>
+  );
+
+  const editVariants: React.ReactNode[] = [
+    // v1: Classic Form — labels + inputs stacked
+    <div key="e0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <ProductIcon name={item.original} size={48} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -216,50 +248,114 @@ export default function ItemDetail({
           {item.added_by_name && <div style={{ fontSize: 11, color: "#555d74" }}>{t(lang, "addedBy")} {item.added_by_name}</div>}
         </div>
       </div>
-      {/* Photo */}
-      {item.photo ? (
-        <img src={item.photo} style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }} alt="" />
-      ) : !editingPhoto ? (
-        <button type="button" onClick={() => setEditingPhoto(true)}
-          style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-          🔗 {t(lang, "addPhotoUrl")}
-        </button>
-      ) : (
-        <div style={{ display: "flex", gap: 6 }}>
-          <input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..." autoFocus
-            onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
-            className="input" style={{ flex: 1, fontSize: 13, padding: "8px 12px" }} />
-          <button onClick={savePhotoUrl} style={{ padding: "8px 14px", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>OK</button>
-        </div>
-      )}
-      {/* Qty / Unit / Note */}
+      {photoBlock}
       <div>
         <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{t(lang, "qty")}</div>
         <div style={{ display: "flex", gap: 6 }}>
-          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave}
-            placeholder="1" className="input" style={{ width: 60, textAlign: "center" }} />
-          <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }}
-            className="input" style={{ width: 70 }}>
+          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 60, textAlign: "center" }} />
+          <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 70 }}>
             {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
-          <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave}
-            placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
+          <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
         </div>
       </div>
-      {/* Important */}
-      <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
-        style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 11, border: `1.5px solid ${item.important ? "rgba(255,92,92,0.3)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.04)" : "transparent", cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
-        <span style={{ width: 10, height: 10, borderRadius: "50%", background: item.important ? "#ff5c5c" : "#555d74", boxShadow: item.important ? "0 0 6px rgba(255,92,92,0.4)" : "none" }} />
-        <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: item.important ? "#ff5c5c" : "var(--color-text, #e6e8ee)", textAlign: "left" }}>{item.important ? t(lang, "important") : t(lang, "markImportant")}</span>
-        <span className="switch" style={item.important ? { background: "#ff5c5c" } : {}} />
-      </button>
-      {/* Save */}
-      <button type="button" onClick={handleSave}
-        style={{ width: "100%", padding: "12px 0", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: "auto" }}>
-        💾 {t(lang, "save")}
-      </button>
-    </div>
-  );
+      {importantBlock}
+      {saveBtn}
+    </div>,
+
+    // v2: Stepper Buttons — big +/- for qty, centered emoji
+    <div key="e1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, flex: 1, textAlign: "center" }}>
+      <ProductIcon name={item.original} size={64} />
+      <div style={{ fontSize: 18, fontWeight: 800 }}>{displayName}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "8px 0" }}>
+        <button type="button" onClick={() => { const n = Math.max(0, Number(qty) - 1); setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
+          style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--color-card, #161b26)", border: "2px solid rgba(255,255,255,0.10)", fontSize: 20, color: "#8b92a8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+        <div>
+          <span style={{ fontSize: 40, fontWeight: 900, color: "var(--color-accent, #f0883e)" }}>{qty || "0"}</span>
+          <div style={{ fontSize: 11, color: "#8b92a8" }}>{UNITS.find(u => u.value === unit)?.label || "—"}</div>
+        </div>
+        <button type="button" onClick={() => { const n = Number(qty) + 1; setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
+          style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #f09848, #e07028)", border: "none", fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+      </div>
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "center" }}>
+        {UNITS.filter(u => u.value).map(u => (
+          <button key={u.value} type="button" onClick={() => { setUnit(u.value); onUpdate(item.id, { qty, unit: u.value, note }); }}
+            style={{ padding: "5px 12px", borderRadius: 8, background: unit === u.value ? "rgba(240,136,62,0.12)" : "var(--color-card, #161b26)", fontSize: 11, color: unit === u.value ? "var(--color-accent)" : "#555d74", fontWeight: 600, border: `1px solid ${unit === u.value ? "rgba(240,136,62,0.3)" : "var(--color-border)"}`, cursor: "pointer" }}>{u.label}</button>
+        ))}
+      </div>
+      <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ width: "100%" }} />
+      {photoBlock}
+      {importantBlock}
+      {saveBtn}
+    </div>,
+
+    // v3: All-in-one Row — compact
+    <div key="e2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--color-card, #161b26)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)" }}>
+        <ProductIcon name={item.original} size={40} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700 }} className="truncate">{displayName}</div>
+          {showShelf && <div style={{ fontSize: 11, color: "var(--color-shelf)", fontWeight: 600 }}>{shelfName}</div>}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 5 }}>
+        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 50, textAlign: "center" }} />
+        <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 60 }}>
+          {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+        </select>
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
+      </div>
+      <div style={{ display: "flex", gap: 5 }}>
+        <div style={{ flex: 1 }}>{importantBlock}</div>
+      </div>
+      {photoBlock}
+      {saveBtn}
+    </div>,
+
+    // v4: Minimal Fields — no labels, just placeholders
+    <div key="e3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
+      <ProductIcon name={item.original} size={56} />
+      {showShelf && <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>}
+      <div style={{ display: "flex", gap: 6, width: "100%", marginTop: 8 }}>
+        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder={t(lang, "qty")} className="input" style={{ width: 60, textAlign: "center" }} />
+        <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 50 }}>
+          {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+        </select>
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
+      </div>
+      {importantBlock}
+      {photoBlock}
+      {saveBtn}
+    </div>,
+
+    // v5: Quick Presets — preset qty buttons
+    <div key="e4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+      <div style={{ textAlign: "center" }}>
+        <ProductIcon name={item.original} size={40} />
+        <span style={{ fontSize: 18, fontWeight: 800, marginLeft: 8, verticalAlign: "middle" }}>{displayName}</span>
+      </div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cantidad rapida</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+        {(unit === "L" ? ["1L","2L","3L","500ml"] : unit === "kg" ? ["100g","250g","500g","1kg"] : ["1×","2×","3×","6×"]).map(p => {
+          const match = p === `${qty}${unit}` || p === `${qty}×`;
+          return (
+            <button key={p} type="button" onClick={() => {
+              const num = p.replace(/[^0-9.]/g, ""); const u = p.replace(/[0-9.]/g, "");
+              setQty(num); const mapped = u === "×" ? "x" : u; setUnit(mapped);
+              onUpdate(item.id, { qty: num, unit: mapped, note });
+            }}
+              style={{ padding: "10px 0", borderRadius: 10, textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", background: match ? "rgba(240,136,62,0.12)" : "var(--color-card, #161b26)", color: match ? "var(--color-accent)" : "#555d74", border: `1px solid ${match ? "var(--color-accent)" : "var(--color-border)"}` }}>{p}</button>
+          );
+        })}
+      </div>
+      <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" />
+      {photoBlock}
+      {importantBlock}
+      {saveBtn}
+    </div>,
+  ];
+
+  const editPane = editVariants[labSel.edit] ?? editVariants[0];
 
   // ── TRANSLATIONS PANE (5 variants from the lab) ─────────────────────────
   const otherLangs = Object.entries(item.translations || {}).filter(([c]) => c !== userLang && c !== shelfLang);
