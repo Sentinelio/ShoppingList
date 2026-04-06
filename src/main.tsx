@@ -4,6 +4,7 @@ import './index.css'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { initThemes, reloadThemes } from './lib/themeStore'
+import { reloadLabSelection } from './lib/itemDetailLab'
 import { loadRemoteConfig, subscribeToConfigChanges, onConfigChange } from './lib/appConfigStore'
 
 // Unregister any stale service workers
@@ -33,13 +34,15 @@ root.render(
 // Also subscribe to realtime changes so admin updates propagate instantly.
 loadRemoteConfig().then((loaded) => {
   if (loaded) {
-    // Re-apply themes since remote config may have overwritten localStorage
+    // Re-apply themes/lab since remote config may have overwritten localStorage
     reloadThemes()
+    reloadLabSelection()
   }
   // Subscribe to realtime config changes from admin
   subscribeToConfigChanges()
-  // When a realtime config change arrives, re-apply themes if relevant
+  // When a realtime config change arrives, re-apply the relevant store
   onConfigChange((key) => {
     if (key === "themes") reloadThemes()
+    if (key === "lab_selection") reloadLabSelection()
   })
 })

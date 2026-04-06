@@ -3,7 +3,8 @@ import type { Item } from "../../lib/supabase";
 import ProductIcon from "../ui/ProductIcon";
 import { getLangFlag } from "../../data/langs";
 import { t } from "../../data/i18n";
-import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
+import { SHOW_VARIANTS } from "../../lib/itemDetailLab";
+import { useLabSelection } from "../../hooks/useLabSelection";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
@@ -95,7 +96,7 @@ export default function ItemDetail({
   const [photoUrl, setPhotoUrl] = useState("");
   const [editingPhoto, setEditingPhoto] = useState(false);
   const phrases = useStorePhrases();
-  const labSel = getLabSelection();
+  const labSel = useLabSelection();
   const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
 
   // Debug: log what we read so we can diagnose sync issues

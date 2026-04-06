@@ -27,7 +27,11 @@ const DEFAULTS: LabSelection = {
   hist: 0,
 };
 
-export function getLabSelection(): LabSelection {
+// ── Subscriber pattern (mirrors themeStore) so React can re-render ─────
+let current: LabSelection | null = null;
+const listeners = new Set<() => void>();
+
+function readFromStorage(): LabSelection {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -36,6 +40,22 @@ export function getLabSelection(): LabSelection {
     }
   } catch { /* ignore */ }
   return { ...DEFAULTS };
+}
+
+export function getLabSelection(): LabSelection {
+  if (!current) current = readFromStorage();
+  return current;
+}
+
+/** Re-read from localStorage and notify subscribers (called after remote config update). */
+export function reloadLabSelection() {
+  current = readFromStorage();
+  listeners.forEach(fn => fn());
+}
+
+export function subscribeLabSelection(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
 }
 
 /** Sync current lab selection to Supabase (called from AdminPage after iframe changes). */

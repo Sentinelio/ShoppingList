@@ -3,7 +3,8 @@ import type { Item } from "../../lib/supabase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
-import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
+import { SHOW_VARIANTS } from "../../lib/itemDetailLab";
+import { useLabSelection } from "../../hooks/useLabSelection";
 
 interface StoreModeProps {
   item: Item;
@@ -25,7 +26,7 @@ export default function StoreMode({
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [showPhrases, setShowPhrases] = useState(false);
   const phrases = useStorePhrases();
-  const labSel = getLabSelection();
+  const labSel = useLabSelection();
   const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
 
   useEffect(() => {
