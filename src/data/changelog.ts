@@ -19,11 +19,13 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-04-05",
     time: "20:45",
     type: "feat",
-    title: "Admin tab: Item Detail Lab (placeholder)",
+    title: "Admin tab: Item Detail Lab — 7 panels with multiple design variants",
     details: [
-      "New 🧪 Item Detail tab in Admin that embeds the Side Tab Lab as a full-height iframe",
-      "The lab is a standalone HTML file at public/item-detail-lab.html with its own CSS/JS, sharing variant selections with the React app via localStorage key 'babelcart_item_detail_lab_v1'",
-      "Currently shows a placeholder; the full lab content (7 panels × 10 variants = 70 designs for Show/Edit/Price/Translations/Stats/Comments/History) will be populated in a follow-up commit",
+      "New 🧪 Item Detail tab in Admin embeds a full interactive Side Tab Lab via iframe",
+      "7 panels: Show in store (10 variants), Edit (5), Translations (5), History (5), Comments (5), Prices (5), Stats (5), Delete (1) — 41 designs total",
+      "Phone preview with side tabs shows the selected variant live; control panel lets admin pick per panel",
+      "Selection persists to localStorage key 'babelcart_item_detail_lab_v1' shared with the React app",
+      "Show in store variants include collapsible phrase list with tap-to-show interaction",
     ],
   },
   {
