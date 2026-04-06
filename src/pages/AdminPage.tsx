@@ -35,7 +35,7 @@ import {
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
 
-type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases" | "itemlab";
+type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
 
 interface DictRow {
   key: string;
@@ -1042,7 +1042,6 @@ export default function AdminPage() {
     { key: "lists", label: "Lists", icon: "📝" },
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
     { key: "themes", label: "Themes", icon: "🎨" },
-    { key: "itemlab", label: "Item Detail", icon: "🧪" },
     { key: "phrases", label: "Phrases", icon: "💬" },
     { key: "changelog", label: "Updates", icon: "📰" },
   ];
@@ -2273,23 +2272,6 @@ export default function AdminPage() {
           );
         })()}
 
-        {/* ── Item Detail Lab ── */}
-        {tab === "itemlab" && (
-          <div style={{ margin: "-16px", marginTop: 0 }}>
-            <iframe
-              src={`${import.meta.env.BASE_URL}item-detail-lab.html`}
-              title="Item Detail Lab"
-              style={{
-                width: "100%",
-                height: "calc(100vh - 140px)",
-                border: "none",
-                borderRadius: 12,
-                background: "var(--color-bg, #0d1017)",
-              }}
-            />
-          </div>
-        )}
-
         {/* ── Phrases (store-mode helper sentences) ── */}
         {tab === "phrases" && (
           <PhrasesAdminSection />
@@ -2353,6 +2335,22 @@ export default function AdminPage() {
 
               {themeSubView === "items" ? (
                 <ItemsLayoutsPicker selectedId={selectedItemsLayoutId} />
+              ) : themeSubView === "details" ? (
+                /* Item Detail Lab — replaces the color palette grid for the
+                   Details sub-tab with the full interactive side-tab lab. */
+                <div style={{ margin: "-16px -16px 0", marginTop: 0 }}>
+                  <iframe
+                    src={`${import.meta.env.BASE_URL}item-detail-lab.html`}
+                    title="Item Detail Lab"
+                    style={{
+                      width: "100%",
+                      height: "calc(100vh - 200px)",
+                      border: "none",
+                      borderRadius: 12,
+                      background: "var(--color-bg, #0d1017)",
+                    }}
+                  />
+                </div>
               ) : (
                 (() => {
                   const currentThemes = ALL_THEMES[themeSubView];
