@@ -3,7 +3,7 @@ import type { Item } from "../../lib/supabase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
-import { getLangName } from "../../data/langs";
+import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
 
 interface StoreModeProps {
   item: Item;
@@ -23,7 +23,10 @@ export default function StoreMode({
   onClose,
 }: StoreModeProps) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [showPhrases, setShowPhrases] = useState(false);
   const phrases = useStorePhrases();
+  const labSel = getLabSelection();
+  const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -57,10 +60,10 @@ export default function StoreMode({
   return (
     <div
       className="fixed inset-0 z-[200] flex flex-col"
-      style={{ background: "var(--store-bg, var(--color-bg, #0d1017))" }}
+      style={{ background: sv.bodyBg || "var(--color-bg, #0d1017)" }}
     >
       {/* Close button — top right */}
-      <div className="flex justify-end p-4">
+      <div className="flex justify-end p-4" style={{ flexShrink: 0 }}>
         <button
           onClick={onClose}
           className="flex items-center justify-center rounded-full bg-card border border-border-light text-text-soft cursor-pointer"
@@ -71,106 +74,160 @@ export default function StoreMode({
         </button>
       </div>
 
-      {/* Active phrase display */}
+      {/* Active phrase — orange banner, tap to dismiss */}
       {activePhraseShelf && (
-        <div className="px-6 pb-2 text-center">
-          <p className="font-bold text-accent" style={{ fontSize: 24 }}>
+        <div
+          onClick={() => setActiveKey(null)}
+          style={{
+            textAlign: "center",
+            padding: "16px 16px 12px",
+            background: "linear-gradient(135deg, #f09848, #e07028)",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 24, display: "block", marginBottom: 4 }}>
+            {activePhrase?.emoji}
+          </span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2, textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
             {activePhraseShelf}
-          </p>
+          </div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
+            tap para ocultar
+          </div>
         </div>
       )}
 
-      {/* Product area — centered, themed card wrapper */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
+      {/* Shelf name — styled by variant */}
+      <div style={{ textAlign: "center", padding: "2px 16px 0", flexShrink: 0 }}>
         <div
-          className="flex flex-col items-center w-full max-w-[460px] px-6 py-8"
           style={{
-            background: "var(--store-card-bg, rgba(255,255,255,0.04))",
-            border: "var(--store-card-border, 2px solid rgba(240,136,62,0.35))",
-            borderRadius: "var(--store-card-radius, 24px)",
+            fontSize: sv.shelfFontSize,
+            fontWeight: sv.shelfFontWeight,
+            color: "var(--color-shelf, #e8c364)",
+            marginTop: 10,
+            letterSpacing: sv.shelfLetterSpacing,
+            textShadow: sv.shelfTextShadow,
           }}
         >
-          {item.photo ? (
-            <img
-              src={item.photo}
-              className="mb-4 rounded-2xl object-contain"
-              style={{ maxWidth: "80%", maxHeight: "35vh", border: "1px solid var(--color-border-light)" }}
-              alt={shelfName}
-            />
-          ) : emoji ? (
-            <span className="mb-3" style={{ fontSize: 56, lineHeight: 1 }} aria-hidden="true">
-              {emoji}
-            </span>
-          ) : null}
-
-          <h1
-            className="text-center leading-tight"
+          {shelfName}
+        </div>
+        {shelfLang !== userLang && userName.toLowerCase() !== shelfName.toLowerCase() && (
+          <div
             style={{
-              fontSize: 40,
-              fontWeight: "var(--store-title-weight, 800)" as unknown as number,
-              color: "var(--store-title-color, var(--color-accent, #f0883e))",
+              fontSize: sv.mineFontSize,
+              color: sv.mineColor,
+              marginTop: 4,
+              ...(sv.mineBg ? { padding: "4px 12px", background: sv.mineBg, borderRadius: sv.mineBorderRadius || "8px", display: "inline-block" } : {}),
             }}
           >
-            {shelfName}
-          </h1>
+            ({userName})
+          </div>
+        )}
+      </div>
 
+      {/* Emoji — centered, styled by variant */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {item.photo ? (
+          <img
+            src={item.photo}
+            className="rounded-2xl object-contain"
+            style={{ maxWidth: "80%", maxHeight: "35vh" }}
+            alt={shelfName}
+          />
+        ) : emoji ? (
+          <span
+            aria-hidden="true"
+            style={{
+              fontSize: sv.emojiFontSize,
+              lineHeight: 1,
+              filter: sv.emojiFilter,
+              opacity: sv.emojiOpacity,
+            }}
+          >
+            {emoji}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Qty + note */}
+      {(qtyLabel || item.note) && (
+        <div style={{ textAlign: "center", flexShrink: 0, padding: "0 16px 4px" }}>
           {qtyLabel && (
-            <p className="mt-2" style={{ fontSize: 22, color: "var(--store-accent, var(--color-accent, #f0883e))" }}>
+            <p style={{ fontSize: 20, fontWeight: 800, color: "var(--color-accent, #f0883e)" }}>
               {qtyLabel}
             </p>
           )}
-
           {item.note && (
-            <p
-              className="text-text-muted mt-2 italic text-center"
-              style={{ fontSize: 15 }}
-            >
+            <p style={{ fontSize: 13, color: "#8b92a8", fontStyle: "italic", marginTop: 4 }}>
               {item.note}
             </p>
           )}
-
-          {shelfLang !== userLang &&
-            userName.toLowerCase() !== shelfName.toLowerCase() && (
-              <p className="mt-2" style={{ fontSize: 15, color: "var(--store-subtitle-color, var(--color-text-muted))" }}>
-                ({userName} — {getLangName(userLang)})
-              </p>
-            )}
         </div>
-      </div>
+      )}
 
-      {/* Phrase buttons — bottom */}
-      <div
-        className="px-4 pb-4 pt-2"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex flex-wrap gap-2 justify-center">
-          {phrases.map((phrase) => {
-            const userText = phrase.translations[userLang] || phrase.translations.en || phrase.key;
-            const isActive = activeKey === phrase.key;
-            return (
-              <button
-                key={phrase.key}
-                onClick={() => {
-                  const next = isActive ? null : phrase.key;
-                  setActiveKey(next);
-                  // Count a usage only when the phrase is activated, not when
-                  // the shopper dismisses it.
-                  if (next) void incrementPhraseUsage(phrase.key);
-                }}
-                className={`rounded-full cursor-pointer transition-colors ${
-                  isActive
-                    ? "bg-accent text-white"
-                    : "bg-card text-text-soft border border-border-light"
-                }`}
-                style={{ padding: "8px 14px" }}
-              >
-                <span className="text-sm">
-                  {phrase.emoji} {userText}
-                </span>
-              </button>
-            );
-          })}
+      {/* Collapsible phrase list — styled by variant */}
+      <div style={{ flexShrink: 0, paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
+        <div
+          onClick={() => setShowPhrases(v => !v)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: 12,
+            cursor: "pointer",
+            borderTop: sv.toggleBorderTop,
+            background: sv.toggleBg,
+            borderRadius: sv.toggleBorderRadius,
+            border: !sv.toggleBorderTop ? sv.toggleBorder : undefined,
+            ...(sv.toggleBorderRadius ? { margin: "0 12px" } : {}),
+          }}
+        >
+          <span style={{ fontSize: sv.toggleLabelSize, fontWeight: sv.toggleLabelWeight, color: sv.toggleLabelColor }}>
+            Preguntas para el dependiente
+          </span>
+          <span style={{ fontSize: sv.toggleLabelSize - 1, color: sv.toggleLabelColor }}>
+            {showPhrases ? "▲" : "▼"}
+          </span>
         </div>
+
+        {showPhrases && (
+          <div
+            style={{
+              maxHeight: 260,
+              overflowY: "auto",
+              borderRadius: sv.listBorderRadius,
+              border: sv.listBorder,
+              margin: sv.listMargin,
+            }}
+          >
+            {phrases.map((phrase) => {
+              const phraseShelf = phrase.translations[shelfLang] || phrase.translations.en || phrase.key;
+              return (
+                <div
+                  key={phrase.key}
+                  onClick={() => {
+                    setActiveKey(phrase.key);
+                    setShowPhrases(false);
+                    void incrementPhraseUsage(phrase.key);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "11px 14px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{phrase.emoji}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#8b92a8" }}>{phraseShelf}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
