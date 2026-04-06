@@ -157,13 +157,19 @@ export default function AddItemBar({
 
   const submitSingleItem = async (text: string) => {
     const parsed = parseQty(text);
+    let translations: Record<string, string> = { [userLang]: parsed.text, en: parsed.text };
+    let category = "other";
     try {
       const result = await translateProduct(parsed.text, targetLangs);
+      translations = result.translations;
+      category = result.category;
+    } catch { /* continue with original text */ }
+    try {
       await addItem({
         listId,
         original: parsed.text,
-        translations: result.translations,
-        category: result.category,
+        translations,
+        category,
         qty: parsed.qty || "",
         unit: parsed.unit || "",
         note: "",
@@ -171,8 +177,8 @@ export default function AddItemBar({
         addedByName: userName,
       });
       onItemAdded();
-    } catch {
-      // silently skip failed bulk items
+    } catch (err) {
+      console.error("[AddItem bulk] Insert failed:", err);
     }
   };
 
@@ -187,14 +193,33 @@ export default function AddItemBar({
 
     setTranslating(true);
     setSubmitError(null);
-    try {
-      const result = await translateProduct(parsed.text, targetLangs, userLang);
 
+    // 1. Try to translate — but NEVER block adding the item
+    let translations: Record<string, string> = { [userLang]: parsed.text, en: parsed.text };
+    let category = "other";
+    try {
+      // Timeout: if translation takes > 15s, give up and add untranslated
+      const translateWithTimeout = Promise.race([
+        translateProduct(parsed.text, targetLangs, userLang),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Translation timeout")), 15000),
+        ),
+      ]);
+      const result = await translateWithTimeout;
+      translations = result.translations;
+      category = result.category;
+    } catch (err) {
+      console.warn("[AddItem] Translation failed, adding with original text:", err);
+      // Continue — add the item without translations
+    }
+
+    // 2. Insert item — this MUST work, otherwise show error
+    try {
       await addItem({
         listId,
         original: parsed.text,
-        translations: result.translations,
-        category: result.category,
+        translations,
+        category,
         qty: finalQty,
         unit: finalUnit,
         note,
@@ -208,9 +233,8 @@ export default function AddItemBar({
       onItemAdded();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setSubmitError(msg);
-      console.error("[AddItem] Failed:", msg, err);
-      // Auto-clear error after 5s
+      setSubmitError(`No se pudo añadir: ${msg}`);
+      console.error("[AddItem] Insert failed:", msg, err);
       setTimeout(() => setSubmitError(null), 5000);
     } finally {
       setTranslating(false);
