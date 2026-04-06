@@ -48,6 +48,7 @@ export default function AddItemBar({
   const [showPhotoInput, setShowPhotoInput] = useState(false);
   const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [important, setImportant] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<DictSuggestion[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -185,6 +186,7 @@ export default function AddItemBar({
     const finalUnit = unit || parsed.unit || "";
 
     setTranslating(true);
+    setSubmitError(null);
     try {
       const result = await translateProduct(parsed.text, targetLangs, userLang);
 
@@ -204,8 +206,12 @@ export default function AddItemBar({
 
       reset();
       onItemAdded();
-    } catch {
-      // keep input so user can retry
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSubmitError(msg);
+      console.error("[AddItem] Failed:", msg, err);
+      // Auto-clear error after 5s
+      setTimeout(() => setSubmitError(null), 5000);
     } finally {
       setTranslating(false);
     }
@@ -263,6 +269,24 @@ export default function AddItemBar({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {submitError && (
+        <div
+          style={{
+            padding: "8px 14px",
+            margin: "8px 12px 0",
+            borderRadius: 10,
+            background: "rgba(255,92,92,0.1)",
+            border: "1px solid rgba(255,92,92,0.25)",
+            color: "#ff5c5c",
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          ❌ {submitError}
         </div>
       )}
 
