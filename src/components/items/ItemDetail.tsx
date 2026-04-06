@@ -4,6 +4,7 @@ import Modal from "../ui/Modal";
 import ProductIcon from "../ui/ProductIcon";
 import { getLangFlag, getLangName } from "../../data/langs";
 import { t } from "../../data/i18n";
+import { getLabSelection } from "../../lib/itemDetailLab";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -197,143 +198,235 @@ export default function ItemDetail({
     }
   };
 
+  const editVariant = getLabSelection().edit;
+
+  // ── Shared UI blocks used by all variants ────────────────────────────────
+
+  const headerBlock = (
+    <div className="flex items-center gap-3">
+      <ProductIcon name={item.original} size={52} />
+      <div className="min-w-0 flex-1">
+        <h3 className="font-bold text-text truncate" style={{ fontSize: 20 }}>{displayName}</h3>
+        {item.added_by_name && (
+          <p className="text-text-muted truncate" style={{ fontSize: 12 }}>{t(lang, "addedBy")} {item.added_by_name}</p>
+        )}
+      </div>
+    </div>
+  );
+
+  const photoBlock = (
+    <PhotoSection photo={item.photo} onUpdate={(photo) => onUpdate(item.id, { photo })} lang={lang} />
+  );
+
+  const qtyInput = (
+    <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} onBlur={handleSave}
+      placeholder="1" className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent" style={{ width: 60 }} />
+  );
+
+  const unitSelect = (
+    <select value={unit} onChange={(e) => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }}
+      className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text outline-none focus:border-accent appearance-none" style={{ width: 70 }}>
+      {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
+    </select>
+  );
+
+  const noteInput = (
+    <input type="text" value={note} onChange={(e) => setNote(e.target.value)} onBlur={handleSave}
+      placeholder={t(lang, "notePlaceholder")} className="w-full bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent" />
+  );
+
+  const shelfCard = showShelf ? (
+    <div className="rounded-xl p-3 flex items-center gap-3"
+      style={{ backgroundColor: "rgba(232, 195, 100, 0.12)", border: "1px solid rgba(232, 195, 100, 0.25)" }}>
+      <span style={{ fontSize: 24 }}>{countryFlag || getLangFlag(shelfLang) || ""}</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-text truncate" style={{ fontSize: 15 }}>{shelfName}</p>
+        <p className="text-text-muted" style={{ fontSize: 11 }}>{getLangName(shelfLang)} &middot; {t(lang, "yourCountry")}</p>
+      </div>
+    </div>
+  ) : null;
+
+  const importantBtn = (
+    <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
+      className="w-full h-11 rounded-xl font-medium flex items-center justify-center gap-2 transition-all cursor-pointer border"
+      style={{
+        background: item.important ? "rgba(255, 92, 92, 0.15)" : "var(--color-bg)",
+        borderColor: item.important ? "rgba(255, 92, 92, 0.4)" : "var(--color-border-light)",
+        color: item.important ? "#ff5c5c" : "var(--color-text-soft)",
+      }}>
+      <span>{item.important ? "🔴" : "⚪"}</span>
+      <span style={{ fontSize: 14 }}>{item.important ? t(lang, "important") : t(lang, "markImportant")}</span>
+    </button>
+  );
+
+  const showStoreBtn = (
+    <button type="button" onClick={() => { onClose(); onShowStore(item); }}
+      className="w-full h-11 rounded-xl text-white font-medium flex items-center justify-center gap-2 active:brightness-90 transition-all cursor-pointer"
+      style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
+      <span>📱</span> {t(lang, "showInStore")}
+    </button>
+  );
+
+  const deleteBtn = (
+    <button type="button" onClick={handleDelete}
+      className="w-full h-11 rounded-xl font-medium flex items-center justify-center gap-2 active:brightness-90 transition-all cursor-pointer"
+      style={{
+        backgroundColor: deleteStep === 0 ? "rgba(248, 113, 113, 0.15)" : "rgba(248, 113, 113, 0.3)",
+        color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.25)",
+      }}>
+      {deleteStep === 0 ? t(lang, "remove") : `⚠️ ${t(lang, "confirm")}?`}
+    </button>
+  );
+
+  // ── Variant layouts ──────────────────────────────────────────────────────
+
+  const renderVariant = () => {
+    switch (editVariant) {
+      // v1: Classic Form — labels + inputs stacked (DEFAULT / current layout)
+      case 0:
+      default:
+        return (
+          <div className="space-y-4">
+            {headerBlock}
+            {photoBlock}
+            <div className="flex gap-2 items-end">
+              <div><label className="text-text-muted block mb-1" style={{ fontSize: 11 }}>{t(lang, "qty")}</label>{qtyInput}</div>
+              <div>{unitSelect}</div>
+              <div className="flex-1 min-w-0">{noteInput}</div>
+            </div>
+            {shelfCard}
+            {importantBtn}
+            {showStoreBtn}
+            {deleteBtn}
+          </div>
+        );
+
+      // v2: Stepper Buttons — big +/- for qty, centered emoji
+      case 1:
+        return (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <ProductIcon name={item.original} size={64} />
+            <div className="text-lg font-bold">{displayName}</div>
+            {showShelf && <div style={{ fontSize: 13, color: "var(--color-shelf, #e8c364)", fontWeight: 600 }}>{shelfName}</div>}
+            <div className="flex items-center gap-4 my-2">
+              <button type="button" onClick={() => { const n = Math.max(0, Number(qty) - 1); setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
+                className="w-11 h-11 rounded-full bg-card border-2 border-border-light text-text-soft text-xl cursor-pointer flex items-center justify-center">−</button>
+              <div className="text-center">
+                <span className="text-4xl font-black text-accent">{qty || "0"}</span>
+                <div className="text-text-muted text-xs mt-0.5">{UNITS.find(u => u.value === unit)?.label || "—"}</div>
+              </div>
+              <button type="button" onClick={() => { const n = Number(qty) + 1; setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
+                className="w-11 h-11 rounded-full text-white text-xl cursor-pointer flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>+</button>
+            </div>
+            <div className="flex gap-1.5 flex-wrap justify-center">
+              {UNITS.filter(u => u.value).map(u => (
+                <button key={u.value} type="button"
+                  onClick={() => { setUnit(u.value); onUpdate(item.id, { qty, unit: u.value, note }); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                  style={{
+                    background: unit === u.value ? "rgba(240,136,62,0.12)" : "var(--color-card)",
+                    color: unit === u.value ? "var(--color-accent)" : "var(--color-text-muted)",
+                    border: `1px solid ${unit === u.value ? "rgba(240,136,62,0.3)" : "var(--color-border)"}`,
+                  }}>{u.label}</button>
+              ))}
+            </div>
+            <div className="w-full">{noteInput}</div>
+            {photoBlock}
+            {importantBtn}
+            {showStoreBtn}
+            {deleteBtn}
+          </div>
+        );
+
+      // v3: All-in-one Row — compact, everything in few rows
+      case 2:
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-3 bg-card rounded-xl border border-border">
+              <ProductIcon name={item.original} size={40} />
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-text truncate">{displayName}</div>
+                {showShelf && <div style={{ fontSize: 11, color: "var(--color-shelf)", fontWeight: 600 }}>{shelfName}</div>}
+              </div>
+            </div>
+            <div className="flex gap-1.5">{qtyInput}{unitSelect}<div className="flex-1 min-w-0">{noteInput}</div></div>
+            <div className="flex gap-1.5">
+              {importantBtn}
+              <button type="button" onClick={() => { /* photo toggle */ }}
+                className="flex-1 h-11 rounded-xl font-medium flex items-center justify-center gap-2 cursor-pointer border border-border-light bg-card text-text-soft" style={{ fontSize: 12 }}>
+                📷 Foto
+              </button>
+            </div>
+            {photoBlock}
+            {showStoreBtn}
+            {deleteBtn}
+          </div>
+        );
+
+      // v4: Minimal Fields — no labels, just placeholders, ultra clean
+      case 3:
+        return (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <ProductIcon name={item.original} size={56} />
+            {showShelf && <div className="text-lg font-bold" style={{ color: "var(--color-shelf)" }}>{shelfName}</div>}
+            <div className="flex gap-1.5 w-full mt-2">{qtyInput}{unitSelect}<div className="flex-1 min-w-0">{noteInput}</div></div>
+            <div className="flex gap-1.5 w-full">
+              {importantBtn}
+            </div>
+            {photoBlock}
+            {showStoreBtn}
+            {deleteBtn}
+          </div>
+        );
+
+      // v5: Quick Presets — preset qty buttons + custom
+      case 4: {
+        const presets = unit === "L" ? ["1L","2L","3L","500ml"] : unit === "kg" ? ["100g","250g","500g","1kg"] : ["1×","2×","3×","6×"];
+        return (
+          <div className="space-y-3">
+            <div className="text-center">
+              <ProductIcon name={item.original} size={40} />
+              <span className="text-lg font-bold ml-2 align-middle">{displayName}</span>
+            </div>
+            <div className="text-text-muted text-xs font-bold uppercase tracking-wider">Cantidad rapida</div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {presets.map(p => {
+                const match = p === `${qty}${unit}` || p === `${qty}×`;
+                return (
+                  <button key={p} type="button"
+                    onClick={() => {
+                      const num = p.replace(/[^0-9.]/g, "");
+                      const u = p.replace(/[0-9.]/g, "");
+                      setQty(num);
+                      const mapped = u === "×" ? "x" : u;
+                      setUnit(mapped);
+                      onUpdate(item.id, { qty: num, unit: mapped, note });
+                    }}
+                    className="py-2.5 rounded-lg text-xs font-semibold cursor-pointer text-center"
+                    style={{
+                      background: match ? "rgba(240,136,62,0.12)" : "var(--color-card)",
+                      color: match ? "var(--color-accent)" : "var(--color-text-muted)",
+                      border: `1px solid ${match ? "var(--color-accent)" : "var(--color-border)"}`,
+                    }}>{p}</button>
+                );
+              })}
+            </div>
+            <div className="w-full">{noteInput}</div>
+            {photoBlock}
+            {shelfCard}
+            {importantBtn}
+            {showStoreBtn}
+            {deleteBtn}
+          </div>
+        );
+      }
+    }
+  };
+
   return (
     <Modal open={open} onClose={onClose} themed>
-      <div className="space-y-4">
-        {/* Header: icon + name + added by */}
-        <div className="flex items-center gap-3">
-          <ProductIcon name={item.original} size={52} />
-          <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-text truncate" style={{ fontSize: 20 }}>
-              {displayName}
-            </h3>
-            {item.added_by_name && (
-              <p className="text-text-muted truncate" style={{ fontSize: 12 }}>
-                {t(lang, "addedBy")} {item.added_by_name}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Photo section */}
-        <PhotoSection
-          photo={item.photo}
-          onUpdate={(photo) => onUpdate(item.id, { photo })}
-          lang={lang}
-        />
-
-        {/* Fields row: qty + unit + note */}
-        <div className="flex gap-2 items-end">
-          <div>
-            <label className="text-text-muted block mb-1" style={{ fontSize: 11 }}>
-              {t(lang, "qty")}
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              onBlur={handleSave}
-              placeholder="1"
-              className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-              style={{ width: 60 }}
-            />
-          </div>
-          <div>
-            <select
-              value={unit}
-              onChange={(e) => {
-                setUnit(e.target.value);
-                setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0);
-              }}
-              className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text outline-none focus:border-accent appearance-none"
-              style={{ width: 70 }}
-            >
-              {UNITS.map((u) => (
-                <option key={u.value} value={u.value}>
-                  {u.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1 min-w-0">
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onBlur={handleSave}
-              placeholder={t(lang, "notePlaceholder")}
-              className="w-full bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-            />
-          </div>
-        </div>
-
-        {/* Shelf translation card */}
-        {showShelf && (
-          <div
-            className="rounded-xl p-3 flex items-center gap-3"
-            style={{
-              backgroundColor: "rgba(232, 195, 100, 0.12)",
-              border: "1px solid rgba(232, 195, 100, 0.25)",
-            }}
-          >
-            <span style={{ fontSize: 24 }}>
-              {countryFlag || getLangFlag(shelfLang) || ""}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-text truncate" style={{ fontSize: 15 }}>
-                {shelfName}
-              </p>
-              <p className="text-text-muted" style={{ fontSize: 11 }}>
-                {getLangName(shelfLang)} &middot; {t(lang, "yourCountry")}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Importance toggle */}
-        <button
-          type="button"
-          onClick={() => onUpdate(item.id, { important: !item.important })}
-          className="w-full h-11 rounded-xl font-medium flex items-center justify-center gap-2 transition-all cursor-pointer border"
-          style={{
-            background: item.important ? "rgba(255, 92, 92, 0.15)" : "var(--color-bg)",
-            borderColor: item.important ? "rgba(255, 92, 92, 0.4)" : "var(--color-border-light)",
-            color: item.important ? "#ff5c5c" : "var(--color-text-soft)",
-          }}
-        >
-          <span>{item.important ? "🔴" : "⚪"}</span>
-          <span style={{ fontSize: 14 }}>{item.important ? t(lang, "important") : t(lang, "markImportant")}</span>
-        </button>
-
-        {/* Show in store button */}
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            onShowStore(item);
-          }}
-          className="w-full h-11 rounded-xl text-white font-medium flex items-center justify-center gap-2 active:brightness-90 transition-all cursor-pointer"
-          style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}
-        >
-          <span>{"\uD83D\uDCF1"}</span>
-          {t(lang, "showInStore")}
-        </button>
-
-        {/* Delete button (2-step confirm) */}
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="w-full h-11 rounded-xl font-medium flex items-center justify-center gap-2 active:brightness-90 transition-all cursor-pointer"
-          style={{
-            backgroundColor: deleteStep === 0 ? "rgba(248, 113, 113, 0.15)" : "rgba(248, 113, 113, 0.3)",
-            color: "#f87171",
-            border: "1px solid rgba(248, 113, 113, 0.25)",
-          }}
-        >
-          {deleteStep === 0 ? t(lang, "remove") : `\u26A0\uFE0F ${t(lang, "confirm")}?`}
-        </button>
-      </div>
+      {renderVariant()}
     </Modal>
   );
 }
