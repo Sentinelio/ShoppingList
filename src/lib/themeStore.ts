@@ -16,6 +16,7 @@ import {
   type ThemeView,
 } from "../data/themes";
 import { DEFAULT_ITEMS_LAYOUT_ID } from "../layouts/items/layouts";
+import { saveConfig } from "./appConfigStore";
 
 const STORAGE_KEY = "babelcart_themes_v1";
 
@@ -101,12 +102,14 @@ export function setThemeId(view: ThemeView, id: string) {
   persist();
   applyCssVars(current);
   listeners.forEach(fn => fn(current));
+  void saveConfig("themes", current);
 }
 
 export function setItemsLayoutId(id: string) {
   current = { ...current, itemsLayout: id };
   persist();
   listeners.forEach(fn => fn(current));
+  void saveConfig("themes", current);
 }
 
 export function resetThemes() {
@@ -114,6 +117,14 @@ export function resetThemes() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch { /* ignore */ }
+  applyCssVars(current);
+  listeners.forEach(fn => fn(current));
+  void saveConfig("themes", current);
+}
+
+// Re-read from localStorage (called after remote config is loaded)
+export function reloadThemes() {
+  current = readSelection();
   applyCssVars(current);
   listeners.forEach(fn => fn(current));
 }

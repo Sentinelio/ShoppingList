@@ -20,6 +20,8 @@ import { SEED_CATEGORIES } from "../data/seedCategories";
 import { CHANGELOG, type ChangeType } from "../data/changelog";
 import { ALL_THEMES, VIEW_LABELS, type ThemeView } from "../data/themes";
 import { setThemeId, setItemsLayoutId, resetThemes } from "../lib/themeStore";
+import { pushAllConfigToRemote } from "../lib/appConfigStore";
+import { syncLabSelectionToRemote } from "../lib/itemDetailLab";
 import { useSelection } from "../hooks/useTheme";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
@@ -742,6 +744,18 @@ export default function AdminPage() {
   const [, forceUpdate] = useState(0);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+
+  // Push all admin config to Supabase on mount
+  useEffect(() => { void pushAllConfigToRemote(); }, []);
+
+  // Detect iframe lab changes via postMessage and sync to Supabase
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === "lab_selection_changed") syncLabSelectionToRemote();
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   const deleteUser = async (userId: string) => {
     if (IS_DEMO) {
