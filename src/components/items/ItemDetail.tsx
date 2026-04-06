@@ -98,6 +98,15 @@ export default function ItemDetail({
   const labSel = getLabSelection();
   const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
 
+  // Debug: log what we read so we can diagnose sync issues
+  useEffect(() => {
+    if (open && item) {
+      const raw = localStorage.getItem("babelcart_item_detail_lab_v1");
+      console.log("[ItemDetail] Lab selection from localStorage:", raw);
+      console.log("[ItemDetail] Parsed labSel:", labSel);
+    }
+  }, [open, item, labSel]);
+
   useEffect(() => {
     if (item) {
       setQty(item.qty || "");
@@ -395,11 +404,11 @@ export default function ItemDetail({
         style={{
           position: "relative",
           display: "flex",
-          width: "calc(100% - 64px)",
+          width: "calc(100% - 80px)",
           maxWidth: 460,
-          height: "calc(100% - 64px)",
-          maxHeight: "calc(100vh - 64px)",
-          margin: "32px auto",
+          height: "calc(100% - 96px)",
+          maxHeight: "calc(100vh - 96px)",
+          margin: "48px auto",
           background: "var(--color-bg, #0d1017)",
           overflow: "hidden",
           zIndex: 1,

@@ -2340,7 +2340,7 @@ export default function AdminPage() {
                    Details sub-tab with the full interactive side-tab lab. */
                 <div style={{ margin: "-16px -16px 0", marginTop: 0 }}>
                   <iframe
-                    src={`${import.meta.env.BASE_URL}item-detail-lab.html`}
+                    src={`${import.meta.env.BASE_URL}item-detail-lab.html?v=${__BUILD_HASH__}`}
                     title="Item Detail Lab"
                     style={{
                       width: "100%",
