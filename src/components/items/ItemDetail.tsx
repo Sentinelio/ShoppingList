@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Item } from "../../lib/supabase";
 import ProductIcon from "../ui/ProductIcon";
-import { getLangFlag, getLangName } from "../../data/langs";
+import { getLangFlag } from "../../data/langs";
 import { t } from "../../data/i18n";
 import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
@@ -237,16 +237,6 @@ export default function ItemDetail({
             placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
         </div>
       </div>
-      {/* Shelf card */}
-      {showShelf && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, background: "rgba(232,195,100,0.08)", border: "1px solid rgba(232,195,100,0.2)" }}>
-          <span style={{ fontSize: 24 }}>{countryFlag || getLangFlag(shelfLang)}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-shelf, #e8c364)" }} className="truncate">{shelfName}</div>
-            <div style={{ fontSize: 11, color: "#555d74" }}>{getLangName(shelfLang)} · {t(lang, "yourCountry")}</div>
-          </div>
-        </div>
-      )}
       {/* Important */}
       <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
         style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 11, border: `1.5px solid ${item.important ? "rgba(255,92,92,0.3)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.04)" : "transparent", cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
@@ -349,14 +339,16 @@ export default function ItemDetail({
         style={{
           position: "relative",
           display: "flex",
-          width: "100%",
+          width: "calc(100% - 32px)",
           maxWidth: 460,
-          height: "100%",
-          maxHeight: "100vh",
-          margin: "0 auto",
+          height: "calc(100% - 32px)",
+          maxHeight: "calc(100vh - 32px)",
+          margin: "16px auto",
           background: "var(--color-bg, #0d1017)",
           overflow: "hidden",
           zIndex: 1,
+          borderRadius: 20,
+          border: "1px solid rgba(255,255,255,0.10)",
         }}
       >
         {/* Side tab bar */}
