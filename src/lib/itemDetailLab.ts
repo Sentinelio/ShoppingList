@@ -58,10 +58,20 @@ export function subscribeLabSelection(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
+// ── Cross-tab sync: listen for localStorage writes from other tabs ─────
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY) {
+      reloadLabSelection();
+    }
+  });
+}
+
 /** Sync current lab selection to Supabase (called from AdminPage after iframe changes). */
 export function syncLabSelectionToRemote() {
-  const sel = getLabSelection();
-  saveConfig("lab_selection", sel);
+  // Re-read from localStorage since the iframe just wrote new values
+  reloadLabSelection();
+  saveConfig("lab_selection", current!);
 }
 
 // ── Show-in-store variant style configs ──────────────────────────────────

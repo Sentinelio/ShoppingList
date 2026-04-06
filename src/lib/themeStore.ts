@@ -133,3 +133,12 @@ export function subscribeThemes(fn: (s: Selection) => void): () => void {
   listeners.add(fn);
   return () => { listeners.delete(fn); };
 }
+
+// Cross-tab sync: listen for localStorage writes from other tabs
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY) {
+      reloadThemes();
+    }
+  });
+}
