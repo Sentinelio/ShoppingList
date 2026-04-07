@@ -347,9 +347,12 @@ export async function joinList(code: string, userId: string): Promise<List> {
 
   const list = data as List;
 
+  // If list doesn't require approval, join directly as active member
+  const status = list.require_approval === false ? "active" : "pending";
+
   const { error: memberError } = await supabase
     .from("list_members")
-    .insert({ list_id: list.id, user_id: userId, role: "member", status: "pending" });
+    .insert({ list_id: list.id, user_id: userId, role: "member", status });
 
   if (memberError) throw memberError;
 

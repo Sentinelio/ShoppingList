@@ -27,6 +27,8 @@ export interface List {
   code: string;
   created_by: string;
   created_at: string;
+  require_approval: boolean;
+  who_can_approve: 'owner' | 'any_member';
 }
 
 export interface ListMember {

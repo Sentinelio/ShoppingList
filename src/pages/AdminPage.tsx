@@ -61,6 +61,8 @@ interface ListRow {
   code: string;
   created_by: string;
   created_at: string;
+  require_approval: boolean;
+  who_can_approve: string;
 }
 
 // ── Themes tab: Items layout picker ────────────────────────────────────────
@@ -2082,35 +2084,78 @@ export default function AdminPage() {
                   {lists.map(l => {
                     const isConfirming = confirmDeleteList === l.id;
                     return (
-                      <div key={l.id} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-lg shrink-0">📝</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm truncate">{l.name}</div>
-                          <div className="text-text-muted text-xs font-mono">{l.code}</div>
-                          <div className="text-[10px] text-text-muted mt-0.5">
-                            {listItems[l.id] || 0} items · {listMembers[l.id] || 0} members
-                            {l.created_at && ` · ${new Date(l.created_at).toLocaleDateString()}`}
+                      <div key={l.id} className="bg-card rounded-xl p-3 border border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-lg shrink-0">📝</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm truncate">{l.name}</div>
+                            <div className="text-text-muted text-xs font-mono">{l.code}</div>
+                            <div className="text-[10px] text-text-muted mt-0.5">
+                              {listItems[l.id] || 0} items · {listMembers[l.id] || 0} members
+                              {l.created_at && ` · ${new Date(l.created_at).toLocaleDateString()}`}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (isConfirming) {
+                                deleteListFromAdmin(l.id);
+                                setConfirmDeleteList(null);
+                              } else {
+                                setConfirmDeleteList(l.id);
+                                setTimeout(() => setConfirmDeleteList(prev => prev === l.id ? null : prev), 3000);
+                              }
+                            }}
+                            className="px-2 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer shrink-0"
+                            style={{
+                              background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                              color: isConfirming ? "#fff" : "#ff5c5c",
+                              border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                            }}
+                          >
+                            {isConfirming ? "⚠️ Confirm" : "🗑️"}
+                          </button>
+                        </div>
+                        {/* Approval settings */}
+                        <div className="mt-2 pt-2 border-t border-border flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-text-muted">Requiere aprobación</span>
+                            <button
+                              onClick={async () => {
+                                const next = !l.require_approval;
+                                setLists(prev => prev.map(x => x.id === l.id ? { ...x, require_approval: next } : x));
+                                if (!IS_DEMO) await supabase.from("lists").update({ require_approval: next }).eq("id", l.id);
+                              }}
+                              className="cursor-pointer"
+                              style={{
+                                width: 36, height: 20, borderRadius: 10, position: "relative",
+                                background: l.require_approval ? "var(--color-accent, #f0883e)" : "rgba(255,255,255,0.12)",
+                                border: "none", transition: "background 0.2s",
+                              }}
+                            >
+                              <span style={{
+                                position: "absolute", top: 2, left: l.require_approval ? 18 : 2,
+                                width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                                transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                              }} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-text-muted">Quién aprueba</span>
+                            <select
+                              value={l.who_can_approve}
+                              onChange={async (e) => {
+                                const next = e.target.value;
+                                setLists(prev => prev.map(x => x.id === l.id ? { ...x, who_can_approve: next } : x));
+                                if (!IS_DEMO) await supabase.from("lists").update({ who_can_approve: next }).eq("id", l.id);
+                              }}
+                              className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1 text-text cursor-pointer"
+                              style={{ fontFamily: "inherit" }}
+                            >
+                              <option value="owner">Solo el creador</option>
+                              <option value="any_member">Cualquier miembro</option>
+                            </select>
                           </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            if (isConfirming) {
-                              deleteListFromAdmin(l.id);
-                              setConfirmDeleteList(null);
-                            } else {
-                              setConfirmDeleteList(l.id);
-                              setTimeout(() => setConfirmDeleteList(prev => prev === l.id ? null : prev), 3000);
-                            }
-                          }}
-                          className="px-2 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer shrink-0"
-                          style={{
-                            background: isConfirming ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                            color: isConfirming ? "#fff" : "#ff5c5c",
-                            border: isConfirming ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                          }}
-                        >
-                          {isConfirming ? "⚠️ Confirm" : "🗑️"}
-                        </button>
                       </div>
                     );
                   })}
