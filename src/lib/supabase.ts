@@ -19,6 +19,7 @@ export interface User {
   country: string;
   avatar_color: string;
   created_at: string;
+  last_seen_at: string | null;
 }
 
 export interface List {
@@ -42,6 +43,7 @@ export interface ListMember {
   user_name?: string;
   user_lang?: string;
   user_country?: string;
+  user_last_seen_at?: string;
 }
 
 export interface Item {

@@ -53,6 +53,7 @@ interface UserRow {
   lang: string;
   country: string;
   created_at: string;
+  last_seen_at: string | null;
 }
 
 interface ListRow {
@@ -2043,7 +2044,19 @@ export default function AdminPage() {
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-sm truncate">{u.name}</div>
                           <div className="text-text-muted text-xs truncate">{langFlag} {u.lang} · {flag} {u.country}</div>
-                          <div className="text-text-muted text-[10px]">{new Date(u.created_at).toLocaleDateString()}</div>
+                          <div className="text-text-muted text-[10px]">
+                            Creado: {new Date(u.created_at).toLocaleDateString()}
+                            {u.last_seen_at && <> · Visto: {(() => {
+                              const diff = Date.now() - new Date(u.last_seen_at).getTime();
+                              const mins = Math.floor(diff / 60000);
+                              if (mins < 1) return "ahora";
+                              if (mins < 60) return `hace ${mins}m`;
+                              const hours = Math.floor(mins / 60);
+                              if (hours < 24) return `hace ${hours}h`;
+                              const days = Math.floor(hours / 24);
+                              return `hace ${days}d`;
+                            })()}</>}
+                          </div>
                         </div>
                         <button
                           onClick={() => {

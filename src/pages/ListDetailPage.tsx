@@ -533,6 +533,16 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                 <div className="text-text-muted text-xs">
                   {m.user_lang && <>{getLangFlag(m.user_lang)} {getLangName(m.user_lang)}</>}
                   {m.user_country && <> · {getCountryFlag(m.user_country)}</>}
+                  {m.user_last_seen_at && <> · {(() => {
+                    const diff = Date.now() - new Date(m.user_last_seen_at).getTime();
+                    const mins = Math.floor(diff / 60000);
+                    if (mins < 1) return "online";
+                    if (mins < 60) return `hace ${mins}m`;
+                    const hours = Math.floor(mins / 60);
+                    if (hours < 24) return `hace ${hours}h`;
+                    const days = Math.floor(hours / 24);
+                    return `hace ${days}d`;
+                  })()}</>}
                 </div>
               </div>
               {isMe && (

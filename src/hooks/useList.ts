@@ -219,18 +219,19 @@ export function useListDetail(listId: string | undefined) {
     // subscription when a specific item is opened.
     const [listRes, membersRes, itemsRes] = await Promise.all([
       supabase.from("lists").select("*").eq("id", listId).single(),
-      supabase.from("list_members").select("list_id, user_id, role, status, joined_at, users(name, lang, country)").eq("list_id", listId),
+      supabase.from("list_members").select("list_id, user_id, role, status, joined_at, users(name, lang, country, last_seen_at)").eq("list_id", listId),
       supabase.from("items").select("*").eq("list_id", listId).order("created_at", { ascending: true }),
     ]);
 
     if (!listRes.error && listRes.data) setList(listRes.data as List);
     if (!membersRes.error && membersRes.data) {
-      type MemberRow = ListMember & { users: { name?: string; lang?: string; country?: string } | null };
+      type MemberRow = ListMember & { users: { name?: string; lang?: string; country?: string; last_seen_at?: string } | null };
       setMembers((membersRes.data as MemberRow[]).map(m => ({
         ...m,
         user_name: m.users?.name,
         user_lang: m.users?.lang,
         user_country: m.users?.country,
+        user_last_seen_at: m.users?.last_seen_at,
       })));
     }
     if (!itemsRes.error && itemsRes.data) {

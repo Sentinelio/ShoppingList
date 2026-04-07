@@ -52,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data, error }) => {
         if (!error && data) {
           setUser(data as User);
+          // Update last_seen_at silently
+          supabase.from("users").update({ last_seen_at: new Date().toISOString() }).eq("id", storedId).then(() => {});
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
