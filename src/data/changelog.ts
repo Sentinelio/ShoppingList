@@ -14,13 +14,22 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.56",
+    version: "v0.61",
     hash: "HEAD",
-    date: "2026-04-06",
-    time: "22:00",
-    type: "chore",
-    title: "CI deploy test",
-    details: [],
+    date: "2026-04-07",
+    time: "20:30",
+    type: "feat",
+    title: "List approval settings + global admin config sync",
+    details: [
+      "New per-list settings: require_approval (bool) and who_can_approve (owner/any_member)",
+      "Global controls in Admin → Lists tab apply to all lists at once",
+      "When require_approval=OFF, users with the code join directly without pending state",
+      "When who_can_approve=any_member, all active members can accept new join requests",
+      "Admin config (themes, lab, categories, languages) now syncs to Supabase app_config table",
+      "On app startup, remote config is loaded so all users see admin's chosen settings",
+      "Admin panel pushes all config to Supabase on mount; iframe lab changes sync via postMessage",
+      "Renamed Updates tab to Log",
+    ],
   },
   {
     version: "v0.55",

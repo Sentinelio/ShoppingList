@@ -1059,7 +1059,7 @@ export default function AdminPage() {
     { key: "roadmap", label: "Roadmap", icon: "🗺️" },
     { key: "themes", label: "Themes", icon: "🎨" },
     { key: "phrases", label: "Phrases", icon: "💬" },
-    { key: "changelog", label: "Updates", icon: "📰" },
+    { key: "changelog", label: "Log", icon: "📰" },
   ];
 
 
