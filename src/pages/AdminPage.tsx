@@ -767,26 +767,46 @@ export default function AdminPage() {
       showToast("User deleted (demo)");
       return;
     }
-    // 1. Delete lists created by this user (cascades to list_members and items via FK)
-    const { data: ownedLists, error: listsErr } = await supabase
+    // 1. Reassign lists created by this user to the next active member (instead of deleting)
+    const { data: ownedLists } = await supabase
       .from("lists")
       .select("id")
       .eq("created_by", userId);
-    if (listsErr) { showToast(`Error: ${listsErr.message}`); return; }
-    const ownedIds = (ownedLists ?? []).map(l => l.id);
-    if (ownedIds.length > 0) {
-      const { error: delListsErr } = await supabase.from("lists").delete().in("id", ownedIds);
-      if (delListsErr) { showToast(`Error deleting lists: ${delListsErr.message}`); return; }
+    let reassigned = 0;
+    let deleted = 0;
+    for (const list of ownedLists ?? []) {
+      // Find another active member to take ownership
+      const { data: otherMembers } = await supabase
+        .from("list_members")
+        .select("user_id")
+        .eq("list_id", list.id)
+        .eq("status", "active")
+        .neq("user_id", userId)
+        .limit(1);
+      if (otherMembers && otherMembers.length > 0) {
+        // Reassign list to next member and promote them to owner
+        const newOwner = otherMembers[0].user_id;
+        await supabase.from("lists").update({ created_by: newOwner }).eq("id", list.id);
+        await supabase.from("list_members").update({ role: "owner" }).eq("list_id", list.id).eq("user_id", newOwner);
+        reassigned++;
+      } else {
+        // No other members — safe to delete the list
+        await supabase.from("lists").delete().eq("id", list.id);
+        deleted++;
+      }
     }
-    // 2. Remove this user from any list_members rows (they might be a member of lists they don't own)
-    const { error: membersErr } = await supabase.from("list_members").delete().eq("user_id", userId);
-    if (membersErr) { showToast(`Error: ${membersErr.message}`); return; }
+    // 2. Remove this user from any list_members rows
+    await supabase.from("list_members").delete().eq("user_id", userId);
     // 3. Finally delete the user
     const { error } = await supabase.from("users").delete().eq("id", userId);
     if (error) { showToast(`Error: ${error.message}`); return; }
     setUsers(prev => prev.filter(u => u.id !== userId));
-    setLists(prev => prev.filter(l => !ownedIds.includes(l.id)));
-    showToast(ownedIds.length > 0 ? `User + ${ownedIds.length} list${ownedIds.length === 1 ? "" : "s"} deleted` : "User deleted");
+    if (deleted > 0) setLists(prev => prev.filter(l => !(ownedLists ?? []).some(ol => ol.id === l.id) || reassigned > 0));
+    const parts: string[] = ["User deleted"];
+    if (reassigned > 0) parts.push(`${reassigned} list${reassigned > 1 ? "s" : ""} reassigned`);
+    if (deleted > 0) parts.push(`${deleted} empty list${deleted > 1 ? "s" : ""} removed`);
+    showToast(parts.join(" · "));
+    fetchLists(); // refresh to show new ownership
   };
 
   const deleteListFromAdmin = async (listId: string) => {
