@@ -42,7 +42,7 @@ function notify() { listeners.forEach(fn => fn()); }
 // ── Users ──────────────────────────────────────────────
 export function demoCreateUser(name: string, lang: string, country: string): User {
   const db = load();
-  const user: User = { id: uuid(), name, lang, country, avatar_color: '#f0883e', created_at: new Date().toISOString() };
+  const user: User = { id: uuid(), name, lang, country, avatar_color: '#f0883e', created_at: new Date().toISOString(), last_seen_at: new Date().toISOString() };
   db.users.push(user);
   save(db);
   return user;
