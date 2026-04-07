@@ -72,7 +72,7 @@ export function demoGetLists(userId: string): List[] {
 
 export function demoCreateList(name: string, userId: string): List {
   const db = load();
-  const list: List = { id: uuid(), name, code: generateCode(), created_by: userId, created_at: new Date().toISOString(), require_approval: true, who_can_approve: "owner" };
+  const list: List = { id: uuid(), name, code: generateCode(), created_by: userId, created_at: new Date().toISOString(), require_approval: true, who_can_approve: "owner", who_can_remove: "owner" };
   db.lists.push(list);
   db.list_members.push({ list_id: list.id, user_id: userId, role: 'owner', status: 'active', joined_at: new Date().toISOString() });
   save(db);

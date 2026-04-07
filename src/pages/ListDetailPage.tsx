@@ -523,7 +523,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         {activeMembers.map((m, i) => {
           const isMe = m.user_id === user?.id;
           const isCreator = user?.id === list?.created_by;
-          const canRemove = isCreator && !isMe;
+          const canRemove = !isMe && (isCreator || list?.who_can_remove === "any_member");
           const isConfirming = confirmRemoveMember === m.user_id;
           return (
             <div key={m.user_id} className="flex items-center gap-3 py-2.5 border-b border-border">

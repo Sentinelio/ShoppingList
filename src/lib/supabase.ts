@@ -29,6 +29,7 @@ export interface List {
   created_at: string;
   require_approval: boolean;
   who_can_approve: 'owner' | 'any_member';
+  who_can_remove: 'owner' | 'any_member';
 }
 
 export interface ListMember {

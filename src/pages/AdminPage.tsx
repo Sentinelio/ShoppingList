@@ -63,6 +63,7 @@ interface ListRow {
   created_at: string;
   require_approval: boolean;
   who_can_approve: string;
+  who_can_remove: string;
 }
 
 // ── Themes tab: Items layout picker ────────────────────────────────────────
@@ -2128,6 +2129,28 @@ export default function AdminPage() {
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
                                 if (ids.length > 0) await supabase.from("lists").update({ who_can_approve: next }).in("id", ids);
+                              }
+                            }}
+                            className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
+                            style={{ fontFamily: "inherit" }}
+                          >
+                            <option value="owner">Solo el creador</option>
+                            <option value="any_member">Cualquier miembro</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-[12px] font-semibold text-text">Quién puede expulsar</div>
+                            <div className="text-[10px] text-text-muted">Quién puede sacar miembros de la lista</div>
+                          </div>
+                          <select
+                            value={lists.length > 0 ? lists[0].who_can_remove : "owner"}
+                            onChange={async (e) => {
+                              const next = e.target.value;
+                              setLists(prev => prev.map(x => ({ ...x, who_can_remove: next })));
+                              if (!IS_DEMO) {
+                                const ids = lists.map(l => l.id);
+                                if (ids.length > 0) await supabase.from("lists").update({ who_can_remove: next }).in("id", ids);
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
