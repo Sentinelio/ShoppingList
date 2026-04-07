@@ -2,8 +2,6 @@
 // The lab (public/item-detail-lab.html) writes to the same key whenever
 // the admin picks a variant, so both the iframe and React stay in sync.
 
-import { saveConfig } from "./appConfigStore";
-
 const STORAGE_KEY = "babelcart_item_detail_lab_v1";
 
 export interface LabSelection {
@@ -35,12 +33,6 @@ export function getLabSelection(): LabSelection {
     }
   } catch { /* ignore */ }
   return { ...DEFAULTS };
-}
-
-/** Sync current lab selection to Supabase (called from AdminPage after iframe changes). */
-export function syncLabSelectionToRemote() {
-  const sel = getLabSelection();
-  void saveConfig("lab_selection", sel);
 }
 
 // ── Show-in-store variant style configs ──────────────────────────────────

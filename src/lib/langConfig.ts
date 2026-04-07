@@ -1,5 +1,4 @@
 import { ALL_LANGUAGES, type LangDef } from "../data/allLanguages";
-import { saveConfig } from "./appConfigStore";
 
 const STORAGE_KEY = "babelcart_enabled_langs";
 const UI_TRANSLATIONS_KEY = "babelcart_ui_translations";
@@ -18,7 +17,6 @@ export function getEnabledLangs(): string[] {
 
 export function setEnabledLangs(codes: string[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
-  void saveConfig("enabled_langs", codes);
 }
 
 export function enableLang(code: string) {
@@ -89,7 +87,6 @@ export function saveUITranslations(langCode: string, translations: Record<string
   const all = getStoredUITranslations();
   all[langCode] = translations;
   localStorage.setItem(UI_TRANSLATIONS_KEY, JSON.stringify(all));
-  void saveConfig("ui_translations", all);
 }
 
 export function getUITranslation(langCode: string, key: string): string | null {

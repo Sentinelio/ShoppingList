@@ -3,8 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
-import { initThemes, reloadThemes } from './lib/themeStore'
-import { loadRemoteConfig } from './lib/appConfigStore'
+import { initThemes } from './lib/themeStore'
 
 // Unregister any stale service workers
 if ('serviceWorker' in navigator) {
@@ -24,8 +23,3 @@ createRoot(document.getElementById('root')!).render(
     </AuthProvider>
   </StrictMode>,
 )
-
-// After render, load remote config from Supabase and re-apply themes
-loadRemoteConfig().then((loaded) => {
-  if (loaded) reloadThemes()
-}).catch(() => { /* Supabase unavailable — localStorage only */ })
