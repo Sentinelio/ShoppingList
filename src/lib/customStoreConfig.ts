@@ -2,6 +2,7 @@
 import { STORE_TYPES } from "../data/storeTypes";
 import { CATEGORIES } from "../data/categories";
 import { SEED_CATEGORIES } from "../data/seedCategories";
+import { saveConfig } from "./appConfigStore";
 
 const STORE_TYPES_KEY = "babelcart_custom_store_types";
 const CATEGORIES_KEY = "babelcart_custom_categories";
@@ -37,6 +38,7 @@ export function getCustomStoreTypes(): CustomStoreType[] {
 
 export function saveCustomStoreTypes(types: CustomStoreType[]) {
   localStorage.setItem(STORE_TYPES_KEY, JSON.stringify(types));
+  void saveConfig("custom_store_types", types);
 }
 
 export function addCustomStoreType(type: CustomStoreType) {
@@ -63,6 +65,7 @@ export function getCustomCategories(): CustomCategory[] {
 
 export function saveCustomCategories(cats: CustomCategory[]) {
   localStorage.setItem(CATEGORIES_KEY, JSON.stringify(cats));
+  void saveConfig("custom_categories", cats);
 }
 
 export function addCustomCategory(cat: CustomCategory) {

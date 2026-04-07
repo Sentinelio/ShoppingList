@@ -97,7 +97,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 <script>
 const STORAGE_KEY='babelcart_item_detail_lab_v1';
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||{}}catch{return{}}}
-function syncToStorage(s){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s))}catch{}}
+function syncToStorage(s){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s))}catch{}try{window.parent.postMessage({type:'lab_selection_changed',payload:s},'*')}catch{}}
 
 const D={emoji:'🥛',name:'Mleko',shelf:'Leche',qty:'2',unit:'L',note:'pelne, nie light',cat:'dairy',catName:'Lacteos',catEmoji:'🥛',imp:true,by:'Manu',byFlag:'🇪🇸',time:'hace 2h',
 langs:[{f:'🇵🇱',w:'Mleko',type:'yours'},{f:'🇪🇸',w:'Leche',type:'shelf'},{f:'🇬🇧',w:'Milk',type:'other'},{f:'🇩🇪',w:'Milch',type:'other'},{f:'🇫🇷',w:'Lait',type:'other'},{f:'🇮🇹',w:'Latte',type:'other'},{f:'🇵🇹',w:'Leite',type:'other'}]};
