@@ -218,7 +218,7 @@ export function useListDetail(listId: string | undefined) {
     // URL column on the initial fetch — we still get it through the realtime
     // subscription when a specific item is opened.
     const [listRes, membersRes, itemsRes] = await Promise.all([
-      supabase.from("lists").select("id, name, code, created_by, created_at").eq("id", listId).single(),
+      supabase.from("lists").select("*").eq("id", listId).single(),
       supabase.from("list_members").select("list_id, user_id, role, status, joined_at, users(name, lang, country)").eq("list_id", listId),
       supabase.from("items").select("*").eq("list_id", listId).order("created_at", { ascending: true }),
     ]);
