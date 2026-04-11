@@ -114,6 +114,14 @@ export async function translateProduct(
   // 1. Local dictionary — only use if exact match
   const local = findInLocalDict(text);
   if (local?.exact && local.translations) {
+    // Preserve the user's input for their language if it differs from the
+    // dict entry (e.g. they typed "pimientos" but the dict has "pimiento").
+    // This keeps plurals and typos-as-typed visible to the user.
+    const userInput = text.trim();
+    const dictUserLang = local.translations[userLang];
+    if (dictUserLang && dictUserLang.toLowerCase() !== userInput.toLowerCase()) {
+      local.translations[userLang] = userInput;
+    }
     // Check if local dict covers ALL requested languages
     const missingLangs = targetLangs.filter(l => !local.translations![l]);
     if (missingLangs.length === 0) {
