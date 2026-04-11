@@ -298,6 +298,25 @@ export function relativeTime(iso: string): string {
 
 // Helper to format currency
 export function formatPrice(value: number, currency: string): string {
-  const symbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "PLN" ? "zł" : currency;
+  const symbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "PLN" ? "zł" : currency === "GBP" ? "£" : currency;
   return `${value.toFixed(2)}${symbol}`;
+}
+
+// Map country code → default currency
+const COUNTRY_CURRENCY: Record<string, string> = {
+  // Eurozone
+  ES: "EUR", FR: "EUR", DE: "EUR", IT: "EUR", PT: "EUR", NL: "EUR", BE: "EUR",
+  AT: "EUR", IE: "EUR", FI: "EUR", GR: "EUR", LU: "EUR", MT: "EUR", CY: "EUR",
+  SK: "EUR", SI: "EUR", EE: "EUR", LV: "EUR", LT: "EUR", HR: "EUR",
+  // Non-euro EU
+  PL: "PLN", CZ: "CZK", HU: "HUF", RO: "RON", BG: "BGN", DK: "DKK", SE: "SEK",
+  // Others
+  GB: "GBP", US: "USD", CA: "CAD", MX: "MXN", AR: "ARS", BR: "BRL", CL: "CLP",
+  CO: "COP", PE: "PEN", JP: "JPY", CN: "CNY", KR: "KRW", IN: "INR", AU: "AUD",
+  NZ: "NZD", CH: "CHF", NO: "NOK", TR: "TRY", RU: "RUB", UA: "UAH", ZA: "ZAR",
+};
+
+export function getCountryCurrency(countryCode: string | undefined): string {
+  if (!countryCode) return "EUR";
+  return COUNTRY_CURRENCY[countryCode.toUpperCase()] ?? "EUR";
 }

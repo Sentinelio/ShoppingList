@@ -8,7 +8,7 @@ import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
-import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice } from "../../lib/itemData";
+import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency } from "../../lib/itemData";
 import { useAuth } from "../../hooks/useAuth";
 
 interface ItemDetailProps {
@@ -113,7 +113,8 @@ export default function ItemDetail({
   const [showAddPriceForm, setShowAddPriceForm] = useState(false);
   const [newPriceStore, setNewPriceStore] = useState("");
   const [newPriceValue, setNewPriceValue] = useState("");
-  const [newPriceCurrency, setNewPriceCurrency] = useState("EUR");
+  const userCurrency = getCountryCurrency(user?.country);
+  const [newPriceCurrency, setNewPriceCurrency] = useState(userCurrency);
 
   // Comment input state
   const [newCommentText, setNewCommentText] = useState("");
@@ -123,8 +124,9 @@ export default function ItemDetail({
     setShowAddPriceForm(false);
     setNewPriceStore("");
     setNewPriceValue("");
+    setNewPriceCurrency(userCurrency);
     setNewCommentText("");
-  }, [item?.id]);
+  }, [item?.id, userCurrency]);
 
   const handleAddPrice = async () => {
     if (!user || !item || !newPriceStore.trim() || !newPriceValue.trim()) return;
@@ -559,11 +561,33 @@ export default function ItemDetail({
       <input type="text" value={newPriceStore} onChange={e => setNewPriceStore(e.target.value)} placeholder="Tienda (ej: Mercadona)" className="input" style={{ fontSize: 12, padding: "8px 10px" }} autoFocus />
       <div style={{ display: "flex", gap: 6 }}>
         <input type="number" inputMode="decimal" value={newPriceValue} onChange={e => setNewPriceValue(e.target.value)} placeholder="0.99" className="input" style={{ flex: 1, fontSize: 12, padding: "8px 10px", textAlign: "right" }} />
-        <select value={newPriceCurrency} onChange={e => setNewPriceCurrency(e.target.value)} className="input" style={{ fontSize: 12, padding: "8px 10px", width: 70 }}>
-          <option value="EUR">€</option>
-          <option value="USD">$</option>
-          <option value="PLN">zł</option>
-          <option value="GBP">£</option>
+        <select
+          value={newPriceCurrency}
+          onChange={e => setNewPriceCurrency(e.target.value)}
+          style={{
+            fontSize: 12,
+            padding: "8px 10px",
+            width: 80,
+            background: "#0d1017",
+            color: "#e6e8ee",
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: 8,
+            fontFamily: "inherit",
+            cursor: "pointer",
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238b92a8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E\")",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 8px center",
+            paddingRight: 22,
+          }}
+        >
+          {["EUR", "USD", "GBP", "PLN", "CZK", "HUF", "RON", "SEK", "NOK", "DKK", "CHF", "JPY", "CNY", "CAD", "AUD", "MXN", "BRL", "ARS", "CLP", "COP", "PEN", "TRY", "INR", "ZAR"].map(c => (
+            <option key={c} value={c} style={{ background: "#0d1017", color: "#e6e8ee" }}>
+              {c} {c === "EUR" ? "€" : c === "USD" ? "$" : c === "GBP" ? "£" : c === "PLN" ? "zł" : c === "JPY" ? "¥" : ""}
+            </option>
+          ))}
         </select>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
