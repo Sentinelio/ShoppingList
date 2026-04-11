@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { logItemHistory } from "../lib/itemData";
+import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase } from "../lib/itemData";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
@@ -167,14 +167,22 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked } : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
     if (user) {
+      // Log history event
       logItemHistory({
         itemId,
-        eventType: "checked",
+        eventType: checked ? "purchased" : "unpurchased",
         icon: checked ? "✅" : "🔄",
         description: checked ? `${user.name} marcó como comprado` : `${user.name} desmarcó`,
         byUserId: user.id,
         byUserName: user.name,
       }).catch(() => {});
+      // Auto-log purchase for stats (only when checking, not unchecking)
+      if (checked) {
+        logAutoPurchase({ itemId, byUserId: user.id, byUserName: user.name }).catch(() => {});
+      } else {
+        // If user immediately unchecks, remove the recent auto-purchase
+        removeRecentAutoPurchase({ itemId, byUserId: user.id }).catch(() => {});
+      }
     }
   }, [setItems, user]);
 

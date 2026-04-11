@@ -66,8 +66,10 @@ export interface Item {
 export interface ItemPrice {
   id: string;
   item_id: string;
-  store: string;
-  price_value: number;
+  // Nullable: rows with null price_value/store represent purchases logged
+  // by toggling the item as done, without entering a price.
+  store: string | null;
+  price_value: number | null;
   currency: string;
   added_by: string | null;
   added_by_name: string | null;

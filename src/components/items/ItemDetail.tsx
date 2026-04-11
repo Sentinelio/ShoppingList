@@ -536,11 +536,12 @@ export default function ItemDetail({
   );
 
   // ── PRICE / STATS / COMM / HIST PANES — REAL DATA from Supabase ────
-  // Format prices for display: highlight cheapest as "best"
-  const cheapestId = stats.bestPrice !== null ? prices.find(p => Number(p.price_value) === stats.bestPrice)?.id : null;
-  const displayPrices = prices.map(p => ({
+  // Filter to only manual price entries (skip auto-logged purchases from "done")
+  const pricedEntries = prices.filter(p => p.price_value !== null && p.store !== null);
+  const cheapestId = stats.bestPrice !== null ? pricedEntries.find(p => Number(p.price_value) === stats.bestPrice)?.id : null;
+  const displayPrices = pricedEntries.map(p => ({
     id: p.id,
-    store: p.store,
+    store: p.store as string,
     price: formatPrice(Number(p.price_value), p.currency),
     date: relativeTime(p.created_at),
     best: p.id === cheapestId,

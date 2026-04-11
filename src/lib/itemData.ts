@@ -4,7 +4,10 @@
 
 import { supabase, IS_DEMO, type ItemPrice, type ItemComment, type ItemHistoryEvent } from "./supabase";
 
-// ── PRICES ─────────────────────────────────────────────────────────────
+// ── PURCHASES / PRICES ─────────────────────────────────────────────────
+// item_prices stores purchase events. A row can represent:
+//   - A manual price entry (store + price set)
+//   - An auto-logged purchase (store + price both null) when user marks done
 
 export async function addItemPrice(params: {
   itemId: string;
@@ -29,6 +32,51 @@ export async function addItemPrice(params: {
     .single();
   if (error) throw error;
   return data as ItemPrice;
+}
+
+/** Auto-log a purchase when user marks an item as done (no price/store). */
+export async function logAutoPurchase(params: {
+  itemId: string;
+  byUserId: string;
+  byUserName: string;
+}): Promise<ItemPrice | null> {
+  if (IS_DEMO || !supabase) return null;
+  const { data, error } = await supabase
+    .from("item_prices")
+    .insert({
+      item_id: params.itemId,
+      store: null,
+      price_value: null,
+      currency: "EUR",
+      added_by: params.byUserId,
+      added_by_name: params.byUserName,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ItemPrice;
+}
+
+/** Remove the most recent auto-logged purchase by this user (last 60s). */
+export async function removeRecentAutoPurchase(params: {
+  itemId: string;
+  byUserId: string;
+}): Promise<void> {
+  if (IS_DEMO || !supabase) return;
+  const cutoff = new Date(Date.now() - 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from("item_prices")
+    .select("id")
+    .eq("item_id", params.itemId)
+    .eq("added_by", params.byUserId)
+    .is("price_value", null)
+    .is("store", null)
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (data && data.length > 0) {
+    await supabase.from("item_prices").delete().eq("id", data[0].id);
+  }
 }
 
 export async function deleteItemPrice(priceId: string): Promise<void> {
@@ -142,7 +190,14 @@ export interface ItemStats {
 }
 
 export function computeItemStats(prices: ItemPrice[]): ItemStats {
-  if (prices.length === 0) {
+  // Total purchases: ALL rows (manual prices + auto-logged from check)
+  const totalPurchases = prices.length;
+
+  // For money/store stats, only use rows with actual price + store
+  const pricedRows = prices.filter(p => p.price_value !== null);
+  const storedRows = prices.filter(p => p.store !== null && p.store !== "");
+
+  if (totalPurchases === 0) {
     return {
       totalPurchases: 0,
       totalSpent: 0,
@@ -161,50 +216,63 @@ export function computeItemStats(prices: ItemPrice[]): ItemStats {
     };
   }
 
-  const total = prices.reduce((s, p) => s + Number(p.price_value), 0);
-  const avg = total / prices.length;
+  // Money stats from priced rows only
+  const total = pricedRows.reduce((s, p) => s + Number(p.price_value), 0);
+  const avg = pricedRows.length > 0 ? total / pricedRows.length : 0;
 
-  const sorted = [...prices].sort((a, b) => Number(a.price_value) - Number(b.price_value));
-  const cheapest = sorted[0];
-  const most_expensive = sorted[sorted.length - 1];
+  let bestPrice: number | null = null;
+  let bestStore: string | null = null;
+  let worstPrice: number | null = null;
+  let worstStore: string | null = null;
+  if (pricedRows.length > 0) {
+    const sorted = [...pricedRows].sort((a, b) => Number(a.price_value) - Number(b.price_value));
+    const cheapest = sorted[0];
+    const most_expensive = sorted[sorted.length - 1];
+    bestPrice = Number(cheapest.price_value);
+    bestStore = cheapest.store;
+    worstPrice = Number(most_expensive.price_value);
+    worstStore = most_expensive.store;
+  }
 
-  // Frequency: average days between consecutive purchases
+  // Frequency: days between first and last purchase (any kind)
   let frequencyDays: number | null = null;
-  if (prices.length > 1) {
+  if (totalPurchases > 1) {
     const sortedByDate = [...prices].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     const totalDays = (new Date(sortedByDate[sortedByDate.length - 1].created_at).getTime()
       - new Date(sortedByDate[0].created_at).getTime()) / (1000 * 60 * 60 * 24);
-    frequencyDays = Math.round(totalDays / (prices.length - 1));
+    frequencyDays = Math.max(0, Math.round(totalDays / (totalPurchases - 1)));
   }
 
-  // Group by store
+  // Group by store (only rows with a store)
   const byStoreMap: Record<string, number> = {};
-  for (const p of prices) byStoreMap[p.store] = (byStoreMap[p.store] || 0) + 1;
+  for (const p of storedRows) {
+    if (p.store) byStoreMap[p.store] = (byStoreMap[p.store] || 0) + 1;
+  }
   const byStore = Object.entries(byStoreMap)
     .map(([store, count]) => ({ store, count }))
     .sort((a, b) => b.count - a.count);
   const favoriteStore = byStore[0]?.store ?? null;
   const favoriteStoreCount = byStore[0]?.count ?? 0;
 
-  // Group by user
+  // Group by user (all purchases count)
   const byUserMap: Record<string, number> = {};
   for (const p of prices) {
     const name = p.added_by_name || "Unknown";
     byUserMap[name] = (byUserMap[name] || 0) + 1;
   }
   const byUser = Object.entries(byUserMap)
-    .map(([name, count]) => ({ name, count, pct: Math.round((count / prices.length) * 100) }))
+    .map(([name, count]) => ({ name, count, pct: Math.round((count / totalPurchases) * 100) }))
     .sort((a, b) => b.count - a.count);
 
   return {
-    totalPurchases: prices.length,
+    totalPurchases,
     totalSpent: total,
     averagePrice: avg,
-    bestPrice: Number(cheapest.price_value),
-    bestStore: cheapest.store,
-    worstPrice: Number(most_expensive.price_value),
-    worstStore: most_expensive.store,
-    currency: prices[0].currency,
+    bestPrice,
+    bestStore,
+    worstPrice,
+    worstStore,
+    currency: pricedRows[0]?.currency ?? "EUR",
     frequencyDays,
     lastPurchase: [...prices].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at,
     favoriteStore,
