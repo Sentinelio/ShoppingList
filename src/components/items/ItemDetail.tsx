@@ -299,6 +299,30 @@ export default function ItemDetail({
             })}
           </div>
         )}
+        {/* Google Images button */}
+        <a
+          href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(shelfName || displayName)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            margin: "8px 12px 0",
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "rgba(66,133,244,0.08)",
+            border: "1px solid rgba(66,133,244,0.25)",
+            color: "#6c9dff",
+            fontSize: 12,
+            fontWeight: 700,
+            textDecoration: "none",
+            cursor: "pointer",
+          }}
+        >
+          🔍 Ver en Google Images
+        </a>
       </div>
     </div>
   );
