@@ -175,13 +175,13 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         description: checked ? `${user.name} marcó como comprado` : `${user.name} desmarcó`,
         byUserId: user.id,
         byUserName: user.name,
-      }).catch(() => {});
+      }).catch(err => console.error("[logItemHistory:purchased]", err));
       // Auto-log purchase for stats (only when checking, not unchecking)
       if (checked) {
-        logAutoPurchase({ itemId, byUserId: user.id, byUserName: user.name }).catch(() => {});
+        logAutoPurchase({ itemId, byUserId: user.id, byUserName: user.name }).catch(err => console.error("[logAutoPurchase]", err));
       } else {
         // If user immediately unchecks, remove the recent auto-purchase
-        removeRecentAutoPurchase({ itemId, byUserId: user.id }).catch(() => {});
+        removeRecentAutoPurchase({ itemId, byUserId: user.id }).catch(err => console.error("[removeRecentAutoPurchase]", err));
       }
     }
   }, [setItems, user]);
@@ -221,7 +221,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       if ("original" in updates && updates.original !== prevItem.original) {
         tasks.push(logItemHistory({ itemId, eventType: "name_changed", icon: "📝", description: `${byUserName} renombró "${prevItem.original}" → "${updates.original}"`, byUserId, byUserName }));
       }
-      Promise.all(tasks).catch(() => { /* ignore log errors */ });
+      Promise.all(tasks).catch(err => console.error("[logItemHistory:update]", err));
     }
   }, [setItems, items, user]);
 
@@ -554,7 +554,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                 description: `${user.name} añadió ${newItem.original} a la lista`,
                 byUserId: user.id,
                 byUserName: user.name,
-              }).catch(() => {});
+              }).catch(err => console.error("[logItemHistory:created]", err));
             }
           }}
         />

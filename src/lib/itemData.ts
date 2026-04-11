@@ -149,7 +149,7 @@ export async function logItemHistory(params: {
   byUserName: string;
 }): Promise<void> {
   if (IS_DEMO || !supabase) return;
-  await supabase.from("item_history").insert({
+  const { error } = await supabase.from("item_history").insert({
     item_id: params.itemId,
     event_type: params.eventType,
     description: params.description,
@@ -157,6 +157,7 @@ export async function logItemHistory(params: {
     by_user_id: params.byUserId,
     by_user_name: params.byUserName,
   });
+  if (error) throw error;
 }
 
 export async function getItemHistory(itemId: string): Promise<ItemHistoryEvent[]> {

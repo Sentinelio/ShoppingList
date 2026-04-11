@@ -10,6 +10,8 @@ import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
 import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
 import { useAuth } from "../../hooks/useAuth";
+import { translateProduct } from "../../lib/translate";
+import { getEnabledLangs } from "../../lib/langConfig";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -144,10 +146,12 @@ export default function ItemDetail({
     if (!user || !item || !newPriceStore.trim() || !newPriceValue.trim()) return;
     const value = parseFloat(newPriceValue.replace(",", "."));
     if (isNaN(value)) return;
+    // Normalize store name: first letter of each word uppercased for consistency
+    const normalizedStore = newPriceStore.trim().replace(/\b\p{L}/gu, c => c.toUpperCase());
     try {
       await addItemPrice({
         itemId: item.id,
-        store: newPriceStore.trim(),
+        store: normalizedStore,
         price: value,
         currency: newPriceCurrency,
         addedBy: user.id,
@@ -224,12 +228,23 @@ export default function ItemDetail({
 
   const handleSave = () => onUpdate(item.id, { qty, unit, note });
 
-  const handleNameBlur = () => {
+  const handleNameBlur = async () => {
     const trimmed = editName.trim();
     if (!trimmed || trimmed === item.original) return;
-    // Update the translations map too — replace the old original key
-    const newTranslations = { ...item.translations, [userLang]: trimmed, en: trimmed };
-    onUpdate(item.id, { original: trimmed, translations: newTranslations });
+    // Re-translate the new name from scratch so old translations don't linger
+    // (e.g. changing "tomate" → "ternera" should drop the old Polish/German
+    // tomato translations). Also re-detects category and clears the photo.
+    const targetLangs = getEnabledLangs();
+    let newTranslations: Record<string, string> = { [userLang]: trimmed, en: trimmed };
+    try {
+      const result = await translateProduct(trimmed, targetLangs, userLang);
+      if (result?.translations) newTranslations = result.translations;
+    } catch { /* fall back to single-lang translation */ }
+    onUpdate(item.id, {
+      original: trimmed,
+      translations: newTranslations,
+      photo: null,
+    });
   };
 
   const savePhotoUrl = () => {

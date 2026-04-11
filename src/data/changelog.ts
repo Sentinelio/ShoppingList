@@ -14,10 +14,48 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.74",
+    version: "v0.77",
     hash: "HEAD",
-    date: "2026-04-08",
-    time: "00:00",
+    date: "2026-04-11",
+    time: "20:00",
+    type: "fix",
+    title: "History logging + store name normalization + full rename retranslate",
+    details: [
+      "logItemHistory now throws on error so silent failures are caught",
+      "All logItemHistory calls use console.error instead of empty catch blocks",
+      "Store names are normalized on save: first letter of each word uppercased ('lidl' → 'Lidl')",
+      "Renaming a product now calls translateProduct to re-translate from scratch — old translations of the previous name (e.g. changing tomate → ternera) are dropped so other languages don't keep stale values. Photo is also cleared since it belonged to the old product.",
+      "Corrected wall-clock times on all previous changelog entries (were wrongly 00:00)",
+    ],
+  },
+  {
+    version: "v0.76",
+    hash: "2d5cd51",
+    date: "2026-04-11",
+    time: "19:34",
+    type: "fix",
+    title: "Preserve user's plural input when dict has singular",
+    details: [
+      "When the user types 'pimientos' (plural), depluralForms strips it to 'pimiento' to find the dict match. The returned translations were in singular. Now we preserve the user's original input for their language so what they typed is what they see.",
+    ],
+  },
+  {
+    version: "v0.75",
+    hash: "8eacfff",
+    date: "2026-04-11",
+    time: "19:28",
+    type: "feat",
+    title: "Version badge in ListsPage + updated changelog",
+    details: [
+      "Added a small version badge in the bottom-left corner of the ListsPage, reading from CHANGELOG[0].version",
+      "Updated changelog.ts with all recent work session entries",
+    ],
+  },
+  {
+    version: "v0.74",
+    hash: "557bbdd",
+    date: "2026-04-11",
+    time: "19:23",
     type: "feat",
     title: "Google Images button + drop user FK constraints",
     details: [
@@ -27,9 +65,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.73",
-    hash: "HEAD",
-    date: "2026-04-08",
-    time: "00:00",
+    hash: "b4db7cc",
+    date: "2026-04-11",
+    time: "19:21",
     type: "feat",
     title: "Editable product name + readable error messages",
     details: [
@@ -39,9 +77,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.72",
-    hash: "HEAD",
-    date: "2026-04-08",
-    time: "00:00",
+    hash: "941e2c9",
+    date: "2026-04-11",
+    time: "19:09",
     type: "fix",
     title: "Permissive RLS + popular stores + price alignment",
     details: [
@@ -52,9 +90,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.71",
-    hash: "HEAD",
-    date: "2026-04-08",
-    time: "00:00",
+    hash: "240d1cf",
+    date: "2026-04-11",
+    time: "19:02",
     type: "fix",
     title: "Currency dropdown readable + defaults to user country",
     details: [
@@ -66,9 +104,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.70",
-    hash: "HEAD",
-    date: "2026-04-08",
-    time: "00:00",
+    hash: "49ccebd",
+    date: "2026-04-11",
+    time: "18:46",
     type: "feat",
     title: "Count check actions as purchases in stats",
     details: [
@@ -80,9 +118,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.69",
-    hash: "HEAD",
-    date: "2026-04-07",
-    time: "22:00",
+    hash: "11c8812",
+    date: "2026-04-11",
+    time: "18:40",
     type: "feat",
     title: "Functional prices, comments, history with Supabase realtime",
     details: [
@@ -97,9 +135,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.68",
-    hash: "HEAD",
-    date: "2026-04-07",
-    time: "21:00",
+    hash: "29ca682",
+    date: "2026-04-11",
+    time: "18:24",
     type: "feat",
     title: "Implement price/stats/comm/hist panes with 5 lab variants each",
     details: [
@@ -109,9 +147,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.67",
-    hash: "HEAD",
+    hash: "8df1434",
     date: "2026-04-07",
-    time: "20:50",
+    time: "18:56",
     type: "fix",
     title: "deleteUser reassigns lists to next member instead of deleting",
     details: [
@@ -120,9 +158,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.66",
-    hash: "HEAD",
+    hash: "5b56582",
     date: "2026-04-07",
-    time: "20:40",
+    time: "18:43",
     type: "feat",
     title: "Last seen tracking + list admin settings",
     details: [
@@ -135,9 +173,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "v0.61",
-    hash: "HEAD",
+    hash: "5919013",
     date: "2026-04-07",
-    time: "20:30",
+    time: "18:29",
     type: "feat",
     title: "List approval settings + global admin config sync",
     details: [
