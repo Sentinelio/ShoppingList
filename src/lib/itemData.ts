@@ -320,3 +320,22 @@ export function getCountryCurrency(countryCode: string | undefined): string {
   if (!countryCode) return "EUR";
   return COUNTRY_CURRENCY[countryCode.toUpperCase()] ?? "EUR";
 }
+
+// Most popular grocery store per country — used as placeholder example
+const COUNTRY_POPULAR_STORE: Record<string, string> = {
+  ES: "Mercadona", FR: "Carrefour", DE: "Edeka", IT: "Conad", PT: "Continente",
+  NL: "Albert Heijn", BE: "Colruyt", AT: "Billa", IE: "Tesco", FI: "K-Market",
+  GR: "Sklavenitis", LU: "Cactus", SE: "ICA", DK: "Netto", NO: "Rema 1000",
+  PL: "Biedronka", CZ: "Albert", HU: "Tesco", RO: "Lidl", BG: "Billa",
+  SK: "Tesco", SI: "Mercator", HR: "Konzum", EE: "Selver", LV: "Rimi", LT: "Maxima",
+  GB: "Tesco", US: "Walmart", CA: "Loblaws", MX: "Walmart", AR: "Carrefour",
+  BR: "Carrefour", CL: "Jumbo", CO: "Éxito", PE: "Plaza Vea",
+  JP: "Aeon", CN: "Walmart", KR: "E-Mart", IN: "Big Bazaar",
+  AU: "Woolworths", NZ: "Countdown", CH: "Migros", TR: "Migros",
+  RU: "Pyaterochka", UA: "Silpo", ZA: "Pick n Pay",
+};
+
+export function getCountryPopularStore(countryCode: string | undefined): string {
+  if (!countryCode) return "Supermercado";
+  return COUNTRY_POPULAR_STORE[countryCode.toUpperCase()] ?? "Supermercado";
+}

@@ -8,7 +8,7 @@ import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
-import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency } from "../../lib/itemData";
+import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
 import { useAuth } from "../../hooks/useAuth";
 
 interface ItemDetailProps {
@@ -114,6 +114,7 @@ export default function ItemDetail({
   const [newPriceStore, setNewPriceStore] = useState("");
   const [newPriceValue, setNewPriceValue] = useState("");
   const userCurrency = getCountryCurrency(user?.country);
+  const userPopularStore = getCountryPopularStore(user?.country);
   const [newPriceCurrency, setNewPriceCurrency] = useState(userCurrency);
 
   // Comment input state
@@ -144,11 +145,14 @@ export default function ItemDetail({
       setNewPriceStore("");
       setNewPriceValue("");
       setShowAddPriceForm(false);
-    } catch { /* realtime will sync if it eventually works */ }
+    } catch (err) {
+      console.error("[addItemPrice] failed:", err);
+      alert("Error al guardar precio: " + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const handleDeletePrice = async (priceId: string) => {
-    try { await deleteItemPrice(priceId); } catch { /* */ }
+    try { await deleteItemPrice(priceId); } catch (err) { console.error("[deleteItemPrice]", err); }
   };
 
   const handleAddComment = async () => {
@@ -162,11 +166,14 @@ export default function ItemDetail({
         addedByLang: user.lang,
       });
       setNewCommentText("");
-    } catch { /* */ }
+    } catch (err) {
+      console.error("[addItemComment] failed:", err);
+      alert("Error al añadir comentario: " + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    try { await deleteItemComment(commentId); } catch { /* */ }
+    try { await deleteItemComment(commentId); } catch (err) { console.error("[deleteItemComment]", err); }
   };
 
   // Debug: log what we read so we can diagnose sync issues
@@ -558,9 +565,9 @@ export default function ItemDetail({
   // Add price form (shown when user clicks "+ Añadir precio")
   const addPriceFormBlock = showAddPriceForm ? (
     <div style={{ padding: 10, background: "var(--color-card, #161b26)", borderRadius: 10, border: "1px solid var(--color-accent, #f0883e)", display: "flex", flexDirection: "column", gap: 6 }}>
-      <input type="text" value={newPriceStore} onChange={e => setNewPriceStore(e.target.value)} placeholder="Tienda (ej: Mercadona)" className="input" style={{ fontSize: 12, padding: "8px 10px" }} autoFocus />
+      <input type="text" value={newPriceStore} onChange={e => setNewPriceStore(e.target.value)} placeholder={`Tienda (ej: ${userPopularStore})`} className="input" style={{ fontSize: 12, padding: "8px 10px" }} autoFocus />
       <div style={{ display: "flex", gap: 6 }}>
-        <input type="number" inputMode="decimal" value={newPriceValue} onChange={e => setNewPriceValue(e.target.value)} placeholder="0.99" className="input" style={{ flex: 1, fontSize: 12, padding: "8px 10px", textAlign: "right" }} />
+        <input type="number" inputMode="decimal" value={newPriceValue} onChange={e => setNewPriceValue(e.target.value)} placeholder="0.99" className="input" style={{ flex: 1, fontSize: 12, padding: "8px 10px", textAlign: "left" }} />
         <select
           value={newPriceCurrency}
           onChange={e => setNewPriceCurrency(e.target.value)}
