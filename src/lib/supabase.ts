@@ -63,6 +63,38 @@ export interface Item {
   created_at: string;
 }
 
+export interface ItemPrice {
+  id: string;
+  item_id: string;
+  store: string;
+  price_value: number;
+  currency: string;
+  added_by: string | null;
+  added_by_name: string | null;
+  created_at: string;
+}
+
+export interface ItemComment {
+  id: string;
+  item_id: string;
+  text: string;
+  added_by: string | null;
+  added_by_name: string | null;
+  added_by_lang: string | null;
+  created_at: string;
+}
+
+export interface ItemHistoryEvent {
+  id: string;
+  item_id: string;
+  event_type: string;
+  description: string;
+  icon: string | null;
+  by_user_id: string | null;
+  by_user_name: string | null;
+  created_at: string;
+}
+
 export interface DictEntry {
   key: string;
   translations: Record<string, string>;

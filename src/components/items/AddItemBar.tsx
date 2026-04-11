@@ -14,7 +14,7 @@ interface AddItemBarProps {
   shelfLang: string;
   userId: string;
   userName: string;
-  onItemAdded: () => void;
+  onItemAdded: (item: import("../../lib/supabase").Item | null) => void;
 }
 
 const UNITS = [
@@ -165,7 +165,7 @@ export default function AddItemBar({
       category = result.category;
     } catch { /* continue with original text */ }
     try {
-      await addItem({
+      const created = await addItem({
         listId,
         original: parsed.text,
         translations,
@@ -176,7 +176,7 @@ export default function AddItemBar({
         addedBy: userId,
         addedByName: userName,
       });
-      onItemAdded();
+      onItemAdded(created);
     } catch (err) {
       console.error("[AddItem bulk] Insert failed:", err);
     }
@@ -215,7 +215,7 @@ export default function AddItemBar({
 
     // 2. Insert item — this MUST work, otherwise show error
     try {
-      await addItem({
+      const created = await addItem({
         listId,
         original: parsed.text,
         translations,
@@ -230,7 +230,7 @@ export default function AddItemBar({
       });
 
       reset();
-      onItemAdded();
+      onItemAdded(created);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setSubmitError(`No se pudo añadir: ${msg}`);

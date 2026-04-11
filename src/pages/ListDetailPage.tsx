@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
+import { logItemHistory } from "../lib/itemData";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
@@ -165,19 +166,53 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked } : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
-  }, [setItems]);
+    if (user) {
+      logItemHistory({
+        itemId,
+        eventType: "checked",
+        icon: checked ? "✅" : "🔄",
+        description: checked ? `${user.name} marcó como comprado` : `${user.name} desmarcó`,
+        byUserId: user.id,
+        byUserName: user.name,
+      }).catch(() => {});
+    }
+  }, [setItems, user]);
 
   const handleUpdate = useCallback(async (
     itemId: string,
     updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>,
   ) => {
+    // Capture previous state for diff
+    const prevItem = items.find(i => i.id === itemId);
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
-    // Persist important locally as a fallback (works even if DB column is missing)
     if ("important" in updates && typeof updates.important === "boolean") {
       setLocallyImportant(itemId, updates.important);
     }
     try { await updateItem(itemId, updates); } catch { /* realtime will sync */ }
-  }, [setItems]);
+
+    // Log history events for changes
+    if (prevItem && user) {
+      const byUserId = user.id;
+      const byUserName = user.name;
+      const tasks: Promise<unknown>[] = [];
+      if ("qty" in updates && updates.qty !== prevItem.qty) {
+        tasks.push(logItemHistory({ itemId, eventType: "qty_changed", icon: "✏️", description: `${byUserName} cambió cantidad: ${prevItem.qty || "—"} → ${updates.qty || "—"}`, byUserId, byUserName }));
+      }
+      if ("unit" in updates && updates.unit !== prevItem.unit) {
+        tasks.push(logItemHistory({ itemId, eventType: "unit_changed", icon: "📏", description: `${byUserName} cambió unidad a ${updates.unit || "—"}`, byUserId, byUserName }));
+      }
+      if ("note" in updates && updates.note !== prevItem.note) {
+        tasks.push(logItemHistory({ itemId, eventType: "note_changed", icon: "📝", description: updates.note ? `${byUserName} actualizó la nota` : `${byUserName} eliminó la nota`, byUserId, byUserName }));
+      }
+      if ("important" in updates && updates.important !== prevItem.important) {
+        tasks.push(logItemHistory({ itemId, eventType: "important", icon: "❗", description: updates.important ? `${byUserName} marcó como importante` : `${byUserName} desmarcó importante`, byUserId, byUserName }));
+      }
+      if ("photo" in updates && updates.photo !== prevItem.photo) {
+        tasks.push(logItemHistory({ itemId, eventType: "photo", icon: "📷", description: updates.photo ? `${byUserName} añadió foto` : `${byUserName} quitó foto`, byUserId, byUserName }));
+      }
+      Promise.all(tasks).catch(() => { /* ignore log errors */ });
+    }
+  }, [setItems, items, user]);
 
   const handleDelete = useCallback(async (itemId: string) => {
     setItems(prev => prev.filter(i => i.id !== itemId));
@@ -498,8 +533,18 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           shelfLang={shelfLang}
           userId={user.id}
           userName={user.name}
-          onItemAdded={() => {
-            /* items update via realtime */
+          onItemAdded={(newItem) => {
+            // Log creation event in history
+            if (newItem && user) {
+              logItemHistory({
+                itemId: newItem.id,
+                eventType: "created",
+                icon: "➕",
+                description: `${user.name} añadió ${newItem.original} a la lista`,
+                byUserId: user.id,
+                byUserName: user.name,
+              }).catch(() => {});
+            }
           }}
         />
       )}
