@@ -466,24 +466,390 @@ export default function ItemDetail({
     </div>
   );
 
-  // ── PLACEHOLDER PANES (price, stats, comm, hist) ──────────────────────
-  const placeholderPane = (icon: string, label: string) => (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 40, textAlign: "center" }}>
-      <span style={{ fontSize: 40 }}>{icon}</span>
-      <div style={{ fontSize: 14, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 11, color: "#555d74" }}>Próximamente</div>
+  // ── PRICE / STATS / COMM / HIST PANES (5 variants each, mock data) ────
+  // Mock data — matches lab. Real prices/comments/history tables coming soon.
+  const prices = [
+    { store: "Mercadona", price: "0.89€", date: "02 abr", best: false },
+    { store: "Carrefour", price: "0.95€", date: "28 mar", best: false },
+    { store: "Lidl", price: "0.79€", date: "25 mar", best: true },
+    { store: "Biedronka", price: "3.49zl", date: "20 mar", best: false },
+    { store: "Aldi", price: "0.92€", date: "15 mar", best: false },
+  ];
+
+  const priceVariants: React.ReactNode[] = [
+    // v1: Simple List
+    <div key="p0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+      <div style={{ textAlign: "center", marginBottom: 8 }}><span style={{ fontSize: 24 }}>{emojiChar}</span> <span style={{ fontSize: 15, fontWeight: 700 }}>{displayName}</span></div>
+      {prices.map((p, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: p.best ? "rgba(61,214,140,0.04)" : "var(--color-card, #161b26)", borderRadius: 10, border: `1px solid ${p.best ? "rgba(61,214,140,0.15)" : "var(--color-border, rgba(255,255,255,0.10))"}` }}>
+          <span style={{ fontSize: 14 }}>{p.best ? "🏷" : "🏪"}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{p.store}</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: p.best ? "#3dd68c" : "var(--color-text)" }}>{p.price}</span>
+          <span style={{ fontSize: 9, color: "#555d74" }}>{p.date}</span>
+        </div>
+      ))}
+      <button type="button" style={{ marginTop: "auto", width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Añadir precio</button>
+    </div>,
+
+    // v2: Best Deal
+    <div key="p1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+      <div style={{ textAlign: "center", padding: 16, background: "rgba(61,214,140,0.06)", borderRadius: 14, border: "1px solid rgba(61,214,140,0.15)" }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#3dd68c", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>🏷 Mejor precio</div>
+        <div style={{ fontSize: 28, fontWeight: 900, color: "#3dd68c" }}>0.79€</div>
+        <div style={{ fontSize: 13, color: "#8b92a8", marginTop: 2 }}>Lidl · 25 mar</div>
+      </div>
+      <div style={{ flex: 1 }}>
+        {prices.filter(p => p.store !== "Lidl").map((p, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", fontSize: 12 }}>
+            <span style={{ flex: 1, color: "#8b92a8" }}>{p.store}</span>
+            <span style={{ fontWeight: 700 }}>{p.price}</span>
+            <span style={{ fontSize: 9, color: "#555d74" }}>{p.date}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--color-card, #161b26)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#555d74" }}>PRECIO MEDIO</span>
+        <span style={{ fontSize: 16, fontWeight: 900, color: "var(--color-accent, #f0883e)" }}>0.89€</span>
+      </div>
+      <button type="button" style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Añadir precio</button>
+    </div>,
+
+    // v3: Store Cards
+    <div key="p2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      {prices.map((p, i) => (
+        <div key={i} style={{ padding: "10px 12px", background: "var(--color-card, #161b26)", borderRadius: 10, border: `1px solid ${p.best ? "rgba(61,214,140,0.2)" : "rgba(255,255,255,0.10)"}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: p.best ? "rgba(61,214,140,0.1)" : "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{p.best ? "🏷" : "🏪"}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{p.store}</div>
+            <div style={{ fontSize: 9, color: "#555d74" }}>{p.date}</div>
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: p.best ? "#3dd68c" : "var(--color-text)" }}>{p.price}</div>
+        </div>
+      ))}
+      <button type="button" style={{ marginTop: "auto", width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Añadir</button>
+    </div>,
+
+    // v4: Savings Badge
+    <div key="p3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
+      <div style={{ fontSize: 32 }}>{emojiChar}</div>
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</div>
+      <div style={{ display: "flex", gap: 8, margin: "8px 0" }}>
+        <div style={{ padding: "14px 18px", background: "rgba(61,214,140,0.08)", borderRadius: 14, border: "2px solid rgba(61,214,140,0.2)", textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: "#3dd68c", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Mejor</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#3dd68c" }}>0.79€</div>
+          <div style={{ fontSize: 10, color: "#8b92a8", marginTop: 2 }}>Lidl</div>
+        </div>
+        <div style={{ padding: "14px 18px", background: "var(--color-card, #161b26)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.10)", textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: "#555d74", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Peor</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#ff5c5c" }}>0.95€</div>
+          <div style={{ fontSize: 10, color: "#8b92a8", marginTop: 2 }}>Carrefour</div>
+        </div>
+      </div>
+      <div style={{ padding: "8px 16px", borderRadius: 10, background: "rgba(61,214,140,0.06)", fontSize: 12, color: "#3dd68c", fontWeight: 700 }}>Ahorras 0.16€ comprando en Lidl</div>
+      <button type="button" style={{ marginTop: "auto", width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Añadir precio</button>
+    </div>,
+
+    // v5: Receipt Style
+    <div key="p4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", flex: 1 }}>
+      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, background: "var(--color-card, #161b26)", borderRadius: 8, padding: 14, border: "1px solid rgba(255,255,255,0.10)" }}>
+        <div style={{ textAlign: "center", fontWeight: 700, marginBottom: 8, fontSize: 12 }}>💰 {displayName} — Historial</div>
+        <div style={{ borderBottom: "1px dashed #555d74", marginBottom: 6, paddingBottom: 6 }}>
+          {prices.map((p, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: p.best ? "#3dd68c" : "#8b92a8" }}>
+              <span>{p.store}</span><span style={{ fontWeight: 700 }}>{p.price}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 12 }}>
+          <span>MEDIA</span><span style={{ color: "var(--color-accent, #f0883e)" }}>0.89€</span>
+        </div>
+      </div>
+      <button type="button" style={{ marginTop: "auto", width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>+ Añadir</button>
+    </div>,
+  ];
+
+  const pricePane = priceVariants[labSel.price] ?? priceVariants[0];
+
+  // ── STATS PANE ────────────────────────────────────────────────────────
+  const statsVariants: React.ReactNode[] = [
+    // v1: Dashboard Grid
+    <div key="s0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+      <div style={{ textAlign: "center", marginBottom: 4 }}><span style={{ fontSize: 20 }}>{emojiChar}</span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        {[
+          { v: "23", l: "Compras", c: "var(--color-accent, #f0883e)" },
+          { v: "~10d", l: "Frecuencia", c: "#3dd68c" },
+          { v: "20.5€", l: "Total gastado", c: "#e8c364" },
+          { v: "0.89€", l: "Precio medio", c: "#6c8aff" },
+        ].map((s, i) => (
+          <div key={i} style={{ padding: 14, background: "var(--color-card, #161b26)", borderRadius: 12, textAlign: "center", border: "1px solid rgba(255,255,255,0.10)" }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: s.c }}>{s.v}</div>
+            <div style={{ fontSize: 9, color: "#555d74", marginTop: 2 }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>,
+
+    // v2: Spend Tracker
+    <div key="s1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
+      <div style={{ fontSize: 32 }}>{emojiChar}</div>
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</div>
+      <div style={{ padding: "18px 24px", background: "var(--color-card, #161b26)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", textAlign: "center", width: "100%" }}>
+        <div style={{ fontSize: 9, color: "#555d74", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Total gastado</div>
+        <div style={{ fontSize: 32, fontWeight: 900, color: "var(--color-accent, #f0883e)" }}>20.47€</div>
+        <div style={{ fontSize: 11, color: "#8b92a8", marginTop: 4 }}>en 23 compras</div>
+      </div>
+      <div style={{ display: "flex", gap: 6, width: "100%" }}>
+        {[
+          { l: "Este mes", v: "6.23€", c: "#3dd68c" },
+          { l: "Mes pasado", v: "5.34€", c: "#8b92a8" },
+          { l: "Media/mes", v: "5.12€", c: "#6c8aff" },
+        ].map((s, i) => (
+          <div key={i} style={{ flex: 1, padding: 10, background: "var(--color-card, #161b26)", borderRadius: 10, textAlign: "center" }}>
+            <div style={{ fontSize: 9, color: "#555d74" }}>{s.l}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: s.c }}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+    </div>,
+
+    // v3: Compact Numbers
+    <div key="s2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", flex: 1 }}>
+      <div style={{ textAlign: "center", padding: "8px 0 12px" }}>
+        <span style={{ fontSize: 28 }}>{emojiChar}</span>
+        <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{displayName}</div>
+      </div>
+      {[
+        { l: "Compras totales", v: "23", c: "var(--color-accent, #f0883e)" },
+        { l: "Frecuencia", v: "cada ~10 días", c: "#3dd68c" },
+        { l: "Última compra", v: "hace 2 días", c: "var(--color-text)" },
+        { l: "Precio medio", v: "0.89€", c: "#e8c364" },
+        { l: "Total gastado", v: "20.47€", c: "var(--color-accent, #f0883e)" },
+        { l: "Este mes", v: "7 compras · 6.23€", c: "#6c8aff" },
+        { l: "Tienda favorita", v: "Mercadona (12x)", c: "var(--color-accent, #f0883e)" },
+      ].map((r, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 6px", borderBottom: i < 6 ? "1px solid rgba(255,255,255,0.06)" : "none", fontSize: 12 }}>
+          <span style={{ color: "#555d74" }}>{r.l}</span>
+          <span style={{ fontWeight: 700, color: r.c }}>{r.v}</span>
+        </div>
+      ))}
+    </div>,
+
+    // v4: Streak Counter
+    <div key="s3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
+      <div style={{ fontSize: 32 }}>{emojiChar}</div>
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</div>
+      <div style={{ padding: 16, background: "var(--color-card, #161b26)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.10)", textAlign: "center", width: "100%" }}>
+        <div style={{ fontSize: 9, color: "var(--color-accent, #f0883e)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>🔥 Racha actual</div>
+        <div style={{ fontSize: 38, fontWeight: 900, color: "var(--color-accent, #f0883e)" }}>6</div>
+        <div style={{ fontSize: 11, color: "#8b92a8" }}>semanas comprando</div>
+      </div>
+      <div style={{ display: "flex", gap: 4, width: "100%", justifyContent: "center" }}>
+        {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
+          <div key={i} style={{ width: 28, height: 28, borderRadius: 8, background: i === 5 ? "#3dd68c" : "var(--color-card, #161b26)", border: `1px solid ${i === 5 ? "#3dd68c" : "rgba(255,255,255,0.10)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 600, color: i === 5 ? "#fff" : "#555d74" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ fontSize: 10, color: "#555d74", marginTop: 2 }}>Último sábado · Mercadona</div>
+    </div>,
+
+    // v5: Who Buys
+    <div key="s4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+      <div style={{ textAlign: "center" }}><span style={{ fontSize: 20 }}>{emojiChar}</span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
+      {[
+        { who: "Manu", flag: "🇪🇸", n: 15, c: "var(--color-accent, #f0883e)", pct: 65 },
+        { who: "Kasia", flag: "🇵🇱", n: 8, c: "#6c8aff", pct: 35 },
+      ].map((m, i) => (
+        <div key={i} style={{ padding: 12, background: "var(--color-card, #161b26)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: m.c, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>{m.who[0]}</div>
+            <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{m.who} {m.flag}</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: m.c }}>{m.n}x</span>
+          </div>
+          <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${m.pct}%`, background: m.c, borderRadius: 3 }} />
+          </div>
+          <div style={{ fontSize: 9, color: "#555d74", marginTop: 4, textAlign: "right" }}>{m.pct}% de las compras</div>
+        </div>
+      ))}
+    </div>,
+  ];
+
+  const statsPane = statsVariants[labSel.stats] ?? statsVariants[0];
+
+  // ── COMMENTS PANE ─────────────────────────────────────────────────────
+  const mockComments = [
+    { who: "Manu", flag: "🇪🇸", color: "var(--color-accent, #f0883e)", text: "Que sea entera, no desnatada", t: "hace 1h" },
+    { who: "Kasia", flag: "🇵🇱", color: "#6c8aff", text: "Laciate si hay, si no cualquiera 3.2%", t: "hace 45m" },
+    { who: "Manu", flag: "🇪🇸", color: "var(--color-accent, #f0883e)", text: "En Mercadona está en el pasillo 3", t: "hace 30m" },
+    { who: "Kasia", flag: "🇵🇱", color: "#6c8aff", text: "Ok 👍", t: "hace 28m" },
+  ];
+
+  const commInputRow = (placeholder: string, btnBg: string, btnIcon: string) => (
+    <div style={{ marginTop: "auto", display: "flex", gap: 6, paddingTop: 8 }}>
+      <input className="input" placeholder={placeholder} style={{ flex: 1, fontSize: 12, padding: "8px 12px" }} />
+      <button type="button" style={{ padding: "8px 14px", borderRadius: 10, background: btnBg, border: "none", color: "#fff", fontSize: 14, cursor: "pointer" }}>{btnIcon}</button>
     </div>
   );
+
+  const commVariants: React.ReactNode[] = [
+    // v1: Chat Bubbles
+    <div key="c0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      <div style={{ fontSize: 10, color: "#555d74", textAlign: "center", marginBottom: 4 }}>💬 Conversación sobre {displayName}</div>
+      {mockComments.map((c, i) => (
+        <div key={i} style={{ maxWidth: "85%", alignSelf: i % 2 ? "flex-start" : "flex-end", padding: "8px 12px", borderRadius: i % 2 ? "12px 12px 12px 4px" : "12px 12px 4px 12px", background: i % 2 ? "rgba(108,138,255,0.08)" : "rgba(240,136,62,0.08)", border: `1px solid ${i % 2 ? "rgba(108,138,255,0.12)" : "rgba(240,136,62,0.12)"}` }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: c.color }}>{c.flag} {c.who}</div>
+          <div style={{ fontSize: 12, color: "#8b92a8", marginTop: 2 }}>{c.text}</div>
+          <div style={{ fontSize: 8, color: "#555d74", textAlign: "right", marginTop: 2 }}>{c.t}</div>
+        </div>
+      ))}
+      {commInputRow("Escribe un comentario...", "linear-gradient(135deg,#f09848,#e07028)", "→")}
+    </div>,
+
+    // v2: Card Comments
+    <div key="c1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      {mockComments.map((c, i) => (
+        <div key={i} style={{ padding: "10px 12px", background: "var(--color-card, #161b26)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: c.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff" }}>{c.who[0]}</div>
+            <span style={{ fontSize: 11, fontWeight: 700 }}>{c.who}</span>
+            <span style={{ fontSize: 9, color: "#555d74", marginLeft: "auto" }}>{c.t}</span>
+          </div>
+          <div style={{ fontSize: 12, color: "#8b92a8" }}>{c.text}</div>
+        </div>
+      ))}
+      {commInputRow("💬 Comentar...", "var(--color-accent, #f0883e)", "→")}
+    </div>,
+
+    // v3: Minimal Lines
+    <div key="c2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", flex: 1 }}>
+      {mockComments.map((c, i) => (
+        <div key={i} style={{ padding: "8px 4px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ fontSize: 12, color: "#8b92a8" }}>{c.text}</div>
+          <div style={{ fontSize: 9, color: "#555d74", marginTop: 2 }}>— {c.who} {c.flag} · {c.t}</div>
+        </div>
+      ))}
+      {commInputRow("Añadir nota...", "var(--color-accent, #f0883e)", "→")}
+    </div>,
+
+    // v4: Color Left Bar
+    <div key="c3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+      {mockComments.map((c, i) => (
+        <div key={i} style={{ display: "flex", borderRadius: 8, overflow: "hidden", background: "var(--color-card, #161b26)" }}>
+          <div style={{ width: 3, background: c.color, flexShrink: 0 }} />
+          <div style={{ flex: 1, padding: "8px 12px" }}>
+            <div style={{ fontSize: 12, color: "#8b92a8" }}>{c.text}</div>
+            <div style={{ fontSize: 9, color: "#555d74", marginTop: 2 }}>{c.who} · {c.t}</div>
+          </div>
+        </div>
+      ))}
+      {commInputRow("Mensaje...", "var(--color-accent, #f0883e)", "→")}
+    </div>,
+
+    // v5: Sticky Notes
+    <div key="c4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+      {mockComments.map((c, i) => (
+        <div key={i} style={{ padding: "10px 12px", borderRadius: 4, background: i % 2 ? "rgba(108,138,255,0.08)" : "rgba(240,136,62,0.08)", transform: `rotate(${i % 2 ? "-1" : "0.5"}deg)`, boxShadow: "2px 3px 8px rgba(0,0,0,0.2)" }}>
+          <div style={{ fontSize: 12, color: "var(--color-text)" }}>{c.text}</div>
+          <div style={{ fontSize: 9, color: "#555d74", marginTop: 4, textAlign: "right" }}>— {c.who} · {c.t}</div>
+        </div>
+      ))}
+      {commInputRow("Nueva nota...", "var(--color-accent, #f0883e)", "📌")}
+    </div>,
+  ];
+
+  const commPane = commVariants[labSel.comm] ?? commVariants[0];
+
+  // ── HISTORY PANE ──────────────────────────────────────────────────────
+  const events = [
+    { t: "Ahora", icon: "📍", text: "Estás viendo este item", color: "var(--color-accent, #f0883e)" },
+    { t: "Hace 10m", icon: "✏️", text: "Manu cambió qty a 2L", color: "#6c8aff" },
+    { t: "Hace 30m", icon: "❗", text: "Kasia marcó como importante", color: "#ff5c5c" },
+    { t: "Hace 1h", icon: "📝", text: "Manu añadió nota", color: "#c76dff" },
+    { t: "Hace 2h", icon: "➕", text: `Manu añadió ${displayName} a la lista`, color: "#3dd68c" },
+    { t: "Hace 3h", icon: "🌍", text: "Traducción automática completada", color: "#34d6c0" },
+  ];
+
+  const histVariants: React.ReactNode[] = [
+    // v1: Timeline Dots
+    <div key="h0" style={{ padding: "12px 16px 12px 32px", position: "relative", flex: 1 }}>
+      <div style={{ position: "absolute", left: 22, top: 36, bottom: 16, width: 2, background: "rgba(255,255,255,0.06)" }} />
+      {events.map((e, i) => (
+        <div key={i} style={{ position: "relative", padding: "6px 0 14px 16px" }}>
+          <div style={{ position: "absolute", left: -6, top: 10, width: 10, height: 10, borderRadius: "50%", background: e.color, border: "2px solid var(--color-bg, #0d1017)" }} />
+          <div style={{ fontSize: 9, color: "#555d74" }}>{e.t}</div>
+          <div style={{ fontSize: 12, fontWeight: 600 }}>{e.icon} {e.text}</div>
+        </div>
+      ))}
+    </div>,
+
+    // v2: Activity Feed
+    <div key="h1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      {events.map((e, i) => (
+        <div key={i} style={{ display: "flex", gap: 10, padding: "10px 12px", background: "var(--color-card, #161b26)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", alignItems: "flex-start" }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: `${e.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{e.icon}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>{e.text}</div>
+            <div style={{ fontSize: 9, color: "#555d74", marginTop: 1 }}>{e.t}</div>
+          </div>
+        </div>
+      ))}
+    </div>,
+
+    // v3: Compact Log
+    <div key="h2" style={{ padding: "12px 16px", flex: 1 }}>
+      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10 }}>
+        {events.map((e, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
+            <span style={{ color: "#555d74", whiteSpace: "nowrap", minWidth: 60 }}>{e.t}</span>
+            <span>{e.icon}</span>
+            <span style={{ color: "#8b92a8" }}>{e.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>,
+
+    // v4: Color Bar Left
+    <div key="h3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+      {events.map((e, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "stretch", borderRadius: 8, overflow: "hidden", background: "var(--color-card, #161b26)" }}>
+          <div style={{ width: 4, background: e.color, flexShrink: 0 }} />
+          <div style={{ flex: 1, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 14 }}>{e.icon}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, color: "#8b92a8", flex: 1 }}>{e.text}</span>
+            <span style={{ fontSize: 9, color: "#555d74" }}>{e.t}</span>
+          </div>
+        </div>
+      ))}
+    </div>,
+
+    // v5: Diff View
+    <div key="h4" style={{ padding: "12px 16px", flex: 1 }}>
+      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, background: "#0a0a0a", borderRadius: 10, padding: 12, border: "1px solid #222" }}>
+        <div style={{ color: "#666", marginBottom: 6 }}>--- {displayName.toLowerCase()}.history</div>
+        <div style={{ color: "#3dd68c" }}>+ qty: 2L <span style={{ color: "#666" }}>// Manu, 10m ago</span></div>
+        <div style={{ color: "#ff5c5c" }}>- qty: 1L</div>
+        <div style={{ margin: "4px 0", borderTop: "1px solid #222" }} />
+        <div style={{ color: "#3dd68c" }}>+ important: true <span style={{ color: "#666" }}>// Kasia, 30m ago</span></div>
+        <div style={{ color: "#ff5c5c" }}>- important: false</div>
+        <div style={{ margin: "4px 0", borderTop: "1px solid #222" }} />
+        <div style={{ color: "#3dd68c" }}>+ note: "pelne" <span style={{ color: "#666" }}>// Manu, 1h ago</span></div>
+        <div style={{ margin: "4px 0", borderTop: "1px solid #222" }} />
+        <div style={{ color: "#3dd68c" }}>+ created <span style={{ color: "#666" }}>// Manu, 2h ago</span></div>
+      </div>
+    </div>,
+  ];
+
+  const histPane = histVariants[labSel.hist] ?? histVariants[0];
 
   const paneContent: Record<DetailTab, React.ReactNode> = {
     show: showPane,
     edit: editPane,
     trans: transPane,
     del: delPane,
-    price: placeholderPane("💰", "Historial de precios"),
-    stats: placeholderPane("📊", "Estadísticas"),
-    comm: placeholderPane("💬", "Comentarios"),
-    hist: placeholderPane("📋", "Historial"),
+    price: pricePane,
+    stats: statsPane,
+    comm: commPane,
+    hist: histPane,
   };
 
   // ── RENDER: full-screen overlay with side tabs ─────────────────────────
