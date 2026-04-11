@@ -7,6 +7,7 @@ import { demoGetMembers, demoGetItems } from "../lib/demoStore";
 import { t } from "../data/i18n";
 import type { Lang } from "../data/i18n";
 import type { List, ListMember, Item } from "../lib/supabase";
+import { CHANGELOG } from "../data/changelog";
 import SwipeRow from "../components/ui/SwipeRow";
 import Modal from "../components/ui/Modal";
 import CreateListModal from "../components/lists/CreateListModal";
@@ -239,6 +240,21 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Version badge (bottom-left) */}
+      <div
+        className="fixed bottom-6 left-6 z-40 text-text-muted"
+        style={{
+          marginBottom: "env(safe-area-inset-bottom, 0px)",
+          fontSize: 10,
+          fontFamily: "JetBrains Mono, ui-monospace, monospace",
+          opacity: 0.5,
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      >
+        {CHANGELOG[0]?.version ?? "v?"}
       </div>
 
       {/* FAB */}
