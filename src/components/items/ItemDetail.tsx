@@ -18,7 +18,7 @@ interface ItemDetailProps {
   userLang: string;
   shelfLang: string;
   countryFlag?: string;
-  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>) => void;
+  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations">>) => void;
   onDelete: (itemId: string) => void;
   onShowStore: (item: Item) => void;
   lang?: string;
@@ -90,6 +90,7 @@ export default function ItemDetail({
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");
   const [note, setNote] = useState("");
+  const [editName, setEditName] = useState("");
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
@@ -129,6 +130,16 @@ export default function ItemDetail({
     setNewCommentText("");
   }, [item?.id, userCurrency]);
 
+  // Helper to extract readable error message from Supabase/any error
+  const errMsg = (err: unknown): string => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === "object" && err !== null) {
+      const e = err as { message?: string; details?: string; hint?: string; code?: string };
+      return [e.message, e.details, e.hint, e.code].filter(Boolean).join(" | ") || JSON.stringify(err);
+    }
+    return String(err);
+  };
+
   const handleAddPrice = async () => {
     if (!user || !item || !newPriceStore.trim() || !newPriceValue.trim()) return;
     const value = parseFloat(newPriceValue.replace(",", "."));
@@ -147,7 +158,7 @@ export default function ItemDetail({
       setShowAddPriceForm(false);
     } catch (err) {
       console.error("[addItemPrice] failed:", err);
-      alert("Error al guardar precio: " + (err instanceof Error ? err.message : String(err)));
+      alert("Error al guardar precio: " + errMsg(err));
     }
   };
 
@@ -168,7 +179,7 @@ export default function ItemDetail({
       setNewCommentText("");
     } catch (err) {
       console.error("[addItemComment] failed:", err);
-      alert("Error al añadir comentario: " + (err instanceof Error ? err.message : String(err)));
+      alert("Error al añadir comentario: " + errMsg(err));
     }
   };
 
@@ -190,6 +201,7 @@ export default function ItemDetail({
       setQty(item.qty || "");
       setUnit(item.unit || "");
       setNote(item.note || "");
+      setEditName(item.original || "");
       setDeleteStep(0);
       setActiveTab("show");
       setActivePhrase(null);
@@ -211,6 +223,14 @@ export default function ItemDetail({
     : null;
 
   const handleSave = () => onUpdate(item.id, { qty, unit, note });
+
+  const handleNameBlur = () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === item.original) return;
+    // Update the translations map too — replace the old original key
+    const newTranslations = { ...item.translations, [userLang]: trimmed, en: trimmed };
+    onUpdate(item.id, { original: trimmed, translations: newTranslations });
+  };
 
   const savePhotoUrl = () => {
     const url = photoUrl.trim();
@@ -322,8 +342,17 @@ export default function ItemDetail({
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <ProductIcon name={item.original} size={48} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }} className="truncate">{displayName}</div>
-          {item.added_by_name && <div style={{ fontSize: 11, color: "#555d74" }}>{t(lang, "addedBy")} {item.added_by_name}</div>}
+          <input
+            type="text"
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            onBlur={handleNameBlur}
+            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            className="input"
+            style={{ fontSize: 18, fontWeight: 700, padding: "4px 8px", width: "100%" }}
+            placeholder="Nombre del producto"
+          />
+          {item.added_by_name && <div style={{ fontSize: 11, color: "#555d74", marginTop: 2 }}>{t(lang, "addedBy")} {item.added_by_name}</div>}
         </div>
       </div>
       {photoBlock}

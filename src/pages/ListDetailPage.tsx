@@ -188,7 +188,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const handleUpdate = useCallback(async (
     itemId: string,
-    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important">>,
+    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations">>,
   ) => {
     // Capture previous state for diff
     const prevItem = items.find(i => i.id === itemId);
@@ -217,6 +217,9 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       }
       if ("photo" in updates && updates.photo !== prevItem.photo) {
         tasks.push(logItemHistory({ itemId, eventType: "photo", icon: "📷", description: updates.photo ? `${byUserName} añadió foto` : `${byUserName} quitó foto`, byUserId, byUserName }));
+      }
+      if ("original" in updates && updates.original !== prevItem.original) {
+        tasks.push(logItemHistory({ itemId, eventType: "name_changed", icon: "📝", description: `${byUserName} renombró "${prevItem.original}" → "${updates.original}"`, byUserId, byUserName }));
       }
       Promise.all(tasks).catch(() => { /* ignore log errors */ });
     }
