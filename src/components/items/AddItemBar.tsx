@@ -345,7 +345,7 @@ export default function AddItemBar({
               {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
             </select>
             <button type="button" onClick={() => setImportant(!important)}
-              className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+              className="flex-1 h-8 rounded-lg flex items-center justify-center cursor-pointer"
               style={{
                 background: important ? "rgba(255,92,92,0.2)" : "transparent",
                 border: important ? "2px solid #ff5c5c" : "1.5px solid rgba(255,255,255,0.10)",
@@ -391,7 +391,7 @@ export default function AddItemBar({
                   className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
                   style={{ flex: 1 }} />
                 <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
-                  className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                  className="flex-1 h-8 rounded-lg flex items-center justify-center cursor-pointer"
                   style={{
                     background: photo ? "rgba(240,136,62,0.15)" : "transparent",
                     border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
