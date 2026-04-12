@@ -9,8 +9,6 @@ import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
 import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
 import { useAuth } from "../../hooks/useAuth";
-import { translateProduct } from "../../lib/translate";
-import { getEnabledLangs } from "../../lib/langConfig";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -91,14 +89,12 @@ export default function ItemDetail({
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");
   const [note, setNote] = useState("");
-  const [editName, setEditName] = useState("");
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
   const [activePhrase, setActivePhrase] = useState<string | null>(null);
   const [showPhraseList, setShowPhraseList] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [editingPhoto, setEditingPhoto] = useState(false);
+  const [, setEditingPhoto] = useState(false);
   const phrases = useStorePhrases();
   const labSel = getLabSelection();
   const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
@@ -204,7 +200,6 @@ export default function ItemDetail({
       setQty(item.qty || "");
       setUnit(item.unit || "");
       setNote(item.note || "");
-      setEditName(item.original || "");
       setDeleteStep(0);
       setActiveTab("show");
       setActivePhrase(null);
@@ -227,32 +222,6 @@ export default function ItemDetail({
 
   const handleSave = () => onUpdate(item.id, { qty, unit, note });
 
-  const handleNameBlur = async () => {
-    const trimmed = editName.trim();
-    if (!trimmed || trimmed === item.original) return;
-    // Re-translate the new name from scratch so old translations don't linger
-    // (e.g. changing "tomate" → "ternera" should drop the old Polish/German
-    // tomato translations). Also re-detects category and clears the photo.
-    const targetLangs = getEnabledLangs();
-    let newTranslations: Record<string, string> = { [userLang]: trimmed, en: trimmed };
-    try {
-      const result = await translateProduct(trimmed, targetLangs, userLang);
-      if (result?.translations) newTranslations = result.translations;
-    } catch { /* fall back to single-lang translation */ }
-    onUpdate(item.id, {
-      original: trimmed,
-      translations: newTranslations,
-      photo: null,
-    });
-  };
-
-  const savePhotoUrl = () => {
-    const url = photoUrl.trim();
-    if (!url) return;
-    onUpdate(item.id, { photo: url });
-    setPhotoUrl("");
-    setEditingPhoto(false);
-  };
 
   // ── SHOW PANE ──────────────────────────────────────────────────────────
   const showPane = (
@@ -342,42 +311,11 @@ export default function ItemDetail({
   );
 
   // ── EDIT PANE (5 variants synced from lab) ───────────────────────────────
-  // Shared blocks used by all edit variants
-  const photoBlock = item.photo ? (
-    <img src={item.photo} style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }} alt="" />
-  ) : !editingPhoto ? (
-    <button type="button" onClick={() => setEditingPhoto(true)}
-      style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-      🔗 {t(lang, "addPhotoUrl")}
-    </button>
-  ) : (
-    <div style={{ display: "flex", gap: 6 }}>
-      <input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..." autoFocus
-        onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
-        className="input" style={{ flex: 1, fontSize: 13, padding: "8px 12px" }} />
-      <button onClick={savePhotoUrl} style={{ padding: "8px 14px", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>OK</button>
-    </div>
-  );
-
-  const importantBlock = (
-    <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
-      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 11, border: `1.5px solid ${item.important ? "rgba(255,92,92,0.3)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.04)" : "transparent", cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
-      <span style={{ width: 10, height: 10, borderRadius: "50%", background: item.important ? "#ff5c5c" : "#555d74", boxShadow: item.important ? "0 0 6px rgba(255,92,92,0.4)" : "none" }} />
-      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: item.important ? "#ff5c5c" : "var(--color-text, #e6e8ee)", textAlign: "left" }}>{item.important ? t(lang, "important") : t(lang, "markImportant")}</span>
-    </button>
-  );
-
-  const saveBtn = (
-    <button type="button" onClick={handleSave}
-      style={{ width: "100%", padding: "12px 0", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: "auto" }}>
-      💾 {t(lang, "save")}
-    </button>
-  );
-
   // Shared lab-style CSS values for edit variants
   const labLabel: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 };
   const labInput: React.CSSProperties = { background: "var(--color-card, #161b26)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "var(--color-text, #e6e8ee)", width: "100%", fontFamily: "inherit", outline: "none" };
   const labBtn: React.CSSProperties = { padding: 14, borderRadius: 12, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", width: "100%", cursor: "pointer", fontFamily: "inherit" };
+  const saveBtn = <button type="button" onClick={handleSave} style={labBtn}>💾 Guardar</button>;
 
   const editVariants: React.ReactNode[] = [
     // v1: Classic Form — pixel-perfect match with lab HTML
