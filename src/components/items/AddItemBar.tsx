@@ -19,7 +19,7 @@ interface AddItemBarProps {
 
 const UNITS = [
   { value: "", label: "\u2014" },
-  { value: "x", label: "\u00d7" },
+  { value: "x", label: "uds" },
   { value: "kg", label: "kg" },
   { value: "g", label: "g" },
   { value: "L", label: "L" },
