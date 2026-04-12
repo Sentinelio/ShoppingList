@@ -14,21 +14,19 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.80",
+    version: "v0.81",
     hash: "HEAD",
     date: "2026-04-12",
-    time: "16:45",
+    time: "17:00",
     type: "fix",
-    title: "Edit pane variants rewritten 1:1 with admin lab",
+    title: "Edit pane: name + photo added to all 5 variants in admin AND client",
     details: [
-      "All 5 edit variants completely rewritten to match the iframe lab HTML pixel-for-pixel",
-      "v1 Classic Form: Cantidad label + qty+select, Nota label + input, Prioridad label + toggle, Guardar",
-      "v2 Stepper: emoji + name, −/+ buttons, note input, Guardar (no extra unit pills or photo/important)",
-      "v3 All-in-one: emoji card + name/shelf, qty+select+note row, Important+Foto side-by-side buttons, Guardar",
-      "v4 Minimal: emoji, shelf, 3 placeholder inputs (Qty/Unit/Nota), Imp+Foto buttons, Guardar",
-      "v5 Quick Presets: emoji+name, 3x2 preset grid, Nota label + input, Guardar",
-      "Fixed header (editable name + photo) stays constant above all variants",
-      "HECHOS delete button moved below expanded list, AddItemBar compacted for mobile",
+      "Added editable product name input + photo URL button to ALL 5 edit variants",
+      "Both admin lab HTML and React client show the exact same fields in the same order",
+      "Shared editHeader block: emoji + name input + photo button (or photo URL input when editing)",
+      "Lab HTML uses a shared editHeader JS variable prepended to each EDIT variant",
+      "React uses a shared editHeader JSX block inserted at the top of each editVariants entry",
+      "v1-v5 all show: name → photo → variant-specific fields → Guardar",
     ],
   },
   {

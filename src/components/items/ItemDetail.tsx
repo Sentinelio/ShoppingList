@@ -89,12 +89,14 @@ export default function ItemDetail({
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");
   const [note, setNote] = useState("");
+  const [editName, setEditName] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [editingPhoto, setEditingPhoto] = useState(false);
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
   const [activePhrase, setActivePhrase] = useState<string | null>(null);
   const [showPhraseList, setShowPhraseList] = useState(false);
-  const [, setEditingPhoto] = useState(false);
   const phrases = useStorePhrases();
   const labSel = getLabSelection();
   const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
@@ -200,6 +202,9 @@ export default function ItemDetail({
       setQty(item.qty || "");
       setUnit(item.unit || "");
       setNote(item.note || "");
+      setEditName(item.original || "");
+      setEditingPhoto(false);
+      setPhotoUrl("");
       setDeleteStep(0);
       setActiveTab("show");
       setActivePhrase(null);
@@ -221,6 +226,21 @@ export default function ItemDetail({
     : null;
 
   const handleSave = () => onUpdate(item.id, { qty, unit, note });
+
+  const handleNameBlur = () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === item.original) return;
+    const newTranslations = { ...item.translations, [userLang]: trimmed, en: trimmed };
+    onUpdate(item.id, { original: trimmed, translations: newTranslations });
+  };
+
+  const savePhotoUrl = () => {
+    const url = photoUrl.trim();
+    if (!url) return;
+    onUpdate(item.id, { photo: url });
+    setPhotoUrl("");
+    setEditingPhoto(false);
+  };
 
 
   // ── SHOW PANE ──────────────────────────────────────────────────────────
@@ -317,9 +337,36 @@ export default function ItemDetail({
   const labBtn: React.CSSProperties = { padding: 14, borderRadius: 12, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", width: "100%", cursor: "pointer", fontFamily: "inherit" };
   const saveBtn = <button type="button" onClick={handleSave} style={labBtn}>💾 Guardar</button>;
 
+  // Shared edit header: name input + photo button (matches lab editHeader)
+  const editHeader = (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <span style={{ fontSize: 28 }}>{emojiChar}</span>
+        <input type="text" value={editName} onChange={e => setEditName(e.target.value)} onBlur={handleNameBlur}
+          onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          style={{ ...labInput, flex: 1, fontSize: 16, fontWeight: 700, padding: "6px 10px" }} />
+      </div>
+      {!editingPhoto ? (
+        <button type="button" onClick={() => setEditingPhoto(true)}
+          style={{ width: "100%", padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit", marginBottom: 6 }}>
+          {item.photo ? "📷 Cambiar foto" : "🔗 Añadir URL de foto"}
+        </button>
+      ) : (
+        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+          <input type="text" value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..." autoFocus
+            onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
+            style={{ ...labInput, flex: 1, fontSize: 12, padding: "8px 10px" }} />
+          <button type="button" onClick={savePhotoUrl} style={{ padding: "8px 14px", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>OK</button>
+        </div>
+      )}
+      {item.photo && <img src={item.photo} style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 6 }} alt="" />}
+    </>
+  );
+
   const editVariants: React.ReactNode[] = [
     // v1: Classic Form — pixel-perfect match with lab HTML
     <div key="e0" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+      {editHeader}
       <div>
         <div style={labLabel}>Cantidad</div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -367,6 +414,7 @@ export default function ItemDetail({
 
     // v2: Stepper Buttons — Botones +/- grandes (1:1 with lab)
     <div key="e1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, flex: 1, textAlign: "center" }}>
+      {editHeader}
       <span style={{ fontSize: 36 }}>{emojiChar}</span>
       <div style={{ fontSize: 18, fontWeight: 800 }}>{displayName}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "12px 0" }}>
@@ -385,6 +433,7 @@ export default function ItemDetail({
 
     // v3: All-in-one Row — Todo compacto (1:1 with lab)
     <div key="e2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+      {editHeader}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--color-card, #161b26)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)" }}>
         <span style={{ fontSize: 28 }}>{emojiChar}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -414,6 +463,7 @@ export default function ItemDetail({
 
     // v4: Minimal Fields — Sin labels, solo placeholders (1:1 with lab)
     <div key="e3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
+      {editHeader}
       <span style={{ fontSize: 40 }}>{emojiChar}</span>
       {showShelf && <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>}
       <div style={{ display: "flex", gap: 6, width: "100%", marginTop: 8 }}>
@@ -436,6 +486,7 @@ export default function ItemDetail({
 
     // v5: Quick Presets — Botones rapidos (1:1 with lab)
     <div key="e4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+      {editHeader}
       <div style={{ textAlign: "center" }}>
         <span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}
         <span style={{ fontSize: 18, fontWeight: 800, verticalAlign: "middle" }}>{displayName}</span>
