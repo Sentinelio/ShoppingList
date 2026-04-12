@@ -188,7 +188,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const handleUpdate = useCallback(async (
     itemId: string,
-    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations">>,
+    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand">>,
   ) => {
     // Capture previous state for diff
     const prevItem = items.find(i => i.id === itemId);

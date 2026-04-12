@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.83",
+    version: "v0.84",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "18:00",
+    type: "feat",
+    title: "Brand field: edit, show in store, Google Images",
+    details: [
+      "New 'brand' column on items table (migration 015)",
+      "Brand input in edit pane header with label 'Marca' and placeholder examples",
+      "Show pane displays brand in italics below product name when set",
+      "Google Images search includes brand name (e.g. 'dentifrico Himalaya')",
+      "Brand included in dirty tracking — changes require Save to persist",
+      "Admin lab HTML also shows the brand input in all 5 edit variants",
+    ],
+  },
+  {
+    version: "v0.83",
+    hash: "3fb866a",
     date: "2026-04-12",
     time: "17:30",
     type: "feat",

@@ -19,7 +19,7 @@ interface ItemDetailProps {
   userLang: string;
   shelfLang: string;
   countryFlag?: string;
-  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations">>) => void;
+  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand">>) => void;
   onDelete: (itemId: string) => void;
   onShowStore: (item: Item) => void;
   lang?: string;
@@ -92,6 +92,7 @@ export default function ItemDetail({
   const [unit, setUnit] = useState("");
   const [note, setNote] = useState("");
   const [editName, setEditName] = useState("");
+  const [brand, setBrand] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -206,6 +207,7 @@ export default function ItemDetail({
       setUnit(item.unit || "");
       setNote(item.note || "");
       setEditName(item.original || "");
+      setBrand(item.brand || "");
       setEditingPhoto(false);
       setPhotoUrl("");
       setSaved(false);
@@ -231,18 +233,20 @@ export default function ItemDetail({
 
   // Check if any edit field has changed
   const nameChanged = editName.trim() !== "" && editName.trim() !== item.original;
+  const brandChanged = brand.trim() !== (item.brand || "");
   const qtyChanged = qty !== (item.qty || "");
   const unitChanged = unit !== (item.unit || "");
   const noteChanged = note !== (item.note || "");
-  const isDirty = nameChanged || qtyChanged || unitChanged || noteChanged;
+  const isDirty = nameChanged || brandChanged || qtyChanged || unitChanged || noteChanged;
 
   const handleSave = async () => {
     const updates: Partial<Record<string, unknown>> = {};
 
-    // Always save qty/unit/note
+    // Always save qty/unit/note/brand
     if (qtyChanged) updates.qty = qty;
     if (unitChanged) updates.unit = unit;
     if (noteChanged) updates.note = note;
+    if (brandChanged) updates.brand = brand.trim();
 
     // If name changed, re-translate fully
     if (nameChanged) {
@@ -297,6 +301,11 @@ export default function ItemDetail({
             ({displayName})
           </div>
         )}
+        {item.brand && (
+          <div style={{ fontSize: 11, color: "#8b92a8", marginTop: 4, fontStyle: "italic" }}>
+            {item.brand}
+          </div>
+        )}
       </div>
       {/* Emoji centered */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -336,7 +345,7 @@ export default function ItemDetail({
         )}
         {/* Google Images button */}
         <a
-          href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(shelfName || displayName)}`}
+          href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent((shelfName || displayName) + (item.brand ? " " + item.brand : ""))}`}
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -403,6 +412,10 @@ export default function ItemDetail({
         </div>
       )}
       {item.photo && <img src={item.photo} style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 6 }} alt="" />}
+      <div style={labLabel}>Marca</div>
+      <input type="text" value={brand} onChange={e => setBrand(e.target.value)}
+        placeholder="Ej: Hacendado, Lidl, Himalaya..."
+        style={{ ...labInput, marginBottom: 6, fontSize: 13, padding: "10px 14px" }} />
     </>
   );
 

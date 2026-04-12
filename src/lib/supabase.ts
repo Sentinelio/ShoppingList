@@ -55,6 +55,7 @@ export interface Item {
   qty: string;
   unit: string;
   note: string;
+  brand: string;
   photo: string | null;
   important: boolean;
   checked: boolean;
