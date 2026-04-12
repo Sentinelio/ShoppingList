@@ -327,12 +327,12 @@ export default function AddItemBar({
           placeholder={t(lang, "addProduct")}
           disabled={translating}
           className="bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50 min-w-0"
-          style={{ fontSize: 15, flex: 1 }}
+          style={{ fontSize: 15, flex: 45 }}
         />
 
         {/* When expanded: qty + unit + important fill remaining 2/3 */}
         {expanded && (
-          <div className="flex gap-1.5 items-center" style={{ flex: 2 }}>
+          <div className="flex gap-1.5 items-center" style={{ flex: 55 }}>
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
               className="flex-1 bg-bg border border-border rounded-lg px-1.5 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
@@ -379,8 +379,8 @@ export default function AddItemBar({
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Marca / Nota..."
               className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ flex: 1 }} />
-            <div className="flex gap-1.5 items-center" style={{ flex: 2 }}>
+              style={{ flex: 45 }} />
+            <div className="flex gap-1.5 items-center" style={{ flex: 55 }}>
               <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
                 className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
                 style={{
