@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.85",
+    version: "v0.86",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "18:30",
+    type: "fix",
+    title: "AddItemBar true 2-row layout — product name in row 1",
+    details: [
+      "Row 1: [Product name] [Qty] [Unit] [‼️] — all inline in one row",
+      "Row 2: [Marca/Nota...] [🔗] [✕] [Añadir]",
+      "Product name input is now IN the same flex row as qty/unit/important",
+    ],
+  },
+  {
+    version: "v0.85",
+    hash: "af6bfc2",
     date: "2026-04-12",
     time: "18:15",
     type: "fix",
