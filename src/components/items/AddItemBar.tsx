@@ -244,7 +244,7 @@ export default function AddItemBar({
   return (
     <>
     <div
-      className="sticky bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light"
+      className="sticky bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light relative"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
       {/* Autocomplete suggestions — anchored above the input */}
@@ -315,7 +315,7 @@ export default function AddItemBar({
       )}
 
       {/* Main input row */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-1.5 px-3 pt-2 w-full">
+      <form onSubmit={handleSubmit} className="flex items-center gap-1.5 pt-2 w-full" style={{ paddingLeft: 12, paddingRight: expanded ? "calc(10% + 18px)" : 12 }}>
         <input
           ref={inputRef}
           type="text"
@@ -330,9 +330,9 @@ export default function AddItemBar({
           style={{ fontSize: 15, flex: 45 }}
         />
 
-        {/* When expanded: qty + unit + important fill remaining 2/3 */}
+        {/* When expanded: qty + unit + important */}
         {expanded && (
-          <div className="flex gap-1.5 items-center" style={{ flex: 55 }}>
+          <div className="flex gap-1.5 items-center" style={{ flex: 45 }}>
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
               className="flex-1 bg-bg border border-border rounded-lg px-1.5 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
@@ -352,7 +352,7 @@ export default function AddItemBar({
           </div>
         )}
 
-        {/* Add button -- only when NOT expanded */}
+        {/* Add button -- when NOT expanded (inline) */}
         {!expanded && (
           <button
             type="submit"
@@ -372,39 +372,50 @@ export default function AddItemBar({
         )}
       </form>
 
-      {/* Row 2 (only when expanded): brand/note + 🔗 + ✕ + Añadir */}
+      {/* Expanded: Row 2 + tall Añadir button on the right spanning both rows */}
       {expanded && (
         <>
-          <div className="flex gap-1.5 items-center px-3 pt-1 pb-1 w-full">
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Marca / Nota..."
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ flex: 45 }} />
-            <div className="flex gap-1.5 items-center" style={{ flex: 55 }}>
-              <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
-                className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
-                style={{
-                  background: photo ? "rgba(240,136,62,0.15)" : "transparent",
-                  border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
-                }}>
-                <span style={{ fontSize: 12 }}>{photo ? "📷" : "🔗"}</span>
-              </button>
-              <button type="button" onClick={reset}
-                className="shrink-0 w-8 h-8 rounded-lg bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-xs">
-                ✕
-              </button>
-              <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
-                disabled={!input.trim() || translating}
-                className="flex-1 h-8 rounded-lg text-white font-semibold text-xs flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
-                {translating ? "..." : t(lang, "add")}
-              </button>
+          <div className="flex pt-1 pb-1 w-full gap-1.5" style={{ paddingLeft: 12, paddingRight: "calc(10% + 18px)" }}>
+            {/* Left: row 2 fields */}
+            <div className="flex gap-1.5 items-center" style={{ flex: 90 }}>
+              <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+                placeholder="Marca / Nota..."
+                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+                style={{ flex: 45 }} />
+              <div className="flex gap-1.5 items-center" style={{ flex: 45 }}>
+                <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
+                  className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                  style={{
+                    background: photo ? "rgba(240,136,62,0.15)" : "transparent",
+                    border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
+                  }}>
+                  <span style={{ fontSize: 12 }}>{photo ? "📷" : "🔗"}</span>
+                </button>
+                <button type="button" onClick={reset}
+                  className="shrink-0 w-8 h-8 rounded-lg bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-xs">
+                  ✕
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Añadir button: absolutely positioned right, spanning both rows */}
+          <div style={{
+            position: "absolute", right: 12, top: 0, bottom: 0,
+            width: "10%", display: "flex", alignItems: "stretch",
+            paddingTop: 8, paddingBottom: 4,
+          }}>
+            <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
+              disabled={!input.trim() || translating}
+              className="w-full rounded-xl text-white font-semibold text-xs flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)", writingMode: "vertical-lr" }}>
+              {translating ? "..." : t(lang, "add")}
+            </button>
           </div>
 
           {/* Photo URL (extra row, only when toggled) */}
           {showPhotoInput && (
-            <div className="flex gap-1.5 items-center px-3 pb-1">
+            <div className="flex gap-1.5 items-center px-3 pb-1" style={{ marginRight: "10%" }}>
               {photo && <img src={photo} className="w-6 h-6 rounded object-cover border border-border-light shrink-0" alt="" />}
               <input value={photoUrlInput} onChange={e => setPhotoUrlInput(e.target.value)}
                 placeholder="https://..." autoFocus
