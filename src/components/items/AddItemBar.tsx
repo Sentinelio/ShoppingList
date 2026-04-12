@@ -327,19 +327,18 @@ export default function AddItemBar({
           placeholder={t(lang, "addProduct")}
           disabled={translating}
           className="bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50 min-w-0"
-          style={{ fontSize: 15, width: "33%" }}
+          style={{ fontSize: 15, flex: 1 }}
         />
 
-        {/* When expanded: qty + unit + important inline with product name */}
+        {/* When expanded: qty + unit + important fill remaining 2/3 */}
         {expanded && (
-          <>
+          <div className="flex gap-1.5 items-center" style={{ flex: 2 }}>
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
-              className="bg-bg border border-border rounded-lg px-1.5 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-              style={{ width: 42, textAlign: "center" }} />
+              className="flex-1 bg-bg border border-border rounded-lg px-1.5 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+              style={{ textAlign: "center" }} />
             <select value={unit} onChange={(e) => setUnit(e.target.value)}
-              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
-              style={{ width: 48 }}>
+              className="flex-1 bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none min-w-0">
               {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
             </select>
             <button type="button" onClick={() => setImportant(!important)}
@@ -350,7 +349,7 @@ export default function AddItemBar({
               }}>
               <span style={{ fontSize: important ? 14 : 12 }}>{important ? "‼️" : "❕"}</span>
             </button>
-          </>
+          </div>
         )}
 
         {/* Add button -- only when NOT expanded */}
@@ -380,25 +379,27 @@ export default function AddItemBar({
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Marca / Nota..."
               className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ width: "33%" }} />
-            <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
-              className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
-              style={{
-                background: photo ? "rgba(240,136,62,0.15)" : "transparent",
-                border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
-              }}>
-              <span style={{ fontSize: 12 }}>{photo ? "📷" : "🔗"}</span>
-            </button>
-            <button type="button" onClick={reset}
-              className="shrink-0 w-8 h-8 rounded-lg bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-xs">
-              ✕
-            </button>
-            <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
-              disabled={!input.trim() || translating}
-              className="shrink-0 h-8 px-4 rounded-lg text-white font-semibold text-xs flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
-              style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
-              {translating ? "..." : t(lang, "add")}
-            </button>
+              style={{ flex: 1 }} />
+            <div className="flex gap-1.5 items-center" style={{ flex: 2 }}>
+              <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
+                className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                style={{
+                  background: photo ? "rgba(240,136,62,0.15)" : "transparent",
+                  border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
+                }}>
+                <span style={{ fontSize: 12 }}>{photo ? "📷" : "🔗"}</span>
+              </button>
+              <button type="button" onClick={reset}
+                className="shrink-0 w-8 h-8 rounded-lg bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-xs">
+                ✕
+              </button>
+              <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
+                disabled={!input.trim() || translating}
+                className="flex-1 h-8 rounded-lg text-white font-semibold text-xs flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
+                {translating ? "..." : t(lang, "add")}
+              </button>
+            </div>
           </div>
 
           {/* Photo URL (extra row, only when toggled) */}
