@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.77",
+    version: "v0.78",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "16:04",
+    type: "fix",
+    title: "HECHOS/delete separation + compact AddItemBar + edit pane sync",
+    details: [
+      "Moved delete button below the checked items list (only visible when expanded) to prevent accidental taps next to the HECHOS toggle",
+      "AddItemBar is now more compact on mobile: smaller buttons, narrower inputs, allergen chips removed from add bar",
+      "Edit pane now has a fixed header (emoji + editable name + photo) with the variant body below matching the admin lab selection exactly",
+    ],
+  },
+  {
+    version: "v0.77",
+    hash: "45cb118",
     date: "2026-04-11",
     time: "20:00",
     type: "fix",
