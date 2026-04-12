@@ -375,27 +375,57 @@ export default function ItemDetail({
     </button>
   );
 
+  // Shared lab-style CSS values for edit variants
+  const labLabel = { fontSize: 9, fontWeight: 700 as const, color: "#555d74", textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 6 };
+  const labInput: React.CSSProperties = { background: "var(--color-card, #161b26)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "var(--color-text, #e6e8ee)", width: "100%", fontFamily: "inherit", outline: "none" };
+  const labBtn: React.CSSProperties = { padding: 14, borderRadius: 12, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", width: "100%", cursor: "pointer", fontFamily: "inherit" };
+
   const editVariants: React.ReactNode[] = [
-    // v1: Classic Form — Labels + inputs apilados (1:1 with lab)
-    <div key="e0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+    // v1: Classic Form — pixel-perfect match with lab HTML
+    <div key="e0" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
       <div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Cantidad</div>
+        <div style={labLabel}>Cantidad</div>
         <div style={{ display: "flex", gap: 8 }}>
-          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 70, textAlign: "center" }} />
-          <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ flex: 1 }}>
-            {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1"
+            style={{ ...labInput, width: 70, textAlign: "center", flex: "none" }} />
+          <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }}
+            style={{ ...labInput, flex: 1, appearance: "none", WebkitAppearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%238b92a8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 14px center", paddingRight: 30 }}>
+            {UNITS.map(u => <option key={u.value} value={u.value} style={{ background: "#0d1017", color: "#e6e8ee" }}>{u.label}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Nota</div>
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" />
+        <div style={labLabel}>Nota</div>
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")}
+          style={labInput} />
       </div>
       <div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Prioridad</div>
-        {importantBlock}
+        <div style={labLabel}>Prioridad</div>
+        <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
+          style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 11, width: "100%",
+            border: `1.5px solid ${item.important ? "rgba(255,92,92,0.2)" : "rgba(255,255,255,0.10)"}`,
+            background: item.important ? "rgba(255,92,92,0.04)" : "transparent", cursor: "pointer", fontFamily: "inherit",
+          }}>
+          <span style={{ width: 10, height: 10, borderRadius: "50%", background: item.important ? "#ff5c5c" : "#555d74", boxShadow: item.important ? "0 0 6px rgba(255,92,92,0.4)" : "none" }} />
+          <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: item.important ? "#ff5c5c" : "var(--color-text, #e6e8ee)", textAlign: "left" }}>Importante</span>
+          {/* Toggle switch */}
+          <span style={{
+            width: 40, height: 22, borderRadius: 11, position: "relative",
+            background: item.important ? "#ff5c5c" : "rgba(255,255,255,0.12)",
+            display: "inline-block", transition: "background 0.2s", flexShrink: 0,
+          }}>
+            <span style={{
+              position: "absolute", top: 3, left: item.important ? 20 : 3,
+              width: 16, height: 16, borderRadius: "50%", background: "#fff",
+              transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }} />
+          </span>
+        </button>
       </div>
-      <div style={{ marginTop: "auto" }}>{saveBtn}</div>
+      <div style={{ marginTop: "auto" }}>
+        <button type="button" onClick={handleSave} style={labBtn}>💾 Guardar</button>
+      </div>
     </div>,
 
     // v2: Stepper Buttons — Botones +/- grandes (1:1 with lab)
@@ -1126,34 +1156,9 @@ export default function ItemDetail({
 
   const histPane = histVariants[labSel.hist] ?? histVariants[0];
 
-  // Wrap edit pane: fixed header (editable name + photo) + variant body
-  const editPaneWrapped = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
-      {/* Fixed header: editable product name + photo */}
-      <div style={{ padding: "10px 16px 0", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 28 }}>{emojiChar}</span>
-          <input
-            type="text"
-            value={editName}
-            onChange={e => setEditName(e.target.value)}
-            onBlur={handleNameBlur}
-            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-            className="input"
-            style={{ fontSize: 16, fontWeight: 700, padding: "4px 8px", flex: 1 }}
-            placeholder="Nombre del producto"
-          />
-        </div>
-        {photoBlock}
-      </div>
-      {/* Variant body from lab selection */}
-      {editPane}
-    </div>
-  );
-
   const paneContent: Record<DetailTab, React.ReactNode> = {
     show: showPane,
-    edit: editPaneWrapped,
+    edit: editPane,
     trans: transPane,
     del: delPane,
     price: pricePane,

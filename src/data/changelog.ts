@@ -14,10 +14,10 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.79",
+    version: "v0.80",
     hash: "HEAD",
     date: "2026-04-12",
-    time: "16:30",
+    time: "16:45",
     type: "fix",
     title: "Edit pane variants rewritten 1:1 with admin lab",
     details: [
