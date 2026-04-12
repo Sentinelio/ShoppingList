@@ -326,8 +326,8 @@ export default function AddItemBar({
           onPaste={handlePaste}
           placeholder={t(lang, "addProduct")}
           disabled={translating}
-          className="flex-1 bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50 min-w-0"
-          style={{ fontSize: 15 }}
+          className="bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50 min-w-0"
+          style={{ fontSize: 15, width: "33%" }}
         />
 
         {/* When expanded: qty + unit + important inline with product name */}
@@ -379,7 +379,8 @@ export default function AddItemBar({
           <div className="flex gap-1.5 items-center px-3 pt-1 pb-1 w-full">
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Marca / Nota..."
-              className="flex-1 bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0" />
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+              style={{ width: "33%" }} />
             <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
               className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
               style={{
