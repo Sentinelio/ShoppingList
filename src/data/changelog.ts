@@ -14,16 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.78",
+    version: "v0.79",
     hash: "HEAD",
     date: "2026-04-12",
-    time: "16:04",
+    time: "16:30",
     type: "fix",
-    title: "HECHOS/delete separation + compact AddItemBar + edit pane sync",
+    title: "Edit pane variants rewritten 1:1 with admin lab",
     details: [
-      "Moved delete button below the checked items list (only visible when expanded) to prevent accidental taps next to the HECHOS toggle",
-      "AddItemBar is now more compact on mobile: smaller buttons, narrower inputs, allergen chips removed from add bar",
-      "Edit pane now has a fixed header (emoji + editable name + photo) with the variant body below matching the admin lab selection exactly",
+      "All 5 edit variants completely rewritten to match the iframe lab HTML pixel-for-pixel",
+      "v1 Classic Form: Cantidad label + qty+select, Nota label + input, Prioridad label + toggle, Guardar",
+      "v2 Stepper: emoji + name, −/+ buttons, note input, Guardar (no extra unit pills or photo/important)",
+      "v3 All-in-one: emoji card + name/shelf, qty+select+note row, Important+Foto side-by-side buttons, Guardar",
+      "v4 Minimal: emoji, shelf, 3 placeholder inputs (Qty/Unit/Nota), Imp+Foto buttons, Guardar",
+      "v5 Quick Presets: emoji+name, 3x2 preset grid, Nota label + input, Guardar",
+      "Fixed header (editable name + photo) stays constant above all variants",
+      "HECHOS delete button moved below expanded list, AddItemBar compacted for mobile",
     ],
   },
   {

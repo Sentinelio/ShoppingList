@@ -376,111 +376,124 @@ export default function ItemDetail({
   );
 
   const editVariants: React.ReactNode[] = [
-    // v1: Classic Form — labels + inputs stacked (matches lab exactly)
+    // v1: Classic Form — Labels + inputs apilados (1:1 with lab)
     <div key="e0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
       <div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{t(lang, "qty")}</div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 60, textAlign: "center" }} />
-          <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 70 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Cantidad</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 70, textAlign: "center" }} />
+          <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ flex: 1 }}>
             {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
-          <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
         </div>
       </div>
-      {importantBlock}
-      {saveBtn}
+      <div>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Nota</div>
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" />
+      </div>
+      <div>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Prioridad</div>
+        {importantBlock}
+      </div>
+      <div style={{ marginTop: "auto" }}>{saveBtn}</div>
     </div>,
 
-    // v2: Stepper Buttons — big +/- for qty, centered emoji
+    // v2: Stepper Buttons — Botones +/- grandes (1:1 with lab)
     <div key="e1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, flex: 1, textAlign: "center" }}>
-      <ProductIcon name={item.original} size={64} />
+      <span style={{ fontSize: 36 }}>{emojiChar}</span>
       <div style={{ fontSize: 18, fontWeight: 800 }}>{displayName}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "8px 0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "12px 0" }}>
         <button type="button" onClick={() => { const n = Math.max(0, Number(qty) - 1); setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
-          style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--color-card, #161b26)", border: "2px solid rgba(255,255,255,0.10)", fontSize: 20, color: "#8b92a8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-        <div>
+          style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--color-card, #161b26)", border: "2px solid rgba(255,255,255,0.10)", fontSize: 20, color: "#8b92a8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>−</button>
+        <div style={{ textAlign: "center" }}>
           <span style={{ fontSize: 40, fontWeight: 900, color: "var(--color-accent, #f0883e)" }}>{qty || "0"}</span>
           <div style={{ fontSize: 11, color: "#8b92a8" }}>{UNITS.find(u => u.value === unit)?.label || "—"}</div>
         </div>
         <button type="button" onClick={() => { const n = Number(qty) + 1; setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
-          style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #f09848, #e07028)", border: "none", fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+          style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #f09848, #e07028)", border: "none", fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>+</button>
       </div>
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "center" }}>
-        {UNITS.filter(u => u.value).map(u => (
-          <button key={u.value} type="button" onClick={() => { setUnit(u.value); onUpdate(item.id, { qty, unit: u.value, note }); }}
-            style={{ padding: "5px 12px", borderRadius: 8, background: unit === u.value ? "rgba(240,136,62,0.12)" : "var(--color-card, #161b26)", fontSize: 11, color: unit === u.value ? "var(--color-accent)" : "#555d74", fontWeight: 600, border: `1px solid ${unit === u.value ? "rgba(240,136,62,0.3)" : "var(--color-border)"}`, cursor: "pointer" }}>{u.label}</button>
-        ))}
-      </div>
-      <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ width: "100%" }} />
-      {photoBlock}
-      {importantBlock}
+      <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={`📝 ${t(lang, "notePlaceholder")}`} className="input" style={{ width: "100%", marginTop: 8 }} />
       {saveBtn}
     </div>,
 
-    // v3: All-in-one Row — compact
+    // v3: All-in-one Row — Todo compacto (1:1 with lab)
     <div key="e2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--color-card, #161b26)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)" }}>
-        <ProductIcon name={item.original} size={40} />
+        <span style={{ fontSize: 28 }}>{emojiChar}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700 }} className="truncate">{displayName}</div>
-          {showShelf && <div style={{ fontSize: 11, color: "var(--color-shelf)", fontWeight: 600 }}>{shelfName}</div>}
+          {showShelf && <div style={{ fontSize: 11, color: "var(--color-shelf, #e8c364)", fontWeight: 600 }}>{shelfName}</div>}
         </div>
       </div>
-      <div style={{ display: "flex", gap: 5 }}>
+      <div style={{ display: "flex", gap: 6 }}>
         <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 50, textAlign: "center" }} />
         <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 60 }}>
           {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
         </select>
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={`📝 ${t(lang, "notePlaceholder")}`} className="input" style={{ flex: 1 }} />
       </div>
-      <div style={{ display: "flex", gap: 5 }}>
-        <div style={{ flex: 1 }}>{importantBlock}</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
+          style={{ flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${item.important ? "rgba(255,92,92,0.3)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.06)" : "var(--color-card, #161b26)", textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", color: item.important ? "#ff5c5c" : "#8b92a8", fontFamily: "inherit" }}>
+          ❗ Importante
+        </button>
+        <button type="button" onClick={() => setEditingPhoto(true)}
+          style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "var(--color-card, #161b26)", textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#8b92a8", fontFamily: "inherit" }}>
+          📷 Foto
+        </button>
       </div>
-      {photoBlock}
       {saveBtn}
     </div>,
 
-    // v4: Minimal Fields — no labels, just placeholders
+    // v4: Minimal Fields — Sin labels, solo placeholders (1:1 with lab)
     <div key="e3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
-      <ProductIcon name={item.original} size={56} />
+      <span style={{ fontSize: 40 }}>{emojiChar}</span>
       {showShelf && <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>}
       <div style={{ display: "flex", gap: 6, width: "100%", marginTop: 8 }}>
-        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder={t(lang, "qty")} className="input" style={{ width: 60, textAlign: "center" }} />
-        <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 50 }}>
-          {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-        </select>
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" style={{ flex: 1 }} />
+        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="Qty" className="input" style={{ width: 60, textAlign: "center" }} />
+        <input type="text" value={unit} onChange={e => setUnit(e.target.value)} onBlur={handleSave} placeholder="Unit" className="input" style={{ width: 50, textAlign: "center" }} />
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder="Nota..." className="input" style={{ flex: 1 }} />
       </div>
-      {importantBlock}
-      {photoBlock}
-      {saveBtn}
+      <div style={{ display: "flex", gap: 6, width: "100%" }}>
+        <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
+          style={{ flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${item.important ? "rgba(255,92,92,0.2)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.1)" : "var(--color-card, #161b26)", fontSize: 12, fontWeight: 600, color: item.important ? "#ff5c5c" : "#8b92a8", cursor: "pointer", fontFamily: "inherit" }}>
+          ❗ Imp.
+        </button>
+        <button type="button" onClick={() => setEditingPhoto(true)}
+          style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "var(--color-card, #161b26)", fontSize: 12, fontWeight: 600, color: "#8b92a8", cursor: "pointer", fontFamily: "inherit" }}>
+          📷 Foto
+        </button>
+      </div>
+      <div style={{ marginTop: "auto", width: "100%" }}>{saveBtn}</div>
     </div>,
 
-    // v5: Quick Presets — preset qty buttons
+    // v5: Quick Presets — Botones rapidos (1:1 with lab)
     <div key="e4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
       <div style={{ textAlign: "center" }}>
-        <ProductIcon name={item.original} size={40} />
-        <span style={{ fontSize: 18, fontWeight: 800, marginLeft: 8, verticalAlign: "middle" }}>{displayName}</span>
+        <span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}
+        <span style={{ fontSize: 18, fontWeight: 800, verticalAlign: "middle" }}>{displayName}</span>
       </div>
       <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cantidad rapida</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-        {(unit === "L" ? ["1L","2L","3L","500ml"] : unit === "kg" ? ["100g","250g","500g","1kg"] : ["1×","2×","3×","6×"]).map(p => {
-          const match = p === `${qty}${unit}` || p === `${qty}×`;
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+        {(unit === "L" || !unit ? ["1L","2L","3L","500ml","250ml","Custom"] : unit === "kg" ? ["100g","250g","500g","1kg","2kg","Custom"] : ["1×","2×","3×","6×","10×","Custom"]).map(p => {
+          const isCustom = p === "Custom";
+          const match = !isCustom && (p === `${qty}${unit}` || p === `${qty}×`);
           return (
             <button key={p} type="button" onClick={() => {
+              if (isCustom) return;
               const num = p.replace(/[^0-9.]/g, ""); const u = p.replace(/[0-9.]/g, "");
               setQty(num); const mapped = u === "×" ? "x" : u; setUnit(mapped);
               onUpdate(item.id, { qty: num, unit: mapped, note });
             }}
-              style={{ padding: "10px 0", borderRadius: 10, textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", background: match ? "rgba(240,136,62,0.12)" : "var(--color-card, #161b26)", color: match ? "var(--color-accent)" : "#555d74", border: `1px solid ${match ? "var(--color-accent)" : "var(--color-border)"}` }}>{p}</button>
+              style={{ padding: 10, borderRadius: 10, textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", background: match ? "rgba(240,136,62,0.12)" : "var(--color-card, #161b26)", color: match ? "var(--color-accent, #f0883e)" : "#8b92a8", border: `1px solid ${match ? "var(--color-accent, #f0883e)" : "var(--color-border, rgba(255,255,255,0.10))"}`, fontFamily: "inherit" }}>{p}</button>
           );
         })}
       </div>
-      <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" />
-      {photoBlock}
-      {importantBlock}
-      {saveBtn}
+      <div style={{ marginTop: 4 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Nota</div>
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" />
+      </div>
+      <div style={{ marginTop: "auto" }}>{saveBtn}</div>
     </div>,
   ];
 
