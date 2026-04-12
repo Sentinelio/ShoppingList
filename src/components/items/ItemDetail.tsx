@@ -9,6 +9,8 @@ import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
 import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
 import { useAuth } from "../../hooks/useAuth";
+import { translateProduct } from "../../lib/translate";
+import { getEnabledLangs } from "../../lib/langConfig";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -92,6 +94,7 @@ export default function ItemDetail({
   const [editName, setEditName] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [editingPhoto, setEditingPhoto] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
@@ -205,6 +208,7 @@ export default function ItemDetail({
       setEditName(item.original || "");
       setEditingPhoto(false);
       setPhotoUrl("");
+      setSaved(false);
       setDeleteStep(0);
       setActiveTab("show");
       setActivePhrase(null);
@@ -225,13 +229,41 @@ export default function ItemDetail({
     ? (activePhraseObj.translations[shelfLang] || activePhraseObj.translations.en)
     : null;
 
-  const handleSave = () => onUpdate(item.id, { qty, unit, note });
+  // Check if any edit field has changed
+  const nameChanged = editName.trim() !== "" && editName.trim() !== item.original;
+  const qtyChanged = qty !== (item.qty || "");
+  const unitChanged = unit !== (item.unit || "");
+  const noteChanged = note !== (item.note || "");
+  const isDirty = nameChanged || qtyChanged || unitChanged || noteChanged;
 
-  const handleNameBlur = () => {
-    const trimmed = editName.trim();
-    if (!trimmed || trimmed === item.original) return;
-    const newTranslations = { ...item.translations, [userLang]: trimmed, en: trimmed };
-    onUpdate(item.id, { original: trimmed, translations: newTranslations });
+  const handleSave = async () => {
+    const updates: Partial<Record<string, unknown>> = {};
+
+    // Always save qty/unit/note
+    if (qtyChanged) updates.qty = qty;
+    if (unitChanged) updates.unit = unit;
+    if (noteChanged) updates.note = note;
+
+    // If name changed, re-translate fully
+    if (nameChanged) {
+      const trimmed = editName.trim();
+      updates.original = trimmed;
+      const targetLangs = getEnabledLangs();
+      let newTranslations: Record<string, string> = { [userLang]: trimmed, en: trimmed };
+      try {
+        const result = await translateProduct(trimmed, targetLangs, userLang);
+        if (result?.translations) newTranslations = result.translations;
+      } catch { /* fall back */ }
+      updates.translations = newTranslations;
+      updates.photo = null; // clear photo since product changed
+    }
+
+    if (Object.keys(updates).length > 0) {
+      onUpdate(item.id, updates as Parameters<typeof onUpdate>[1]);
+      // Show saved feedback
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    }
   };
 
   const savePhotoUrl = () => {
@@ -335,15 +367,26 @@ export default function ItemDetail({
   const labLabel: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 };
   const labInput: React.CSSProperties = { background: "var(--color-card, #161b26)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "var(--color-text, #e6e8ee)", width: "100%", fontFamily: "inherit", outline: "none" };
   const labBtn: React.CSSProperties = { padding: 14, borderRadius: 12, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", width: "100%", cursor: "pointer", fontFamily: "inherit" };
-  const saveBtn = <button type="button" onClick={handleSave} style={labBtn}>💾 Guardar</button>;
+  const saveBtn = (
+    <button type="button" onClick={handleSave} disabled={!isDirty && !saved}
+      style={{
+        ...labBtn,
+        opacity: isDirty ? 1 : 0.4,
+        cursor: isDirty ? "pointer" : "default",
+        background: saved ? "linear-gradient(135deg, #3dd68c, #2ab573)" : labBtn.background,
+        transition: "background 0.3s, opacity 0.3s",
+      }}>
+      {saved ? "✅ Guardado" : "💾 Guardar"}
+    </button>
+  );
 
   // Shared edit header: name input + photo button (matches lab editHeader)
   const editHeader = (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
         <span style={{ fontSize: 28 }}>{emojiChar}</span>
-        <input type="text" value={editName} onChange={e => setEditName(e.target.value)} onBlur={handleNameBlur}
-          onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") handleSave(); }}
           style={{ ...labInput, flex: 1, fontSize: 16, fontWeight: 700, padding: "6px 10px" }} />
       </div>
       {!editingPhoto ? (
@@ -370,7 +413,7 @@ export default function ItemDetail({
       <div>
         <div style={labLabel}>Cantidad</div>
         <div style={{ display: "flex", gap: 8 }}>
-          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1"
+          <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}placeholder="1"
             style={{ ...labInput, width: 70, textAlign: "center", flex: "none" }} />
           <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }}
             style={{ ...labInput, flex: 1, appearance: "none", WebkitAppearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%238b92a8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 14px center", paddingRight: 30 }}>
@@ -380,7 +423,7 @@ export default function ItemDetail({
       </div>
       <div>
         <div style={labLabel}>Nota</div>
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")}
+        <input type="text" value={note} onChange={e => setNote(e.target.value)}placeholder={t(lang, "notePlaceholder")}
           style={labInput} />
       </div>
       <div>
@@ -427,7 +470,7 @@ export default function ItemDetail({
         <button type="button" onClick={() => { const n = Number(qty) + 1; setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
           style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #f09848, #e07028)", border: "none", fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>+</button>
       </div>
-      <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={`📝 ${t(lang, "notePlaceholder")}`} className="input" style={{ width: "100%", marginTop: 8 }} />
+      <input type="text" value={note} onChange={e => setNote(e.target.value)}placeholder={`📝 ${t(lang, "notePlaceholder")}`} className="input" style={{ width: "100%", marginTop: 8 }} />
       {saveBtn}
     </div>,
 
@@ -442,11 +485,11 @@ export default function ItemDetail({
         </div>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="1" className="input" style={{ width: 50, textAlign: "center" }} />
+        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}placeholder="1" className="input" style={{ width: 50, textAlign: "center" }} />
         <select value={unit} onChange={e => { setUnit(e.target.value); setTimeout(() => onUpdate(item.id, { qty, unit: e.target.value, note }), 0); }} className="input" style={{ width: 60 }}>
           {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
         </select>
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={`📝 ${t(lang, "notePlaceholder")}`} className="input" style={{ flex: 1 }} />
+        <input type="text" value={note} onChange={e => setNote(e.target.value)}placeholder={`📝 ${t(lang, "notePlaceholder")}`} className="input" style={{ flex: 1 }} />
       </div>
       <div style={{ display: "flex", gap: 6 }}>
         <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
@@ -467,9 +510,9 @@ export default function ItemDetail({
       <span style={{ fontSize: 40 }}>{emojiChar}</span>
       {showShelf && <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>}
       <div style={{ display: "flex", gap: 6, width: "100%", marginTop: 8 }}>
-        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={handleSave} placeholder="Qty" className="input" style={{ width: 60, textAlign: "center" }} />
-        <input type="text" value={unit} onChange={e => setUnit(e.target.value)} onBlur={handleSave} placeholder="Unit" className="input" style={{ width: 50, textAlign: "center" }} />
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder="Nota..." className="input" style={{ flex: 1 }} />
+        <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}placeholder="Qty" className="input" style={{ width: 60, textAlign: "center" }} />
+        <input type="text" value={unit} onChange={e => setUnit(e.target.value)}placeholder="Unit" className="input" style={{ width: 50, textAlign: "center" }} />
+        <input type="text" value={note} onChange={e => setNote(e.target.value)}placeholder="Nota..." className="input" style={{ flex: 1 }} />
       </div>
       <div style={{ display: "flex", gap: 6, width: "100%" }}>
         <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
@@ -509,7 +552,7 @@ export default function ItemDetail({
       </div>
       <div style={{ marginTop: 4 }}>
         <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Nota</div>
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} onBlur={handleSave} placeholder={t(lang, "notePlaceholder")} className="input" />
+        <input type="text" value={note} onChange={e => setNote(e.target.value)}placeholder={t(lang, "notePlaceholder")} className="input" />
       </div>
       <div style={{ marginTop: "auto" }}>{saveBtn}</div>
     </div>,

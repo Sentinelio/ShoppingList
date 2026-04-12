@@ -14,19 +14,19 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.81",
+    version: "v0.83",
     hash: "HEAD",
     date: "2026-04-12",
-    time: "17:00",
-    type: "fix",
-    title: "Edit pane: name + photo added to all 5 variants in admin AND client",
+    time: "17:30",
+    type: "feat",
+    title: "Smart Save: rename re-translates, dirty tracking, visual feedback",
     details: [
-      "Added editable product name input + photo URL button to ALL 5 edit variants",
-      "Both admin lab HTML and React client show the exact same fields in the same order",
-      "Shared editHeader block: emoji + name input + photo button (or photo URL input when editing)",
-      "Lab HTML uses a shared editHeader JS variable prepended to each EDIT variant",
-      "React uses a shared editHeader JSX block inserted at the top of each editVariants entry",
-      "v1-v5 all show: name → photo → variant-specific fields → Guardar",
+      "Renaming a product now calls translateProduct to get fresh translations in all languages — old translations are fully replaced, photo is cleared since the product changed",
+      "Save button is disabled (dimmed) when no fields have changed. Only activates when name, qty, unit, or note differ from the original item values",
+      "Clicking Guardar shows green '✅ Guardado' animation for 1.5s, then returns to orange",
+      "Fields no longer auto-save on blur — everything saves explicitly via the Guardar button or Enter in the name field. If user closes without saving, changes are lost (intentional)",
+      "Unit × renamed to 'uds' (unidades) in all dropdowns",
+      "Edit header (name + photo) added to all 5 admin lab variants and all 5 React variants",
     ],
   },
   {
