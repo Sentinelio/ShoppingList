@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import type { Item } from "../../lib/supabase";
-import ProductIcon from "../ui/ProductIcon";
 import { getLangFlag } from "../../data/langs";
 import { t } from "../../data/i18n";
 import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
@@ -376,7 +375,7 @@ export default function ItemDetail({
   );
 
   // Shared lab-style CSS values for edit variants
-  const labLabel = { fontSize: 9, fontWeight: 700 as const, color: "#555d74", textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 6 };
+  const labLabel: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 };
   const labInput: React.CSSProperties = { background: "var(--color-card, #161b26)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "var(--color-text, #e6e8ee)", width: "100%", fontFamily: "inherit", outline: "none" };
   const labBtn: React.CSSProperties = { padding: 14, borderRadius: 12, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", width: "100%", cursor: "pointer", fontFamily: "inherit" };
 
