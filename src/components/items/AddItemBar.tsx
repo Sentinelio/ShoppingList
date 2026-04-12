@@ -315,7 +315,7 @@ export default function AddItemBar({
       )}
 
       {/* Main input row */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-1 px-3 pt-2">
+      <form onSubmit={handleSubmit} className="flex items-center gap-1.5 px-3 pt-2 w-full">
         <input
           ref={inputRef}
           type="text"
@@ -376,7 +376,7 @@ export default function AddItemBar({
       {/* Row 2 (only when expanded): brand/note + 🔗 + ✕ + Añadir */}
       {expanded && (
         <>
-          <div className="flex gap-1 items-center px-3 pt-1 pb-1">
+          <div className="flex gap-1.5 items-center px-3 pt-1 pb-1 w-full">
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Marca / Nota..."
               className="flex-1 bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0" />
