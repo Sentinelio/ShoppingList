@@ -315,7 +315,7 @@ export default function AddItemBar({
       )}
 
       {/* Main input row */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 pt-3">
+      <form onSubmit={handleSubmit} className="flex items-center gap-1 px-3 pt-2">
         <input
           ref={inputRef}
           type="text"
@@ -326,11 +326,34 @@ export default function AddItemBar({
           onPaste={handlePaste}
           placeholder={t(lang, "addProduct")}
           disabled={translating}
-          className="flex-1 bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50"
-          style={{ fontSize: 16 }}
+          className="flex-1 bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50 min-w-0"
+          style={{ fontSize: 15 }}
         />
 
-        {/* Add button -- hidden when expanded */}
+        {/* When expanded: qty + unit + important inline with product name */}
+        {expanded && (
+          <>
+            <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
+              placeholder={t(lang, "qty")}
+              className="bg-bg border border-border rounded-lg px-1.5 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
+              style={{ width: 42, textAlign: "center" }} />
+            <select value={unit} onChange={(e) => setUnit(e.target.value)}
+              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
+              style={{ width: 48 }}>
+              {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
+            </select>
+            <button type="button" onClick={() => setImportant(!important)}
+              className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+              style={{
+                background: important ? "rgba(255,92,92,0.2)" : "transparent",
+                border: important ? "2px solid #ff5c5c" : "1.5px solid rgba(255,255,255,0.10)",
+              }}>
+              <span style={{ fontSize: important ? 14 : 12 }}>{important ? "‼️" : "❕"}</span>
+            </button>
+          </>
+        )}
+
+        {/* Add button -- only when NOT expanded */}
         {!expanded && (
           <button
             type="submit"
@@ -350,31 +373,9 @@ export default function AddItemBar({
         )}
       </form>
 
-      {/* Expanded: exactly 2 rows */}
+      {/* Row 2 (only when expanded): brand/note + 🔗 + ✕ + Añadir */}
       {expanded && (
         <>
-          {/* Row 1: qty + unit + ❗important */}
-          <div className="flex gap-1 items-center px-3 pt-1.5">
-            <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
-              placeholder={t(lang, "qty")}
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-              style={{ width: 44, textAlign: "center" }} />
-            <select value={unit} onChange={(e) => setUnit(e.target.value)}
-              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
-              style={{ width: 50 }}>
-              {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
-            </select>
-            <button type="button" onClick={() => setImportant(!important)}
-              className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
-              style={{
-                background: important ? "rgba(255,92,92,0.2)" : "transparent",
-                border: important ? "2px solid #ff5c5c" : "1.5px solid rgba(255,255,255,0.10)",
-              }}>
-              <span style={{ fontSize: important ? 14 : 12 }}>{important ? "‼️" : "❕"}</span>
-            </button>
-          </div>
-
-          {/* Row 2: note/brand + 🔗 + ✕ + Añadir */}
           <div className="flex gap-1 items-center px-3 pt-1 pb-1">
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Marca / Nota..."
@@ -399,7 +400,7 @@ export default function AddItemBar({
             </button>
           </div>
 
-          {/* Photo URL (shown only when toggled, extra row) */}
+          {/* Photo URL (extra row, only when toggled) */}
           {showPhotoInput && (
             <div className="flex gap-1.5 items-center px-3 pb-1">
               {photo && <img src={photo} className="w-6 h-6 rounded object-cover border border-border-light shrink-0" alt="" />}
