@@ -350,72 +350,68 @@ export default function AddItemBar({
         )}
       </form>
 
-      {/* Expanded fields — compact layout for mobile */}
+      {/* Expanded: exactly 2 rows */}
       {expanded && (
         <>
-          {/* Compact row: qty + unit + note + toggles */}
+          {/* Row 1: qty + unit + ❗important */}
           <div className="flex gap-1 items-center px-3 pt-1.5">
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
               className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-              style={{ width: 48, textAlign: "center" }} />
+              style={{ width: 44, textAlign: "center" }} />
             <select value={unit} onChange={(e) => setUnit(e.target.value)}
               className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
-              style={{ width: 52 }}>
+              style={{ width: 50 }}>
               {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
             </select>
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder={t(lang, "notePlaceholder")}
-              className="flex-1 bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0" />
             <button type="button" onClick={() => setImportant(!important)}
-              className="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer"
+              className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
               style={{
-                background: important ? "rgba(255,92,92,0.15)" : "var(--color-bg)",
-                borderColor: important ? "rgba(255,92,92,0.4)" : "var(--color-border)",
+                background: important ? "rgba(255,92,92,0.2)" : "transparent",
+                border: important ? "2px solid #ff5c5c" : "1.5px solid rgba(255,255,255,0.10)",
               }}>
-              <span style={{ fontSize: 12 }}>{important ? "🔴" : "⚪"}</span>
-            </button>
-            <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
-              className="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer"
-              style={{
-                background: photo ? "rgba(240,136,62,0.15)" : "var(--color-bg)",
-                borderColor: photo ? "rgba(240,136,62,0.3)" : "var(--color-border)",
-              }}>
-              <span style={{ fontSize: 12 }}>{photo ? "✅" : "🔗"}</span>
+              <span style={{ fontSize: important ? 14 : 12 }}>{important ? "‼️" : "❕"}</span>
             </button>
           </div>
 
-          {/* Photo URL input (if toggled) */}
-          {showPhotoInput && (
-            <div className="flex gap-1.5 items-center px-4 pt-1.5">
-              {photo && <img src={photo} className="w-7 h-7 rounded-md object-cover border border-border-light shrink-0" alt="" />}
-              <input value={photoUrlInput} onChange={e => setPhotoUrlInput(e.target.value)}
-                placeholder="https://..." autoFocus
-                onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") { setShowPhotoInput(false); setPhotoUrlInput(""); } }}
-                className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent min-w-0" />
-              <button type="button" onClick={savePhotoUrl} disabled={!photoUrlInput.trim()}
-                className="px-2 py-1.5 rounded-lg text-xs font-semibold text-white cursor-pointer disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>OK</button>
-            </div>
-          )}
-
-          {/* X + Añadir — compact */}
-          <div className="flex gap-2 px-3 pt-1.5 pb-1">
+          {/* Row 2: note/brand + 🔗 + ✕ + Añadir */}
+          <div className="flex gap-1 items-center px-3 pt-1 pb-1">
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Marca / Nota..."
+              className="flex-1 bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0" />
+            <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
+              className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+              style={{
+                background: photo ? "rgba(240,136,62,0.15)" : "transparent",
+                border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
+              }}>
+              <span style={{ fontSize: 12 }}>{photo ? "📷" : "🔗"}</span>
+            </button>
             <button type="button" onClick={reset}
-              className="shrink-0 w-9 h-9 rounded-xl bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-sm">
+              className="shrink-0 w-8 h-8 rounded-lg bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-xs">
               ✕
             </button>
             <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
               disabled={!input.trim() || translating}
-              className="flex-1 h-9 rounded-xl text-white font-semibold text-sm flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              className="shrink-0 h-8 px-4 rounded-lg text-white font-semibold text-xs flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
               style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
-              {translating ? (
-                <span className="text-xs animate-pulse">{t(lang, "translating")}</span>
-              ) : (
-                t(lang, "add")
-              )}
+              {translating ? "..." : t(lang, "add")}
             </button>
           </div>
+
+          {/* Photo URL (shown only when toggled, extra row) */}
+          {showPhotoInput && (
+            <div className="flex gap-1.5 items-center px-3 pb-1">
+              {photo && <img src={photo} className="w-6 h-6 rounded object-cover border border-border-light shrink-0" alt="" />}
+              <input value={photoUrlInput} onChange={e => setPhotoUrlInput(e.target.value)}
+                placeholder="https://..." autoFocus
+                onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") { setShowPhotoInput(false); setPhotoUrlInput(""); } }}
+                className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent min-w-0" />
+              <button type="button" onClick={savePhotoUrl} disabled={!photoUrlInput.trim()}
+                className="px-2 py-1 rounded-lg text-xs font-semibold text-white cursor-pointer disabled:opacity-40"
+                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>OK</button>
+            </div>
+          )}
         </>
       )}
     </div>

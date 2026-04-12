@@ -14,8 +14,23 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.84",
+    version: "v0.85",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "18:15",
+    type: "fix",
+    title: "AddItemBar: 2-row layout + better important icon",
+    details: [
+      "Row 1: product name + qty + unit select + ‼️ important button",
+      "Row 2: 'Marca / Nota...' input + 🔗 photo + ✕ cancel + Añadir button",
+      "Important icon: ❕ when off, ‼️ with red border when on (much more visible)",
+      "Photo URL row only appears when 🔗 is toggled (doesn't count as a permanent row)",
+      "All elements are h-8 for consistency, tighter gaps",
+    ],
+  },
+  {
+    version: "v0.84",
+    hash: "681cde3",
     date: "2026-04-12",
     time: "18:00",
     type: "feat",
