@@ -14,8 +14,47 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.86",
+    version: "v0.89",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "19:00",
+    type: "feat",
+    title: "AddItemBar: URL field, checkbox Importante, no X, horizontal Añadir",
+    details: [
+      "URL is now a direct text input (no more toggle button + popup)",
+      "Row 2 has 3 equal-width fields: Marca (1/3), Nota (1/3), URL foto (1/3)",
+      "Importante is now a checkbox + label with red accent color",
+      "Qty (48px) and Unit (56px) inputs more compact",
+      "Removed the X button — clicking outside the bar collapses it via mousedown listener",
+      "Añadir button text is horizontal again (no writingMode vertical)",
+    ],
+  },
+  {
+    version: "v0.88",
+    hash: "17fac7b",
+    date: "2026-04-12",
+    time: "18:45",
+    type: "feat",
+    title: "Separate brand and note fields in AddItemBar",
+    details: [
+      "Brand is passed as a new optional field to addItem() and persisted to items table",
+    ],
+  },
+  {
+    version: "v0.87",
+    hash: "1d0ab68",
+    date: "2026-04-12",
+    time: "18:40",
+    type: "feat",
+    title: "Añadir button spans both rows on the right, 10% width",
+    details: [
+      "Añadir is absolutely positioned right, full height spanning both rows",
+      "Rows 1+2 have paddingRight to avoid overlap",
+    ],
+  },
+  {
+    version: "v0.86",
+    hash: "39700d9",
     date: "2026-04-12",
     time: "18:30",
     type: "fix",
