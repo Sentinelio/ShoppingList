@@ -46,13 +46,12 @@ export default function AddItemBar({
   const [expanded, setExpanded] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
-  const [showPhotoInput, setShowPhotoInput] = useState(false);
-  const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [important, setImportant] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<DictSuggestion[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const suggestionReqId = useRef(0);
 
   const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
@@ -62,6 +61,18 @@ export default function AddItemBar({
   useEffect(() => {
     preloadDictionary();
   }, []);
+
+  // Click outside the expanded bar collapses it (discards unsaved new item)
+  useEffect(() => {
+    if (!expanded) return;
+    const handler = (e: MouseEvent) => {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [expanded]);
 
   // Fetch suggestions as the user types. The suggestionReqId guard prevents a
   // slow response from overwriting a later, faster one.
@@ -97,18 +108,8 @@ export default function AddItemBar({
     setPhoto(null);
     setImportant(false);
     setExpanded(false);
-    setShowPhotoInput(false);
-    setPhotoUrlInput("");
     setSuggestions([]);
     setHighlightedIdx(-1);
-  };
-
-  const savePhotoUrl = () => {
-    const url = photoUrlInput.trim();
-    if (!url) return;
-    setPhoto(url);
-    setPhotoUrlInput("");
-    setShowPhotoInput(false);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -247,6 +248,7 @@ export default function AddItemBar({
   return (
     <>
     <div
+      ref={barRef}
       className="sticky bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light relative"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
@@ -333,25 +335,27 @@ export default function AddItemBar({
           style={{ fontSize: 15, flex: 45 }}
         />
 
-        {/* When expanded: qty + unit + important */}
+        {/* When expanded: qty + unit + important label+checkbox */}
         {expanded && (
           <div className="flex gap-1.5 items-center" style={{ flex: 45 }}>
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
-              className="flex-1 bg-bg border border-border rounded-lg px-1.5 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ textAlign: "center" }} />
+              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
+              style={{ width: 48, textAlign: "center" }} />
             <select value={unit} onChange={(e) => setUnit(e.target.value)}
-              className="flex-1 bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none min-w-0">
+              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
+              style={{ width: 56 }}>
               {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
             </select>
-            <button type="button" onClick={() => setImportant(!important)}
-              className="flex-1 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+            <label className="flex-1 flex items-center gap-1.5 h-8 px-2 rounded-lg cursor-pointer select-none"
               style={{
-                background: important ? "rgba(255,92,92,0.2)" : "transparent",
-                border: important ? "2px solid #ff5c5c" : "1.5px solid rgba(255,255,255,0.10)",
+                background: important ? "rgba(255,92,92,0.15)" : "transparent",
+                border: important ? "1.5px solid rgba(255,92,92,0.4)" : "1.5px solid rgba(255,255,255,0.10)",
               }}>
-              <span style={{ fontSize: important ? 14 : 12 }}>{important ? "‼️" : "❕"}</span>
-            </button>
+              <input type="checkbox" checked={important} onChange={e => setImportant(e.target.checked)}
+                className="cursor-pointer" style={{ accentColor: "#ff5c5c" }} />
+              <span className="text-xs font-semibold" style={{ color: important ? "#ff5c5c" : "#8b92a8" }}>Importante</span>
+            </label>
           </div>
         )}
 
@@ -375,35 +379,22 @@ export default function AddItemBar({
         )}
       </form>
 
-      {/* Expanded: Row 2 + tall Añadir button on the right spanning both rows */}
+      {/* Expanded: Row 2 with brand, note, URL (each 1/3 of 90%) */}
       {expanded && (
         <>
           <div className="flex pt-1 pb-1 w-full gap-1.5" style={{ paddingLeft: 12, paddingRight: "calc(10% + 18px)" }}>
-            {/* Left: row 2 fields */}
-            <div className="flex gap-1.5 items-center" style={{ flex: 90 }}>
-              <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
-                placeholder="Marca"
-                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-                style={{ flex: 45 }} />
-              <div className="flex gap-1.5 items-center" style={{ flex: 45 }}>
-                <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-                  placeholder="Nota"
-                  className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-                  style={{ flex: 1 }} />
-                <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
-                  className="flex-1 h-8 rounded-lg flex items-center justify-center cursor-pointer"
-                  style={{
-                    background: photo ? "rgba(240,136,62,0.15)" : "transparent",
-                    border: photo ? "1.5px solid rgba(240,136,62,0.3)" : "1.5px solid rgba(255,255,255,0.10)",
-                  }}>
-                  <span style={{ fontSize: 12 }}>{photo ? "📷" : "🔗"}</span>
-                </button>
-                <button type="button" onClick={reset}
-                  className="shrink-0 w-8 h-8 rounded-lg bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-xs">
-                  ✕
-                </button>
-              </div>
-            </div>
+            <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+              placeholder="Marca"
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+              style={{ flex: 1 }} />
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Nota"
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+              style={{ flex: 1 }} />
+            <input type="text" value={photo || ""} onChange={(e) => setPhoto(e.target.value || null)}
+              placeholder="URL foto"
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+              style={{ flex: 1 }} />
           </div>
 
           {/* Añadir button: absolutely positioned right, spanning both rows */}
@@ -414,25 +405,12 @@ export default function AddItemBar({
           }}>
             <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
               disabled={!input.trim() || translating}
-              className="w-full rounded-xl text-white font-semibold text-xs flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
-              style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)", writingMode: "vertical-lr" }}>
+              className="w-full rounded-xl text-white font-semibold text-sm flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
               {translating ? "..." : t(lang, "add")}
             </button>
           </div>
 
-          {/* Photo URL (extra row, only when toggled) */}
-          {showPhotoInput && (
-            <div className="flex gap-1.5 items-center px-3 pb-1" style={{ marginRight: "10%" }}>
-              {photo && <img src={photo} className="w-6 h-6 rounded object-cover border border-border-light shrink-0" alt="" />}
-              <input value={photoUrlInput} onChange={e => setPhotoUrlInput(e.target.value)}
-                placeholder="https://..." autoFocus
-                onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") { setShowPhotoInput(false); setPhotoUrlInput(""); } }}
-                className="flex-1 bg-bg border border-border-light rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent min-w-0" />
-              <button type="button" onClick={savePhotoUrl} disabled={!photoUrlInput.trim()}
-                className="px-2 py-1 rounded-lg text-xs font-semibold text-white cursor-pointer disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}>OK</button>
-            </div>
-          )}
         </>
       )}
     </div>
