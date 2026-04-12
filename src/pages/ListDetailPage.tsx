@@ -502,32 +502,35 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirmClear) {
-                        checkedItems.forEach(i => handleDelete(i.id));
-                        setConfirmClear(false);
-                        setShowChecked(false);
-                      } else {
-                        setConfirmClear(true);
-                        setTimeout(() => setConfirmClear(false), 3000);
-                      }
-                    }}
-                    className="shrink-0 px-3 py-1.5 mr-3 rounded-lg text-[11px] font-semibold cursor-pointer transition-all"
-                    style={{
-                      background: confirmClear ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                      color: confirmClear ? "#fff" : "#ff5c5c",
-                      border: confirmClear ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                    }}
-                  >
-                    {confirmClear ? "⚠️ Confirm?" : "🗑️"}
-                  </button>
                 </div>
 
                 {showChecked && (
                   <div className="mt-1">
                     {renderItemGrid(checkedItems, true)}
+                    {/* Delete all checked — placed BELOW the list for safety */}
+                    <div className="flex justify-center py-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirmClear) {
+                            checkedItems.forEach(i => handleDelete(i.id));
+                            setConfirmClear(false);
+                            setShowChecked(false);
+                          } else {
+                            setConfirmClear(true);
+                            setTimeout(() => setConfirmClear(false), 3000);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-lg text-[11px] font-semibold cursor-pointer transition-all"
+                        style={{
+                          background: confirmClear ? "#b71c1c" : "rgba(255,92,92,0.08)",
+                          color: confirmClear ? "#fff" : "#ff5c5c",
+                          border: confirmClear ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+                        }}
+                      >
+                        {confirmClear ? "⚠️ Borrar todos?" : `🗑️ Borrar ${checkedItems.length} hechos`}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

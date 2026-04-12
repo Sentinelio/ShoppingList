@@ -350,43 +350,38 @@ export default function AddItemBar({
         )}
       </form>
 
-      {/* Expanded fields — two-row layout:
-           Row 1: [Product name (left)]  [Qty] [Unit] [Important] [Photo]
-           Row 2: [Note (left)]          [  ✕  ] [     Añadir     ]
-           Row 3 (optional): Allergen chips */}
+      {/* Expanded fields — compact layout for mobile */}
       {expanded && (
         <>
-          {/* Row 1: qty + unit + toggles (right side) */}
-          <div className="flex gap-1.5 items-center px-4 pt-2">
+          {/* Compact row: qty + unit + note + toggles */}
+          <div className="flex gap-1 items-center px-3 pt-1.5">
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
-              className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-              style={{ width: 56 }} />
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
+              style={{ width: 48, textAlign: "center" }} />
             <select value={unit} onChange={(e) => setUnit(e.target.value)}
-              className="bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text outline-none focus:border-accent appearance-none"
-              style={{ width: 64 }}>
+              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
+              style={{ width: 52 }}>
               {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
             </select>
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder={t(lang, "notePlaceholder")}
-              className="flex-1 bg-bg border border-border rounded-lg px-2 py-2 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0" />
+              className="flex-1 bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0" />
             <button type="button" onClick={() => setImportant(!important)}
-              className="shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center cursor-pointer"
+              className="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer"
               style={{
                 background: important ? "rgba(255,92,92,0.15)" : "var(--color-bg)",
                 borderColor: important ? "rgba(255,92,92,0.4)" : "var(--color-border)",
-              }}
-              aria-label="Important">
-              <span style={{ fontSize: 14 }}>{important ? "🔴" : "⚪"}</span>
+              }}>
+              <span style={{ fontSize: 12 }}>{important ? "🔴" : "⚪"}</span>
             </button>
             <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
-              className="shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center cursor-pointer"
+              className="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer"
               style={{
                 background: photo ? "rgba(240,136,62,0.15)" : "var(--color-bg)",
                 borderColor: photo ? "rgba(240,136,62,0.3)" : "var(--color-border)",
-              }}
-              aria-label="Photo URL">
-              <span style={{ fontSize: 14 }}>{photo ? "✅" : "🔗"}</span>
+              }}>
+              <span style={{ fontSize: 12 }}>{photo ? "✅" : "🔗"}</span>
             </button>
           </div>
 
@@ -404,50 +399,18 @@ export default function AddItemBar({
             </div>
           )}
 
-          {/* Allergen chips */}
-          <div className="flex gap-1.5 flex-wrap px-4 pt-2">
-            {[
-              { key: "gluten-free", label: "Sin gluten", emoji: "🌾" },
-              { key: "lactose-free", label: "Sin lactosa", emoji: "🥛" },
-              { key: "sugar-free", label: "Sin azúcar", emoji: "🍬" },
-              { key: "vegan", label: "Vegano", emoji: "🌱" },
-              { key: "nut-free", label: "Sin frutos secos", emoji: "🥜" },
-              { key: "organic", label: "Orgánico", emoji: "🍃" },
-            ].map(a => {
-              const active = note.includes(`#${a.key}`);
-              return (
-                <button key={a.key} type="button"
-                  onClick={() => {
-                    if (active) {
-                      setNote(note.replace(`#${a.key}`, "").replace(/\s+/g, " ").trim());
-                    } else {
-                      setNote((note ? note + " " : "") + `#${a.key}`);
-                    }
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold cursor-pointer"
-                  style={{
-                    background: active ? "rgba(61,214,140,0.12)" : "rgba(255,255,255,0.04)",
-                    color: active ? "#3dd68c" : "#8b92a8",
-                    border: `1px solid ${active ? "rgba(61,214,140,0.3)" : "rgba(255,255,255,0.08)"}`,
-                  }}>
-                  <span>{a.emoji}</span> {a.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Row 2: X + Añadir buttons */}
-          <div className="flex gap-2 px-4 pt-2 pb-1">
+          {/* X + Añadir — compact */}
+          <div className="flex gap-2 px-3 pt-1.5 pb-1">
             <button type="button" onClick={reset}
-              className="shrink-0 w-10 h-10 rounded-xl bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer">
+              className="shrink-0 w-9 h-9 rounded-xl bg-bg border border-border-light text-text-soft flex items-center justify-center active:brightness-90 cursor-pointer text-sm">
               ✕
             </button>
             <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
               disabled={!input.trim() || translating}
-              className="flex-1 h-10 rounded-xl text-white font-semibold flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+              className="flex-1 h-9 rounded-xl text-white font-semibold text-sm flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
               style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
               {translating ? (
-                <span className="text-sm animate-pulse">{t(lang, "translating")}</span>
+                <span className="text-xs animate-pulse">{t(lang, "translating")}</span>
               ) : (
                 t(lang, "add")
               )}

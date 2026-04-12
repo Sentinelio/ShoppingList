@@ -376,25 +376,8 @@ export default function ItemDetail({
   );
 
   const editVariants: React.ReactNode[] = [
-    // v1: Classic Form — labels + inputs stacked
+    // v1: Classic Form — labels + inputs stacked (matches lab exactly)
     <div key="e0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <ProductIcon name={item.original} size={48} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <input
-            type="text"
-            value={editName}
-            onChange={e => setEditName(e.target.value)}
-            onBlur={handleNameBlur}
-            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-            className="input"
-            style={{ fontSize: 18, fontWeight: 700, padding: "4px 8px", width: "100%" }}
-            placeholder="Nombre del producto"
-          />
-          {item.added_by_name && <div style={{ fontSize: 11, color: "#555d74", marginTop: 2 }}>{t(lang, "addedBy")} {item.added_by_name}</div>}
-        </div>
-      </div>
-      {photoBlock}
       <div>
         <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{t(lang, "qty")}</div>
         <div style={{ display: "flex", gap: 6 }}>
@@ -1130,9 +1113,34 @@ export default function ItemDetail({
 
   const histPane = histVariants[labSel.hist] ?? histVariants[0];
 
+  // Wrap edit pane: fixed header (editable name + photo) + variant body
+  const editPaneWrapped = (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
+      {/* Fixed header: editable product name + photo */}
+      <div style={{ padding: "10px 16px 0", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 28 }}>{emojiChar}</span>
+          <input
+            type="text"
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            onBlur={handleNameBlur}
+            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            className="input"
+            style={{ fontSize: 16, fontWeight: 700, padding: "4px 8px", flex: 1 }}
+            placeholder="Nombre del producto"
+          />
+        </div>
+        {photoBlock}
+      </div>
+      {/* Variant body from lab selection */}
+      {editPane}
+    </div>
+  );
+
   const paneContent: Record<DetailTab, React.ReactNode> = {
     show: showPane,
-    edit: editPane,
+    edit: editPaneWrapped,
     trans: transPane,
     del: delPane,
     price: pricePane,
