@@ -9,6 +9,7 @@ export interface AddItemParams {
   qty: string;
   unit: string;
   note: string;
+  brand?: string;
   photo?: string | null;
   important?: boolean;
   addedBy: string;
@@ -33,6 +34,7 @@ export async function addItem(params: AddItemParams): Promise<Item> {
   };
   if (params.photo) row.photo = params.photo;
   if (params.important) row.important = params.important;
+  if (params.brand) row.brand = params.brand;
 
   let { data, error } = await supabase.from("items").insert(row).select().single();
 

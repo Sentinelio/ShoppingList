@@ -42,6 +42,7 @@ export default function AddItemBar({
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");
   const [note, setNote] = useState("");
+  const [brand, setBrand] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -92,6 +93,7 @@ export default function AddItemBar({
     setQty("");
     setUnit("");
     setNote("");
+    setBrand("");
     setPhoto(null);
     setImportant(false);
     setExpanded(false);
@@ -223,6 +225,7 @@ export default function AddItemBar({
         qty: finalQty,
         unit: finalUnit,
         note,
+        brand,
         photo,
         important,
         addedBy: userId,
@@ -378,11 +381,15 @@ export default function AddItemBar({
           <div className="flex pt-1 pb-1 w-full gap-1.5" style={{ paddingLeft: 12, paddingRight: "calc(10% + 18px)" }}>
             {/* Left: row 2 fields */}
             <div className="flex gap-1.5 items-center" style={{ flex: 90 }}>
-              <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-                placeholder="Marca / Nota..."
+              <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+                placeholder="Marca"
                 className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
                 style={{ flex: 45 }} />
               <div className="flex gap-1.5 items-center" style={{ flex: 45 }}>
+                <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+                  placeholder="Nota"
+                  className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+                  style={{ flex: 1 }} />
                 <button type="button" onClick={() => setShowPhotoInput(!showPhotoInput)}
                   className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
                   style={{
