@@ -385,7 +385,7 @@ export default function ItemDetail({
         background: saved ? "linear-gradient(135deg, #3dd68c, #2ab573)" : labBtn.background,
         transition: "background 0.3s, opacity 0.3s",
       }}>
-      {saved ? "✅ Guardado" : "💾 Guardar"}
+      {saved ? `✅ ${t(lang, "saved")}` : `💾 ${t(lang, "save")}`}
     </button>
   );
 
@@ -401,7 +401,7 @@ export default function ItemDetail({
       {!editingPhoto ? (
         <button type="button" onClick={() => setEditingPhoto(true)}
           style={{ width: "100%", padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit", marginBottom: 6 }}>
-          {item.photo ? "📷 Cambiar foto" : "🔗 Añadir URL de foto"}
+          {item.photo ? `📷 ${t(lang, "changePhoto")}` : `🔗 ${t(lang, "addPhotoUrl")}`}
         </button>
       ) : (
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
@@ -412,7 +412,7 @@ export default function ItemDetail({
         </div>
       )}
       {item.photo && <img src={item.photo} style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 6 }} alt="" />}
-      <div style={labLabel}>Marca</div>
+      <div style={labLabel}>{t(lang, "brand")}</div>
       <input type="text" value={brand} onChange={e => setBrand(e.target.value)}
         placeholder="Ej: Hacendado, Lidl, Himalaya..."
         style={{ ...labInput, marginBottom: 6, fontSize: 13, padding: "10px 14px" }} />
@@ -424,7 +424,7 @@ export default function ItemDetail({
     <div key="e0" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
       {editHeader}
       <div>
-        <div style={labLabel}>Cantidad</div>
+        <div style={labLabel}>{t(lang, "quantity")}</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}placeholder="1"
             style={{ ...labInput, width: 70, textAlign: "center", flex: "none" }} />
@@ -440,7 +440,7 @@ export default function ItemDetail({
           style={labInput} />
       </div>
       <div>
-        <div style={labLabel}>Prioridad</div>
+        <div style={labLabel}>{t(lang, "priority")}</div>
         <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
           style={{
             display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 11, width: "100%",
@@ -448,7 +448,7 @@ export default function ItemDetail({
             background: item.important ? "rgba(255,92,92,0.04)" : "transparent", cursor: "pointer", fontFamily: "inherit",
           }}>
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: item.important ? "#ff5c5c" : "#555d74", boxShadow: item.important ? "0 0 6px rgba(255,92,92,0.4)" : "none" }} />
-          <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: item.important ? "#ff5c5c" : "var(--color-text, #e6e8ee)", textAlign: "left" }}>Importante</span>
+          <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: item.important ? "#ff5c5c" : "var(--color-text, #e6e8ee)", textAlign: "left" }}>{t(lang, "important")}</span>
           {/* Toggle switch */}
           <span style={{
             width: 40, height: 22, borderRadius: 11, position: "relative",
@@ -464,7 +464,7 @@ export default function ItemDetail({
         </button>
       </div>
       <div style={{ marginTop: "auto" }}>
-        <button type="button" onClick={handleSave} style={labBtn}>💾 Guardar</button>
+        <button type="button" onClick={handleSave} style={labBtn}>💾 {t(lang, "save")}</button>
       </div>
     </div>,
 
@@ -507,7 +507,7 @@ export default function ItemDetail({
       <div style={{ display: "flex", gap: 6 }}>
         <button type="button" onClick={() => onUpdate(item.id, { important: !item.important })}
           style={{ flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${item.important ? "rgba(255,92,92,0.3)" : "rgba(255,255,255,0.10)"}`, background: item.important ? "rgba(255,92,92,0.06)" : "var(--color-card, #161b26)", textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", color: item.important ? "#ff5c5c" : "#8b92a8", fontFamily: "inherit" }}>
-          ❗ Importante
+          ❗ {t(lang, "important")}
         </button>
         <button type="button" onClick={() => setEditingPhoto(true)}
           style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "var(--color-card, #161b26)", textAlign: "center", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#8b92a8", fontFamily: "inherit" }}>
@@ -547,7 +547,7 @@ export default function ItemDetail({
         <span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}
         <span style={{ fontSize: 18, fontWeight: 800, verticalAlign: "middle" }}>{displayName}</span>
       </div>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cantidad rapida</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t(lang, "quickQty")}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
         {(unit === "L" || !unit ? ["1L","2L","3L","500ml","250ml","Custom"] : unit === "kg" ? ["100g","250g","500g","1kg","2kg","Custom"] : ["1×","2×","3×","6×","10×","Custom"]).map(p => {
           const isCustom = p === "Custom";
@@ -675,7 +675,7 @@ export default function ItemDetail({
       <div style={{ fontSize: 12, color: "#8b92a8", lineHeight: 1.4 }}>Se eliminará de la lista para todos los miembros. Esta acción no se puede deshacer.</div>
       <div style={{ display: "flex", gap: 8, width: "100%", marginTop: 8 }}>
         <button type="button" onClick={() => setActiveTab("show")}
-          style={{ flex: 1, padding: 13, borderRadius: 12, background: "#161b26", border: "1px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
+          style={{ flex: 1, padding: 13, borderRadius: 12, background: "#161b26", border: "1px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{t(lang, "cancel")}</button>
         <button type="button" onClick={() => { onDelete(item.id); onClose(); }}
           style={{ flex: 1, padding: 13, borderRadius: 12, background: "#ff5c5c", border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Eliminar</button>
       </div>
@@ -736,8 +736,8 @@ export default function ItemDetail({
         </select>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <button type="button" onClick={() => { setShowAddPriceForm(false); setNewPriceStore(""); setNewPriceValue(""); }} style={{ flex: 1, padding: "8px 0", borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancelar</button>
-        <button type="button" onClick={handleAddPrice} disabled={!newPriceStore.trim() || !newPriceValue.trim()} style={{ flex: 1, padding: "8px 0", borderRadius: 8, background: "linear-gradient(135deg,#f09848,#e07028)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: (!newPriceStore.trim() || !newPriceValue.trim()) ? 0.5 : 1 }}>Guardar</button>
+        <button type="button" onClick={() => { setShowAddPriceForm(false); setNewPriceStore(""); setNewPriceValue(""); }} style={{ flex: 1, padding: "8px 0", borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{t(lang, "cancel")}</button>
+        <button type="button" onClick={handleAddPrice} disabled={!newPriceStore.trim() || !newPriceValue.trim()} style={{ flex: 1, padding: "8px 0", borderRadius: 8, background: "linear-gradient(135deg,#f09848,#e07028)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: (!newPriceStore.trim() || !newPriceValue.trim()) ? 0.5 : 1 }}>{t(lang, "save")}</button>
       </div>
     </div>
   ) : null;

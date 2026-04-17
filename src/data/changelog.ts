@@ -14,19 +14,19 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.89",
+    version: "v0.90",
     hash: "HEAD",
     date: "2026-04-12",
-    time: "19:00",
-    type: "feat",
-    title: "AddItemBar: URL field, checkbox Importante, no X, horizontal Añadir",
+    time: "19:30",
+    type: "fix",
+    title: "Mobile-safe AddItemBar + full i18n (en/es/pl)",
     details: [
-      "URL is now a direct text input (no more toggle button + popup)",
-      "Row 2 has 3 equal-width fields: Marca (1/3), Nota (1/3), URL foto (1/3)",
-      "Importante is now a checkbox + label with red accent color",
-      "Qty (48px) and Unit (56px) inputs more compact",
-      "Removed the X button — clicking outside the bar collapses it via mousedown listener",
-      "Añadir button text is horizontal again (no writingMode vertical)",
+      "Fixed AddItemBar overflowing screen on iPhone/Android: removed position:absolute Añadir button, replaced with inline flex layout that stays within bounds",
+      "Añadir button is now inline at the end of row 1, adapts size when expanded",
+      "All hardcoded Spanish strings replaced with i18n keys: brand, note, photoUrl, quantity, priority, quickQty, saved, cancel, changePhoto, important",
+      "Polish translations: Marka, Notatka, URL zdjęcia, Ilość, Priorytet, Szybka ilość, Zapisano, Anuluj, Zmień zdjęcie, Ważne",
+      "Row 2: brand (1/3), note (1/3), URL foto (1/3) — all same flex:1, all text-xs",
+      "Qty input 36px, Unit select 44px — more compact for mobile",
     ],
   },
   {

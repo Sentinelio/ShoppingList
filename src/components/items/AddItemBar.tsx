@@ -320,7 +320,7 @@ export default function AddItemBar({
       )}
 
       {/* Main input row */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-1.5 pt-2 w-full" style={{ paddingLeft: 12, paddingRight: expanded ? "calc(10% + 18px)" : 12 }}>
+      <form onSubmit={handleSubmit} className="flex items-center gap-1.5 px-3 pt-2 w-full">
         <input
           ref={inputRef}
           type="text"
@@ -332,86 +332,76 @@ export default function AddItemBar({
           placeholder={t(lang, "addProduct")}
           disabled={translating}
           className="bg-transparent text-text placeholder:text-text-muted outline-none disabled:opacity-50 min-w-0"
-          style={{ fontSize: 15, flex: 45 }}
+          style={{ fontSize: 15, flex: 1 }}
         />
 
-        {/* When expanded: qty + unit + important label+checkbox */}
+        {/* When expanded: qty + unit + important inline */}
         {expanded && (
-          <div className="flex gap-1.5 items-center" style={{ flex: 45 }}>
+          <>
             <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)}
               placeholder={t(lang, "qty")}
-              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent"
-              style={{ width: 48, textAlign: "center" }} />
+              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent"
+              style={{ width: 36, textAlign: "center" }} />
             <select value={unit} onChange={(e) => setUnit(e.target.value)}
-              className="bg-bg border border-border rounded-lg px-1 py-1.5 text-sm text-text outline-none focus:border-accent appearance-none"
-              style={{ width: 56 }}>
+              className="bg-bg border border-border rounded-lg px-0.5 py-1.5 text-xs text-text outline-none focus:border-accent appearance-none"
+              style={{ width: 44 }}>
               {UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
             </select>
-            <label className="flex-1 flex items-center gap-1.5 h-8 px-2 rounded-lg cursor-pointer select-none"
+            <label className="shrink-0 flex items-center gap-1 h-7 px-1.5 rounded-lg cursor-pointer select-none"
               style={{
                 background: important ? "rgba(255,92,92,0.15)" : "transparent",
                 border: important ? "1.5px solid rgba(255,92,92,0.4)" : "1.5px solid rgba(255,255,255,0.10)",
               }}>
               <input type="checkbox" checked={important} onChange={e => setImportant(e.target.checked)}
-                className="cursor-pointer" style={{ accentColor: "#ff5c5c" }} />
-              <span className="text-xs font-semibold" style={{ color: important ? "#ff5c5c" : "#8b92a8" }}>Importante</span>
+                className="cursor-pointer" style={{ accentColor: "#ff5c5c", width: 12, height: 12 }} />
+              <span className="text-[10px] font-semibold" style={{ color: important ? "#ff5c5c" : "#8b92a8" }}>{t(lang, "important")}</span>
             </label>
-          </div>
+          </>
         )}
 
-        {/* Add button -- when NOT expanded (inline) */}
-        {!expanded && (
-          <button
-            type="submit"
-            disabled={!input.trim() || translating}
-            className="shrink-0 w-10 h-10 rounded-xl text-white flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
-            style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}
-          >
-            {translating ? (
-              <span className="text-xs font-medium animate-pulse">...</span>
-            ) : (
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            )}
-          </button>
-        )}
+        {/* Add button — always visible, just changes style */}
+        <button
+          type={expanded ? "button" : "submit"}
+          onClick={expanded ? (e) => handleSubmit(e as unknown as FormEvent) : undefined}
+          disabled={!input.trim() || translating}
+          className="shrink-0 rounded-xl text-white flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+          style={{
+            background: "linear-gradient(135deg, #f0883e, #e8c364)",
+            width: expanded ? 56 : 40,
+            height: expanded ? "100%" : 40,
+            fontSize: expanded ? 11 : undefined,
+            fontWeight: expanded ? 700 : undefined,
+          }}
+        >
+          {translating ? (
+            <span className="text-xs font-medium animate-pulse">...</span>
+          ) : expanded ? (
+            t(lang, "add")
+          ) : (
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          )}
+        </button>
       </form>
 
-      {/* Expanded: Row 2 with brand, note, URL (each 1/3 of 90%) */}
+      {/* Row 2 (only when expanded): brand + note + URL */}
       {expanded && (
-        <>
-          <div className="flex pt-1 pb-1 w-full gap-1.5" style={{ paddingLeft: 12, paddingRight: "calc(10% + 18px)" }}>
-            <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
-              placeholder="Marca"
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ flex: 1 }} />
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Nota"
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ flex: 1 }} />
-            <input type="text" value={photo || ""} onChange={(e) => setPhoto(e.target.value || null)}
-              placeholder="URL foto"
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-              style={{ flex: 1 }} />
-          </div>
-
-          {/* Añadir button: absolutely positioned right, spanning both rows */}
-          <div style={{
-            position: "absolute", right: 12, top: 0, bottom: 0,
-            width: "10%", display: "flex", alignItems: "stretch",
-            paddingTop: 8, paddingBottom: 4,
-          }}>
-            <button type="button" onClick={(e) => handleSubmit(e as unknown as FormEvent)}
-              disabled={!input.trim() || translating}
-              className="w-full rounded-xl text-white font-semibold text-sm flex items-center justify-center active:brightness-90 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
-              style={{ background: "linear-gradient(135deg, #f0883e, #e8c364)" }}>
-              {translating ? "..." : t(lang, "add")}
-            </button>
-          </div>
-
-        </>
+        <div className="flex gap-1.5 px-3 pt-1 pb-1 w-full">
+          <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+            placeholder={t(lang, "brand")}
+            className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+            style={{ flex: 1 }} />
+          <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder={t(lang, "note")}
+            className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+            style={{ flex: 1 }} />
+          <input type="text" value={photo || ""} onChange={(e) => setPhoto(e.target.value || null)}
+            placeholder={t(lang, "photoUrl")}
+            className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+            style={{ flex: 1 }} />
+        </div>
       )}
     </div>
 
