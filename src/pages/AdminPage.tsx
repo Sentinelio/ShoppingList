@@ -746,6 +746,17 @@ export default function AdminPage() {
   const [, setNewEntry] = useState(false);
   const [toast, setToast] = useState("");
   const [, forceUpdate] = useState(0);
+  const [ciRuns, setCiRuns] = useState<Array<{ id: number; status: string; conclusion: string | null; name: string; head_sha: string; created_at: string; html_url: string }>>([]);
+  const [ciLoading, setCiLoading] = useState(false);
+  const fetchCI = useCallback(() => {
+    setCiLoading(true);
+    fetch("https://api.github.com/repos/Sentinelio/ShoppingList/actions/runs?per_page=8")
+      .then(r => r.json())
+      .then(d => { if (d.workflow_runs) setCiRuns(d.workflow_runs); })
+      .catch(() => {})
+      .finally(() => setCiLoading(false));
+  }, []);
+  useEffect(() => { fetchCI(); }, [fetchCI]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -2361,6 +2372,39 @@ export default function AdminPage() {
                   className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                   style={{ background: "rgba(240,136,62,0.1)", color: "#f0883e", border: "1px solid rgba(240,136,62,0.2)" }}
                 >🔄 Refresh state</button>
+              </div>
+
+              {/* CI Builds status */}
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">CI Builds</div>
+                  <button onClick={fetchCI} disabled={ciLoading} className="text-[10px] text-accent cursor-pointer font-semibold">
+                    {ciLoading ? "..." : "🔄"}
+                  </button>
+                </div>
+                <div className="divide-y divide-border max-h-[200px] overflow-y-auto">
+                  {ciRuns.length === 0 && !ciLoading && (
+                    <div className="px-3 py-4 text-center text-text-muted text-xs">No builds found</div>
+                  )}
+                  {ciRuns.map(run => (
+                    <a key={run.id} href={run.html_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 no-underline" style={{ textDecoration: "none" }}>
+                      <span style={{ fontSize: 14 }}>
+                        {run.conclusion === "success" ? "✅" : run.conclusion === "failure" ? "❌" : run.status === "in_progress" ? "🔄" : "⏳"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-semibold text-text truncate">{run.name}</div>
+                        <div className="text-[9px] text-text-muted font-mono">{run.head_sha.slice(0, 7)} · {new Date(run.created_at).toLocaleString()}</div>
+                      </div>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{
+                        background: run.conclusion === "success" ? "rgba(61,214,140,0.1)" : run.conclusion === "failure" ? "rgba(255,92,92,0.1)" : "rgba(240,136,62,0.1)",
+                        color: run.conclusion === "success" ? "#3dd68c" : run.conclusion === "failure" ? "#ff5c5c" : "#f0883e",
+                      }}>
+                        {run.conclusion ?? run.status}
+                      </span>
+                    </a>
+                  ))}
+                </div>
               </div>
 
               {/* Changelog list */}

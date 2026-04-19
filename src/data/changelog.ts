@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.93",
+    version: "v0.94",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "21:00",
+    type: "feat",
+    title: "CI Builds panel in Admin — live build status from GitHub Actions",
+    details: [
+      "New 'CI Builds' section in Admin → Log tab showing the last 8 GitHub Actions runs",
+      "Each entry shows: ✅/❌/🔄/⏳ status icon, workflow name, commit hash, timestamp, and conclusion badge",
+      "Click any entry to open the full run details on GitHub",
+      "🔄 button to refresh manually",
+      "Fetches from public GitHub API (no auth needed for public repos)",
+      "Auto-fetches on admin page load",
+    ],
+  },
+  {
+    version: "v0.93",
+    hash: "79bbae1",
     date: "2026-04-12",
     time: "20:45",
     type: "feat",
