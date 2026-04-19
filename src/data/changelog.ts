@@ -14,8 +14,25 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.92",
+    version: "v0.93",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "20:45",
+    type: "feat",
+    title: "Photo upload from device gallery (iOS, Android, PC)",
+    details: [
+      "New 📷 button to pick photos from device gallery/camera roll via file input",
+      "Works alongside URL input — user can choose either method",
+      "Photos uploaded to Supabase Storage bucket 'item-photos'",
+      "AddItemBar: 📷 icon next to the URL field opens the file picker",
+      "ItemDetail edit: two side-by-side buttons (📷 Gallery + 🔗 URL)",
+      "Shows ⏳ while uploading, stores the public URL in item.photo",
+      "Requires creating an 'item-photos' public bucket in Supabase Storage",
+    ],
+  },
+  {
+    version: "v0.92",
+    hash: "66c2678",
     date: "2026-04-12",
     time: "20:15",
     type: "fix",

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type ChangeEvent } from "react";
 import { parseQty } from "../../lib/qtyParser";
 import { translateProduct } from "../../lib/translate";
 import { addItem } from "../../hooks/useItems";
@@ -7,6 +7,7 @@ import { getEnabledLangs } from "../../lib/langConfig";
 import { preloadDictionary, suggest, type DictSuggestion } from "../../lib/dictSuggest";
 import { getCategoryEmoji, getCategoryColor } from "../../data/categories";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
+import { uploadItemPhoto } from "../../lib/photoUpload";
 
 interface AddItemBarProps {
   listId: string;
@@ -55,6 +56,22 @@ export default function AddItemBar({
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadItemPhoto(file);
+      if (url) setPhoto(url);
+    } catch (err) {
+      console.error("[photo upload]", err);
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
   const suggestionReqId = useRef(0);
 
   const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
@@ -400,10 +417,18 @@ export default function AddItemBar({
             placeholder={t(lang, "note")}
             className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
             style={{ flex: 1 }} />
-          <input type="text" value={photo || ""} onChange={(e) => setPhoto(e.target.value || null)}
-            placeholder={t(lang, "photoUrl")}
-            className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
-            style={{ flex: 1 }} />
+          <div className="flex gap-1 items-center min-w-0" style={{ flex: 1 }}>
+            <input type="text" value={photo || ""} onChange={(e) => setPhoto(e.target.value || null)}
+              placeholder={t(lang, "photoUrl")}
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text placeholder:text-text-muted outline-none focus:border-accent min-w-0"
+              style={{ flex: 1 }} />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer disabled:opacity-40"
+              style={{ background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)" }}>
+              <span style={{ fontSize: 12 }}>{uploading ? "⏳" : "📷"}</span>
+            </button>
+          </div>
         </div>
       )}
     </div>

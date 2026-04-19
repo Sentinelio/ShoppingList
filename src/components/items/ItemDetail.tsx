@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import type { Item } from "../../lib/supabase";
 import { getLangFlag } from "../../data/langs";
 import { t } from "../../data/i18n";
@@ -11,6 +11,7 @@ import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, compu
 import { useAuth } from "../../hooks/useAuth";
 import { translateProduct } from "../../lib/translate";
 import { getEnabledLangs } from "../../lib/langConfig";
+import { uploadItemPhoto } from "../../lib/photoUpload";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -98,6 +99,22 @@ export default function ItemDetail({
   const [brand, setBrand] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [editingPhoto, setEditingPhoto] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const detailFileRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const url = await uploadItemPhoto(file);
+      if (url) onUpdate(item.id, { photo: url });
+    } catch (err) {
+      console.error("[photo upload]", err);
+    }
+    setUploadingPhoto(false);
+    if (detailFileRef.current) detailFileRef.current.value = "";
+  };
   const [saved, setSaved] = useState(false);
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
@@ -401,19 +418,27 @@ export default function ItemDetail({
           onKeyDown={e => { if (e.key === "Enter") handleSave(); }}
           style={{ ...labInput, flex: 1, fontSize: 16, fontWeight: 700, padding: "6px 10px" }} />
       </div>
-      {!editingPhoto ? (
-        <button type="button" onClick={() => setEditingPhoto(true)}
-          style={{ width: "100%", padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit", marginBottom: 6 }}>
-          {item.photo ? `📷 ${t(lang, "changePhoto")}` : `🔗 ${t(lang, "addPhotoUrl")}`}
+      {/* Photo: file upload + URL */}
+      <input ref={detailFileRef} type="file" accept="image/*" onChange={handlePhotoFile} style={{ display: "none" }} />
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <button type="button" onClick={() => detailFileRef.current?.click()} disabled={uploadingPhoto}
+          style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+          {uploadingPhoto ? "⏳..." : `📷 ${t(lang, "addPhotoUrl")}`}
         </button>
-      ) : (
-        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <input type="text" value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..." autoFocus
-            onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
-            style={{ ...labInput, flex: 1, fontSize: 12, padding: "8px 10px" }} />
-          <button type="button" onClick={savePhotoUrl} style={{ padding: "8px 14px", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>OK</button>
-        </div>
-      )}
+        {!editingPhoto ? (
+          <button type="button" onClick={() => setEditingPhoto(true)}
+            style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid rgba(255,255,255,0.10)", color: "#8b92a8", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+            🔗 URL
+          </button>
+        ) : (
+          <>
+            <input type="text" value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..."
+              onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
+              style={{ ...labInput, flex: 2, fontSize: 11, padding: "8px 10px" }} />
+            <button type="button" onClick={savePhotoUrl} style={{ padding: "8px 12px", borderRadius: 10, background: "linear-gradient(135deg,#f09848,#e07028)", color: "#fff", border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>OK</button>
+          </>
+        )}
+      </div>
       {item.photo && <img src={item.photo} style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 6 }} alt="" />}
       <div style={labLabel}>{t(lang, "brand")}</div>
       <input type="text" value={brand} onChange={e => setBrand(e.target.value)}
