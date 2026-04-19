@@ -17,16 +17,18 @@ interface AddItemBarProps {
   onItemAdded: (item: import("../../lib/supabase").Item | null) => void;
 }
 
-const UNITS = [
-  { value: "", label: "\u2014" },
-  { value: "x", label: "uds" },
-  { value: "kg", label: "kg" },
-  { value: "g", label: "g" },
-  { value: "L", label: "L" },
-  { value: "ml", label: "ml" },
-  { value: "cl", label: "cl" },
-  { value: "pack", label: "pack" },
-];
+function getUnits(lang: string) {
+  return [
+    { value: "", label: t(lang, "unitNone") },
+    { value: "x", label: t(lang, "unitPcs") },
+    { value: "kg", label: "kg" },
+    { value: "g", label: "g" },
+    { value: "L", label: "L" },
+    { value: "ml", label: "ml" },
+    { value: "cl", label: "cl" },
+    { value: "pack", label: t(lang, "unitPack") },
+  ];
+}
 
 export default function AddItemBar({
   listId,
@@ -37,6 +39,7 @@ export default function AddItemBar({
   onItemAdded,
 }: AddItemBarProps) {
   const lang = userLang;
+  const UNITS = getUnits(lang);
 
   const [input, setInput] = useState("");
   const [qty, setQty] = useState("");

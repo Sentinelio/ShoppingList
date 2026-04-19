@@ -25,16 +25,18 @@ interface ItemDetailProps {
   lang?: string;
 }
 
-const UNITS = [
-  { value: "", label: "\u2014" },
-  { value: "x", label: "uds" },
-  { value: "kg", label: "kg" },
-  { value: "g", label: "g" },
-  { value: "L", label: "L" },
-  { value: "ml", label: "ml" },
-  { value: "cl", label: "cl" },
-  { value: "pack", label: "pack" },
-];
+function getUnits(lang: string) {
+  return [
+    { value: "", label: t(lang, "unitNone") },
+    { value: "x", label: t(lang, "unitPcs") },
+    { value: "kg", label: "kg" },
+    { value: "g", label: "g" },
+    { value: "L", label: "L" },
+    { value: "ml", label: "ml" },
+    { value: "cl", label: "cl" },
+    { value: "pack", label: t(lang, "unitPack") },
+  ];
+}
 
 type DetailTab = "show" | "edit" | "price" | "trans" | "stats" | "comm" | "hist" | "del";
 
@@ -88,6 +90,7 @@ export default function ItemDetail({
   onDelete,
 }: ItemDetailProps) {
   const lang = userLang;
+  const UNITS = getUnits(lang);
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");
   const [note, setNote] = useState("");

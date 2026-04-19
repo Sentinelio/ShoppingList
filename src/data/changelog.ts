@@ -14,8 +14,34 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.90",
+    version: "v0.92",
     hash: "HEAD",
+    date: "2026-04-12",
+    time: "20:15",
+    type: "fix",
+    title: "Localized unit labels in dropdowns (en/es/pl)",
+    details: [
+      "Unit dropdown labels now translate based on user language",
+      "en: pcs / pack | es: uds / pack | pl: szt. / opak.",
+      "Metric units (kg, g, L, ml, cl) stay universal across all languages",
+      "Both AddItemBar and ItemDetail use the same getUnits(lang) function",
+    ],
+  },
+  {
+    version: "v0.91",
+    hash: "d0585aa",
+    date: "2026-04-12",
+    time: "20:00",
+    type: "fix",
+    title: "Safari iOS: fixed AddItemBar uses position:fixed",
+    details: [
+      "Changed sticky bottom-0 to fixed bottom-0 so the bar is always visible above Safari navigation chrome",
+      "Added 80px spacer div so content doesn't hide behind the fixed bar",
+    ],
+  },
+  {
+    version: "v0.90",
+    hash: "b43ea94",
     date: "2026-04-12",
     time: "19:30",
     type: "fix",
