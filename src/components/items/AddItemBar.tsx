@@ -249,7 +249,7 @@ export default function AddItemBar({
     <>
     <div
       ref={barRef}
-      className="sticky bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light relative"
+      className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
       {/* Autocomplete suggestions — anchored above the input */}

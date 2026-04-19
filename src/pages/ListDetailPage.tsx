@@ -539,6 +539,9 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         )}
       </div>
 
+      {/* Spacer so content doesn't hide behind fixed AddItemBar */}
+      <div style={{ height: 80 }} />
+
       {/* Add item bar */}
       {user && (
         <AddItemBar
