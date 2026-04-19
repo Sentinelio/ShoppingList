@@ -20,7 +20,7 @@ interface ItemDetailProps {
   userLang: string;
   shelfLang: string;
   countryFlag?: string;
-  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand">>) => void;
+  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand" | "checked_at">>) => void;
   onDelete: (itemId: string) => void;
   onShowStore: (item: Item) => void;
   lang?: string;
@@ -444,6 +444,18 @@ export default function ItemDetail({
       <input type="text" value={brand} onChange={e => setBrand(e.target.value)}
         placeholder="Ej: Hacendado, Lidl, Himalaya..."
         style={{ ...labInput, marginBottom: 6, fontSize: 13, padding: "10px 14px" }} />
+      {item.checked && (
+        <>
+          <div style={labLabel}>{t(lang, "done")}</div>
+          <input type="datetime-local"
+            value={item.checked_at ? new Date(new Date(item.checked_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+            onChange={e => {
+              const val = e.target.value;
+              if (val) onUpdate(item.id, { checked_at: new Date(val).toISOString() } as Parameters<typeof onUpdate>[1]);
+            }}
+            style={{ ...labInput, marginBottom: 6, fontSize: 13, padding: "10px 14px", colorScheme: "dark" }} />
+        </>
+      )}
     </>
   );
 

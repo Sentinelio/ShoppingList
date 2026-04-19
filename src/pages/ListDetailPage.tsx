@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase } from "../lib/itemData";
+import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice } from "../lib/itemData";
+import { supabase, IS_DEMO } from "../lib/supabase";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
@@ -163,6 +164,25 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     });
   };
 
+  // Fetch latest price per item for total calculation
+  const [itemPrices, setItemPrices] = useState<Record<string, { value: number; currency: string }>>({});
+  useEffect(() => {
+    if (IS_DEMO || !supabase || !listId) return;
+    supabase
+      .from("item_prices")
+      .select("item_id, price_value, currency")
+      .not("price_value", "is", null)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        const latest: Record<string, { value: number; currency: string }> = {};
+        for (const row of data as Array<{ item_id: string; price_value: number; currency: string }>) {
+          if (!latest[row.item_id]) latest[row.item_id] = { value: Number(row.price_value), currency: row.currency };
+        }
+        setItemPrices(latest);
+      });
+  }, [listId, items]);
+
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
@@ -188,7 +208,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const handleUpdate = useCallback(async (
     itemId: string,
-    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand">>,
+    updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand" | "checked_at">>,
   ) => {
     // Capture previous state for diff
     const prevItem = items.find(i => i.id === itemId);
@@ -528,12 +548,22 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                           if (!byCat[cat]) byCat[cat] = [];
                           byCat[cat].push(item);
                         }
+                        const dateTotal = dateItems.reduce((sum, item) => {
+                          const p = itemPrices[item.id];
+                          return p ? sum + p.value : sum;
+                        }, 0);
+                        const dateCurrency = dateItems.find(item => itemPrices[item.id])
+                          ? itemPrices[dateItems.find(item => itemPrices[item.id])!.id].currency
+                          : "EUR";
                         return (
                           <div key={dateLabel} className="mb-3">
                             <div className="flex items-center gap-2 px-4 py-1.5">
                               <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">{dateLabel}</span>
                               <div className="flex-1 h-px bg-border-light" />
                               <span className="text-[10px] text-text-muted">{dateItems.length}</span>
+                              {dateTotal > 0 && (
+                                <span className="text-[10px] font-bold text-accent">{formatPrice(dateTotal, dateCurrency)}</span>
+                              )}
                             </div>
                             {Object.entries(byCat).map(([cat, catItems]) => (
                               <div key={cat}>

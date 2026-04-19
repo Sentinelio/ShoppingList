@@ -14,18 +14,18 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.95",
+    version: "v0.96",
     hash: "HEAD",
     date: "2026-04-13",
-    time: "11:37",
+    time: "12:00",
     type: "feat",
-    title: "Last activity on lists + HECHOS grouped by date → category",
+    title: "Date totals in HECHOS + editable checked_at date",
     details: [
-      "List cards now show relative time of last activity ('hace 5m', 'hace 2h', 'hace 3d')",
-      "Checked items (HECHOS) are grouped by date (Hoy/Ayer/date) then by category with emoji headers",
-      "New checked_at column on items table tracks when each item was marked as done",
-      "toggleItem sets checked_at on check, clears on uncheck",
-      "Migration 016: ALTER TABLE items ADD COLUMN checked_at",
+      "Each date group in HECHOS now shows the total price on the right (from item_prices latest entry per item)",
+      "Edit pane: when an item is checked, a date/time picker appears to modify the checked_at date",
+      "List cards show relative time of last activity",
+      "HECHOS grouped by date → category with emoji headers",
+      "New checked_at column (migration 016) tracks when items were marked as done",
     ],
   },
   {
