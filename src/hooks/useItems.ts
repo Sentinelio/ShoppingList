@@ -102,7 +102,7 @@ export async function toggleItem(itemId: string, checked: boolean): Promise<Item
 
   const { data, error } = await supabase
     .from("items")
-    .update({ checked })
+    .update({ checked, checked_at: checked ? new Date().toISOString() : null })
     .eq("id", itemId)
     .select()
     .single();

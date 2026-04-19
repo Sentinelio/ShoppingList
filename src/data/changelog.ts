@@ -14,8 +14,23 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.94",
+    version: "v0.95",
     hash: "HEAD",
+    date: "2026-04-13",
+    time: "11:37",
+    type: "feat",
+    title: "Last activity on lists + HECHOS grouped by date → category",
+    details: [
+      "List cards now show relative time of last activity ('hace 5m', 'hace 2h', 'hace 3d')",
+      "Checked items (HECHOS) are grouped by date (Hoy/Ayer/date) then by category with emoji headers",
+      "New checked_at column on items table tracks when each item was marked as done",
+      "toggleItem sets checked_at on check, clears on uncheck",
+      "Migration 016: ALTER TABLE items ADD COLUMN checked_at",
+    ],
+  },
+  {
+    version: "v0.94",
+    hash: "8aecb92",
     date: "2026-04-12",
     time: "21:00",
     type: "feat",

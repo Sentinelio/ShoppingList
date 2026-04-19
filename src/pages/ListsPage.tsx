@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useLists, deleteList, useMyPendingRequests, cancelJoinRequest } from "../hooks/useList";
-import { IS_DEMO } from "../lib/supabase";
+import { supabase, IS_DEMO } from "../lib/supabase";
 import { copyToClipboard } from "../lib/clipboard";
 import { demoGetMembers, demoGetItems } from "../lib/demoStore";
 import { t } from "../data/i18n";
@@ -40,6 +40,26 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const [profileName, setProfileName] = useState(user?.name ?? "");
   const [copied, setCopied] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [lastActivity, setLastActivity] = useState<Record<string, string>>({});
+
+  // Fetch latest item timestamp per list
+  useEffect(() => {
+    if (IS_DEMO || lists.length === 0) return;
+    const ids = lists.map(l => l.id);
+    supabase
+      .from("items")
+      .select("list_id, created_at")
+      .in("list_id", ids)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        const latest: Record<string, string> = {};
+        for (const row of data as Array<{ list_id: string; created_at: string }>) {
+          if (!latest[row.list_id]) latest[row.list_id] = row.created_at;
+        }
+        setLastActivity(latest);
+      });
+  }, [lists]);
 
   const handleCreated = (listId: string) => {
     refresh();
@@ -159,7 +179,16 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                         {info.list.name}
                       </h3>
                       <p className="text-text-muted text-[11px] mt-0.5">
-                        {new Date(info.list.created_at).toLocaleDateString()}
+                        {lastActivity[info.list.id] ? (() => {
+                          const diff = Date.now() - new Date(lastActivity[info.list.id]).getTime();
+                          const mins = Math.floor(diff / 60000);
+                          if (mins < 1) return "ahora";
+                          if (mins < 60) return `hace ${mins}m`;
+                          const hours = Math.floor(mins / 60);
+                          if (hours < 24) return `hace ${hours}h`;
+                          const days = Math.floor(hours / 24);
+                          return `hace ${days}d`;
+                        })() : new Date(info.list.created_at).toLocaleDateString()}
                       </p>
                     </div>
 

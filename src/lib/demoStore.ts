@@ -130,7 +130,7 @@ export function demoAddItem(params: {
     translations: params.translations, category: params.category,
     qty: params.qty, unit: params.unit, note: params.note, brand: params.brand || "", photo: params.photo || null,
     important: params.important || false,
-    checked: false, added_by: params.addedBy, added_by_name: params.addedByName,
+    checked: false, checked_at: null, added_by: params.addedBy, added_by_name: params.addedByName,
     created_at: new Date().toISOString(),
   };
   db.items.push(item);

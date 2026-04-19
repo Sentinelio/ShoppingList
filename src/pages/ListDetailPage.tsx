@@ -164,7 +164,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   };
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked } : i));
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
     if (user) {
       // Log history event
@@ -506,7 +506,48 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
                 {showChecked && (
                   <div className="mt-1">
-                    {renderItemGrid(checkedItems, true)}
+                    {/* Group checked items by date (checked_at) → category */}
+                    {(() => {
+                      // Group by date string
+                      const byDate: Record<string, Item[]> = {};
+                      const today = new Date().toLocaleDateString();
+                      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
+                      for (const item of checkedItems) {
+                        const dateStr = item.checked_at
+                          ? new Date(item.checked_at).toLocaleDateString()
+                          : t(lang, "done");
+                        const label = dateStr === today ? "Hoy" : dateStr === yesterday ? "Ayer" : dateStr;
+                        if (!byDate[label]) byDate[label] = [];
+                        byDate[label].push(item);
+                      }
+                      return Object.entries(byDate).map(([dateLabel, dateItems]) => {
+                        // Within each date, group by category
+                        const byCat: Record<string, Item[]> = {};
+                        for (const item of dateItems) {
+                          const cat = item.category || "other";
+                          if (!byCat[cat]) byCat[cat] = [];
+                          byCat[cat].push(item);
+                        }
+                        return (
+                          <div key={dateLabel} className="mb-3">
+                            <div className="flex items-center gap-2 px-4 py-1.5">
+                              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">{dateLabel}</span>
+                              <div className="flex-1 h-px bg-border-light" />
+                              <span className="text-[10px] text-text-muted">{dateItems.length}</span>
+                            </div>
+                            {Object.entries(byCat).map(([cat, catItems]) => (
+                              <div key={cat}>
+                                <div className="flex items-center gap-1.5 px-4 py-1">
+                                  <span className="text-xs">{getCategoryEmoji(cat)}</span>
+                                  <span className="text-[9px] font-semibold text-text-muted uppercase">{getCategoryName(cat, lang)}</span>
+                                </div>
+                                {renderItemGrid(catItems, true)}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      });
+                    })()}
                     {/* Delete all checked — placed BELOW the list for safety */}
                     <div className="flex justify-center py-3">
                       <button

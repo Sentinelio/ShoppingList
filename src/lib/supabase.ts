@@ -59,6 +59,7 @@ export interface Item {
   photo: string | null;
   important: boolean;
   checked: boolean;
+  checked_at: string | null;
   added_by: string;
   added_by_name: string;
   created_at: string;
