@@ -108,7 +108,7 @@ export default function ItemDetail({
     setUploadingPhoto(true);
     try {
       const url = await uploadItemPhoto(file);
-      if (url) onUpdate(item.id, { photo: url });
+      if (url && item) onUpdate(item.id, { photo: url });
     } catch (err) {
       console.error("[photo upload]", err);
     }
