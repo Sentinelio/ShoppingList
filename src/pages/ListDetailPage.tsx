@@ -17,6 +17,7 @@ import ItemDetail from "../components/items/ItemDetail";
 import StoreMode from "../components/store/StoreMode";
 import Modal from "../components/ui/Modal";
 import Avatar from "../components/ui/Avatar";
+import ImportReceiptModal from "../components/receipts/ImportReceiptModal";
 import { useItemsLayoutId } from "../hooks/useTheme";
 import { getItemsLayout } from "../layouts/items/layouts";
 
@@ -71,6 +72,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showImportReceipt, setShowImportReceipt] = useState(false);
 
   // Normalize strings for accent/case-insensitive matching (so "leche" also
   // finds "Lèche", "LECHE", etc.).
@@ -367,6 +369,16 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
               {pendingMembers.length}
             </span>
           )}
+        </button>
+
+        {/* Import receipt button */}
+        <button
+          onClick={() => setShowImportReceipt(true)}
+          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-card border border-border-light text-text-soft active:bg-accent/10 cursor-pointer"
+          aria-label={t(lang, "importReceipt")}
+          title={t(lang, "importReceipt")}
+        >
+          📸
         </button>
 
         {/* Settings button */}
@@ -826,6 +838,20 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         </button>
         <button onClick={() => setShowListSettings(false)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
       </Modal>
+
+      {/* Import receipt modal */}
+      {user && (
+        <ImportReceiptModal
+          open={showImportReceipt}
+          onClose={() => setShowImportReceipt(false)}
+          listId={listId}
+          items={items}
+          userLang={userLang}
+          userId={user.id}
+          userName={user.name}
+          onApplied={() => refresh()}
+        />
+      )}
     </div>
   );
 }

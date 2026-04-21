@@ -14,8 +14,27 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.97",
+    version: "v0.98",
     hash: "HEAD",
+    date: "2026-04-21",
+    time: "14:00",
+    type: "feat",
+    title: "Receipt importer — photo → review → apply flow",
+    details: [
+      "New 📸 button in the list header opens the import modal",
+      "Pick a paragon/ticket photo (camera or gallery) → uploaded to receipt-photos bucket → sent to parse-receipt edge function",
+      "Review screen shows store + date + total header and every detected line in an editable card",
+      "Each line has: include/exclude checkbox, editable expanded name, matched item dropdown, qty/unit, price, discount",
+      "Automatic fuzzy match against existing items (Jaccard on normalized tokens with size-tail removal and prefix boost)",
+      "Low-confidence lines highlighted in amber so the user can double-check",
+      "Apply creates a receipts row + receipt_items rows, marks matched items as checked with the ticket date (checked_at), logs item_prices entries with store+price+currency, and auto-adds brand if missing",
+      "Unmatched lines become new items that are immediately marked as done, so HECHOS stays up-to-date",
+      "src/lib/receiptMatch.ts + src/lib/receiptApply.ts encapsulate matching + persistence logic",
+    ],
+  },
+  {
+    version: "v0.97",
+    hash: "3cd8354",
     date: "2026-04-21",
     time: "12:00",
     type: "feat",
