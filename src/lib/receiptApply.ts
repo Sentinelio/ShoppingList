@@ -11,6 +11,8 @@ export interface ReviewedLine {
   include: boolean;
   raw_name: string;
   expanded_name: string | null;
+  translations: Record<string, string>;
+  category: string;
   brand: string | null;
   qty: number | null;
   unit: string | null;
@@ -71,12 +73,18 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<Receipt 
 
     if (!itemId) {
       // Create a new item, pre-checked, so the user sees it in HECHOS.
-      const name = line.expanded_name || line.raw_name;
+      // Translations cover every member language; `original` acts as the
+      // fallback when someone's lang has no translation, so we keep the
+      // English version there.
+      const translations = { ...line.translations };
+      const fallback = line.expanded_name || line.raw_name;
+      if (!translations.en) translations.en = fallback;
+      const original = translations.en;
       const created = await addItem({
         listId,
-        original: name,
-        translations: { en: name },
-        category: "other",
+        original,
+        translations,
+        category: line.category || "other",
         qty: line.qty != null ? String(line.qty) : "",
         unit: line.unit ?? "",
         note: "",

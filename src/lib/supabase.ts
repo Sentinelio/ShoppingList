@@ -146,6 +146,8 @@ export interface ReceiptItem {
 export interface ParsedReceiptLine {
   raw_name: string;
   expanded_name: string | null;
+  translations: Record<string, string>;
+  category: string;
   brand: string | null;
   qty: number | null;
   unit: string | null;

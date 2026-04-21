@@ -847,6 +847,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           listId={listId}
           items={items}
           userLang={userLang}
+          shelfLang={shelfLang}
           userId={user.id}
           userName={user.name}
           onApplied={() => refresh()}

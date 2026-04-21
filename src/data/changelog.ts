@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.98",
+    version: "v0.99",
     hash: "HEAD",
+    date: "2026-04-21",
+    time: "15:30",
+    type: "feat",
+    title: "Receipt importer — multi-language names + editable qty/unit/price",
+    details: [
+      "Edge function now receives the list's target languages and asks Claude Vision for per-line translations in every member's language + a specific category key — same approach as the translate function",
+      "Imported items are saved with a full translations map, so each member sees them in their own language (Polish receipt → Spanish user sees 'Leche Nestlé Nan Optipro Plus 2 800g')",
+      "Correct category assigned by the LLM (dairy, vegetables, snacks…) instead of everything dumped into 'other'",
+      "Review UI: qty is now a numeric input, unit is a dropdown (—/pcs/pack/kg/g/l/ml/cl), total price is editable with currency label",
+      "Discount still shown beside the price when present",
+      "parse-receipt edge function redeployed (v2) with new prompt; max_tokens bumped to 8192 for long tickets",
+    ],
+  },
+  {
+    version: "v0.98",
+    hash: "50f9408",
     date: "2026-04-21",
     time: "14:00",
     type: "feat",

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "../ui/Modal";
 import { t } from "../../data/i18n";
+import { getEnabledLangs } from "../../lib/langConfig";
 import { parseReceipt, uploadReceiptPhoto } from "../../lib/receiptImport";
 import { matchLineToItem } from "../../lib/receiptMatch";
 import { applyReceipt, type ReviewedLine } from "../../lib/receiptApply";
 import { formatPrice } from "../../lib/itemData";
 import type { Item, ParsedReceipt } from "../../lib/supabase";
+
+const UNIT_OPTIONS = ["", "pcs", "pack", "kg", "g", "l", "ml", "cl"];
 
 type Stage = "pick" | "uploading" | "analyzing" | "review" | "applying" | "done" | "error";
 
@@ -15,13 +18,14 @@ interface Props {
   listId: string;
   items: Item[];
   userLang: string;
+  shelfLang: string;
   userId: string;
   userName: string;
   onApplied: () => void;
 }
 
 export default function ImportReceiptModal({
-  open, onClose, listId, items, userLang, userId, userName, onApplied,
+  open, onClose, listId, items, userLang, shelfLang, userId, userName, onApplied,
 }: Props) {
   const [stage, setStage] = useState<Stage>("pick");
   const [errorMsg, setErrorMsg] = useState("");
@@ -49,15 +53,20 @@ export default function ImportReceiptModal({
       const url = await uploadReceiptPhoto(file);
       setPhotoUrl(url);
       setStage("analyzing");
-      const result = await parseReceipt({ file });
+      const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
+      const result = await parseReceipt({ file, targetLangs });
       setParsed(result);
       // Auto-match each line against existing items.
       const rows: ReviewedLine[] = result.lines.map((l) => {
         const match = matchLineToItem(l, items);
+        // Prefer the user's language for the display name.
+        const displayName = l.translations?.[userLang] || l.expanded_name || l.raw_name;
         return {
           include: true,
           raw_name: l.raw_name,
-          expanded_name: l.expanded_name,
+          expanded_name: displayName,
+          translations: l.translations ?? {},
+          category: l.category ?? "other",
           brand: l.brand,
           qty: l.qty,
           unit: l.unit,
@@ -255,6 +264,47 @@ function LineRow({
             {line.brand && <span>· {line.brand}</span>}
             {confLow && <span style={{ color: "#ffc107" }}>· ⚠️ low</span>}
           </div>
+
+          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              type="number"
+              step="0.001"
+              value={line.qty ?? ""}
+              onChange={(e) => {
+                const v = e.target.value === "" ? null : Number(e.target.value);
+                onChange({ qty: v });
+              }}
+              style={{ ...smallInput, width: 64 }}
+              placeholder="qty"
+            />
+            <select
+              value={line.unit ?? ""}
+              onChange={(e) => onChange({ unit: e.target.value || null })}
+              style={{ ...select, minWidth: 64 }}
+            >
+              {UNIT_OPTIONS.map((u) => (
+                <option key={u} value={u}>{u || "—"}</option>
+              ))}
+            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <input
+                type="number"
+                step="0.01"
+                value={line.total_price ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value === "" ? null : Number(e.target.value);
+                  onChange({ total_price: v });
+                }}
+                style={{ ...smallInput, width: 76 }}
+                placeholder="total"
+              />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{currency}</span>
+            </div>
+            {line.discount > 0 && (
+              <span style={{ fontSize: 11, color: "#4caf50" }}>−{formatPrice(line.discount, currency)}</span>
+            )}
+          </div>
+
           <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
             <select
               value={line.matched_item_id ?? ""}
@@ -266,11 +316,6 @@ function LineRow({
                 <option key={i.id} value={i.id}>{i.original}</option>
               ))}
             </select>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", alignSelf: "center" }}>
-              {line.qty ?? "—"} {line.unit ?? ""} ·{" "}
-              {line.total_price != null ? formatPrice(line.total_price, currency) : "—"}
-              {line.discount > 0 && <span style={{ color: "#4caf50" }}> (−{formatPrice(line.discount, currency)})</span>}
-            </span>
           </div>
           {matched && (
             <div style={{ fontSize: 11, color: "#4caf50", marginTop: 4 }}>
@@ -331,4 +376,12 @@ const select: React.CSSProperties = {
   color: "#fff",
   fontSize: 12,
   minWidth: 120,
+};
+const smallInput: React.CSSProperties = {
+  padding: "4px 6px",
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 6,
+  color: "#fff",
+  fontSize: 12,
 };

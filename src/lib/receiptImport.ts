@@ -37,7 +37,7 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 }
 
 export async function parseReceipt(
-  input: { file?: File; imageUrl?: string },
+  input: { file?: File; imageUrl?: string; targetLangs?: string[] },
 ): Promise<ParsedReceipt> {
   if (IS_DEMO || !supabase) {
     throw new Error("Receipt parsing requires Supabase connection");
@@ -54,6 +54,9 @@ export async function parseReceipt(
     body = { imageUrl: input.imageUrl };
   } else {
     throw new Error("parseReceipt: file or imageUrl required");
+  }
+  if (input.targetLangs && input.targetLangs.length > 0) {
+    body.targetLangs = input.targetLangs;
   }
 
   const res = await fetch(`${supabaseUrl}/functions/v1/parse-receipt`, {

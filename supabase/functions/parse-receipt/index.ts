@@ -1,47 +1,82 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { corsHeadersFor, requireAuth } from "../_shared/auth.ts"
 
-// Strict JSON schema we ask Claude Vision to produce. The edge function
-// validates the response shape before returning it to the client so the
-// UI can trust the structure.
-const PROMPT = `You are a receipt (paragon/ticket/factura) parser. You will be given a photo of a shopping receipt.
+// Category keys the parser may assign. Keep in sync with src/data/categories.ts.
+// Same list as the translate function uses, but we only need the KEYS here —
+// the parse-receipt prompt is already long, so we skip the example words.
+const CATEGORY_KEYS = [
+  "fruits","vegetables","dairy","grains","drinks","snacks","condiments","frozen","household","baby",
+  "skincare","haircare","bodycare","oralcare","makeup","cleaning",
+  "medicines","firstaid","vitamins","natural_remedies","eye_ear_care","sexual_health",
+  "breads","pastries","cakes","sandwiches",
+  "beef_pork","poultry","cold_cuts",
+  "fish_fresh","shellfish","smoked_cured_fish",
+  "wine","beer","spirits","mixers",
+  "phones","computers","tv_audio","appliances","small_elec",
+  "fitness","outdoor","water_sports","ball_sports","cycling","winter",
+  "tools","fasteners","electrical","plumbing","paint","garden","building","security",
+  "plants_outdoor","seeds_bulbs","pots_planters","garden_care",
+  "living","bedroom","kitchen_items","bathroom","office",
+  "pet_food","pet_accessories","pet_hygiene","pet_health","pet_habitat",
+  "tops","bottoms","underwear","sleepwear","accessories","footwear","bags_luggage","jewelry",
+  "baby_clothes","baby_gear","baby_feeding","baby_safety",
+  "baby_toys","kids_toys","construction_toys","dolls_figures","board_games","outdoor_toys",
+  "books","magazines_comics",
+  "cut_flowers","houseplants","flower_arrangements",
+  "eyeglasses","contact_lenses","lens_care","sunglasses_opt",
+  "car_fluids","car_parts","car_interior","car_tools","car_cleaning","car_tires",
+  "writing","paper_notebooks","art_supplies","desk_org","gift_cards","school",
+  "home_deco","kitchen_acc","storage_org","party_supplies","seasonal","gifts_novelty",
+  "newspapers","magazines","tobacco","lottery",
+  "video_games","card_games","tabletop_games","puzzles","gaming_gear",
+  "fishing_gear","hunting_gear","outdoor_apparel","optics_nav","bait_tackle",
+  "string_instruments","wind_instruments","percussion","keyboards_piano","music_accessories",
+  "fabrics","yarn_knitting","sewing_tools","notions",
+  "other",
+]
+
+function buildPrompt(targetLangs: string[]): string {
+  const langList = targetLangs.join(", ")
+  return `You are a receipt (paragon/ticket/factura) parser. You will be given a photo of a shopping receipt.
 
 Extract ALL line items and metadata into strict JSON. The receipt may be in any language (Polish, Spanish, English, etc.) and any currency.
 
 RULES:
-1. "store": brand/chain name only (e.g. "Biedronka", "Lidl", "Mercadona", "Carrefour"). Lowercase OK if uppercase in header.
+1. "store": brand/chain name only (e.g. "Biedronka", "Lidl", "Mercadona", "Carrefour").
 2. "store_address": full street address on the receipt header if visible, else null.
-3. "nip" / tax_id: the seller's tax number if present (e.g. "NIP 779-10-11-327"), else null.
-4. "date": ISO-8601 datetime when printed (e.g. "2024-06-07T10:44:00"). If only date, append "T00:00:00". If neither, null.
-5. "currency": 3-letter ISO code ("PLN", "EUR", "USD"). Guess from symbol or totals wording if not explicit.
-6. "total": numeric final amount paid (SUMA PLN / TOTAL / SUMA). Use dot decimal separator.
+3. "nip" / tax_id: the seller's tax number if present, else null.
+4. "date": ISO-8601 datetime when printed. If only date, append "T00:00:00". If neither, null.
+5. "currency": 3-letter ISO code ("PLN", "EUR", "USD").
+6. "total": numeric final amount paid. Use dot decimal separator.
 
 7. "lines": array of purchased products. For each product line:
-   - "raw_name": the exact text on the receipt, as-is (include abbreviations)
-   - "expanded_name": your best guess of the full product name in the receipt's language (e.g. "MlNeNanOptPl2 800G" → "Mleko Nestlé Nan Optipro Plus 2 800g")
-   - "brand": best-guess brand if the product is clearly branded, else null
-   - "qty": numeric quantity. If the receipt shows "1,526 x5,99" the qty is 1.526 (kg). If "3 x7,99" the qty is 3.
+   - "raw_name": the exact text on the receipt, as-is
+   - "expanded_name": your best guess of the full product name in the RECEIPT'S own language (e.g. "MlNeNanOptPl2 800G" → "Mleko Nestlé Nan Optipro Plus 2 800g")
+   - "translations": object mapping language code → product name in that language. Languages to include: ${langList}. Use natural shopping-list wording in each language. Keep weights/sizes ("500g", "1L") in every translation.
+   - "category": the most specific key from this list: ${CATEGORY_KEYS.join(", ")}. Do NOT default to "household" or "other" unless truly nothing fits.
+   - "brand": best-guess brand if clearly branded, else null. Brands are NOT translated.
+   - "qty": numeric quantity. "1,526 x5,99" → 1.526 (kg). "3 x7,99" → 3.
    - "unit": "kg" if qty has decimals from weighing, "pcs" otherwise, or "l"/"ml" if clearly stated.
-   - "unit_price": price per unit (the "x5,99" part). Dot decimal.
+   - "unit_price": price per unit. Dot decimal.
    - "total_price": line total after any OPUST/discount subtraction. Dot decimal.
-   - "discount": absolute discount amount for this line (e.g. OPUST -1,90 → 1.90). 0 if none.
-   - "tax_category": the single letter (A/B/C/F/X/etc.) shown next to the product if any, else null.
+   - "discount": absolute discount amount for this line (OPUST -1,90 → 1.90). 0 if none.
+   - "tax_category": single letter (A/B/C/F/X) if shown, else null.
    - "confidence": "high" if text is clear, "low" if partially illegible.
 
-8. IGNORE these lines (do NOT include them in "lines"): OPUSTY ŁĄCZNIE, SPRZEDAŻ OPODATKOWANA, PTU, SUMA PTU, ROZLICZENIE PŁATNOŚCI, card/payment details, barcodes, footer promos, NIP lines, store address lines. Those belong in the top-level fields or are discarded.
+8. IGNORE these lines: OPUSTY ŁĄCZNIE, SPRZEDAŻ OPODATKOWANA, PTU, SUMA PTU, ROZLICZENIE PŁATNOŚCI, card/payment details, barcodes, footer promos, NIP lines, store address lines.
 
-9. An OPUST/discount immediately below a product line belongs to the product ABOVE it. Merge it into that product's discount and adjust total_price accordingly.
+9. An OPUST/discount immediately below a product belongs to the product ABOVE. Merge into that line's discount and adjust total_price.
 
 10. If the photo is NOT a receipt, return: {"error":"not_a_receipt"}
 
-Return ONLY the JSON object, no markdown fences, no commentary.
-
-Example shape:
-{"store":"Biedronka","store_address":"ul. Czarnoleska 9, 26-600 Radom","nip":"779-10-11-327","date":"2024-06-07T10:44:00","currency":"PLN","total":238.79,"lines":[{"raw_name":"MlNeNanOptPl2 800G","expanded_name":"Mleko Nestlé Nan Optipro Plus 2 800g","brand":"Nestlé","qty":1,"unit":"pcs","unit_price":69.99,"total_price":69.99,"discount":0,"tax_category":"C","confidence":"high"}]}`
+Return ONLY the JSON object, no markdown fences, no commentary.`
+}
 
 interface ParsedLine {
   raw_name: string
   expanded_name: string | null
+  translations: Record<string, string>
+  category: string
   brand: string | null
   qty: number | null
   unit: string | null
@@ -75,9 +110,17 @@ function validateReceipt(obj: unknown): ParsedReceipt | null {
     total: typeof o.total === "number" ? o.total : null,
     lines: o.lines.map((l) => {
       const line = l as Record<string, unknown>
+      const translations: Record<string, string> = {}
+      if (line.translations && typeof line.translations === "object") {
+        for (const [k, v] of Object.entries(line.translations as Record<string, unknown>)) {
+          if (typeof v === "string") translations[k] = v
+        }
+      }
       return {
         raw_name: typeof line.raw_name === "string" ? line.raw_name : "",
         expanded_name: typeof line.expanded_name === "string" ? line.expanded_name : null,
+        translations,
+        category: typeof line.category === "string" ? line.category : "other",
         brand: typeof line.brand === "string" ? line.brand : null,
         qty: typeof line.qty === "number" ? line.qty : null,
         unit: typeof line.unit === "string" ? line.unit : null,
@@ -104,10 +147,11 @@ Deno.serve(async (req: Request) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY")
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured")
 
-    const { imageUrl, imageBase64, mediaType } = await req.json() as {
+    const { imageUrl, imageBase64, mediaType, targetLangs } = await req.json() as {
       imageUrl?: string
       imageBase64?: string
       mediaType?: string
+      targetLangs?: string[]
     }
 
     if (!imageUrl && !imageBase64) {
@@ -117,7 +161,8 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // Build the image content block. Anthropic accepts either base64 or URL.
+    const langs = (targetLangs && targetLangs.length > 0) ? targetLangs : ["en"]
+
     const imageBlock = imageBase64
       ? {
           type: "image",
@@ -141,12 +186,12 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        max_tokens: 8192,
         messages: [{
           role: "user",
           content: [
             imageBlock,
-            { type: "text", text: PROMPT },
+            { type: "text", text: buildPrompt(langs) },
           ],
         }],
       }),
