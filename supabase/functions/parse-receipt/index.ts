@@ -51,12 +51,12 @@ RULES:
 
 7. "lines": array of purchased products. For each product line:
    - "raw_name": the exact text on the receipt, as-is
-   - "expanded_name": your best guess of the full product name in the RECEIPT'S own language (e.g. "MlNeNanOptPl2 800G" → "Mleko Nestlé Nan Optipro Plus 2 800g")
-   - "translations": object mapping language code → product name in that language. Languages to include: ${langList}. Use natural shopping-list wording in each language. Keep weights/sizes ("500g", "1L") in every translation.
+   - "expanded_name": GENERIC product name in the receipt's own language, WITHOUT brand and WITHOUT size/weight/count. Examples: "Olej Kujawski 1L" → "Olej rzepakowy"; "MlNeNanOptPl2 800G" → "Mleko modyfikowane dla niemowląt"; "Jaja M Wyb M10szt" → "Jajka M"; "Margaryna Rama 450g" → "Margaryna". Brand and size already have dedicated fields — do NOT repeat them here.
+   - "translations": object mapping language code → GENERIC product name in that language (no brand, no size). Languages to include: ${langList}. Natural shopping-list wording. Example for Spanish: "aceite de colza", "huevos M", "margarina".
    - "category": the most specific key from this list: ${CATEGORY_KEYS.join(", ")}. Do NOT default to "household" or "other" unless truly nothing fits.
    - "brand": best-guess brand if clearly branded, else null. Brands are NOT translated.
-   - "qty": numeric quantity. "1,526 x5,99" → 1.526 (kg). "3 x7,99" → 3.
-   - "unit": "kg" if qty has decimals from weighing, "pcs" otherwise, or "l"/"ml" if clearly stated.
+   - "qty": numeric quantity purchased. "1,526 x5,99" → 1.526 (kg weighed). "3 x7,99" → 3. "1 x9,99" → 1 (one package).
+   - "unit": "kg" if qty is from weighing, "pcs" otherwise, or "l"/"ml" if clearly stated.
    - "unit_price": price per unit. Dot decimal.
    - "total_price": line total after any OPUST/discount subtraction. Dot decimal.
    - "discount": absolute discount amount for this line (OPUST -1,90 → 1.90). 0 if none.
