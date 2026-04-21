@@ -259,9 +259,15 @@ function LineRow({
             placeholder={line.raw_name}
             style={nameInput}
           />
+          <input
+            type="text"
+            value={line.brand ?? ""}
+            onChange={(e) => onChange({ brand: e.target.value || null })}
+            placeholder="Marca / brand"
+            style={{ ...nameInput, marginTop: 4, fontSize: 12 }}
+          />
           <div style={{ display: "flex", gap: 6, fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
             <span>{line.raw_name}</span>
-            {line.brand && <span>· {line.brand}</span>}
             {confLow && <span style={{ color: "#ffc107" }}>· ⚠️ low</span>}
           </div>
 
@@ -283,7 +289,7 @@ function LineRow({
               style={{ ...select, minWidth: 64 }}
             >
               {UNIT_OPTIONS.map((u) => (
-                <option key={u} value={u}>{u || "—"}</option>
+                <option key={u} value={u} style={optionStyle}>{u || "—"}</option>
               ))}
             </select>
             <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -311,9 +317,9 @@ function LineRow({
               onChange={(e) => onChange({ matched_item_id: e.target.value || null })}
               style={select}
             >
-              <option value="">+ new item</option>
+              <option value="" style={optionStyle}>+ new item</option>
               {items.map((i) => (
-                <option key={i.id} value={i.id}>{i.original}</option>
+                <option key={i.id} value={i.id} style={optionStyle}>{i.original}</option>
               ))}
             </select>
           </div>
@@ -384,4 +390,11 @@ const smallInput: React.CSSProperties = {
   borderRadius: 6,
   color: "#fff",
   fontSize: 12,
+};
+// Native <option> elements ignore the parent select's color/background in
+// most browsers when the dropdown expands; setting them explicitly fixes
+// white-on-white invisible text on dark themes.
+const optionStyle: React.CSSProperties = {
+  background: "#151922",
+  color: "#fff",
 };
