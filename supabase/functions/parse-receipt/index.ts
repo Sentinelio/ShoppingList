@@ -51,10 +51,43 @@ RULES:
 
 7. "lines": array of purchased products. For each product line:
    - "raw_name": the exact text on the receipt, as-is
-   - "expanded_name": GENERIC product name in the receipt's own language, WITHOUT brand and WITHOUT size/weight/count. Examples: "Olej Kujawski 1L" → "Olej rzepakowy"; "MlNeNanOptPl2 800G" → "Mleko modyfikowane dla niemowląt"; "Jaja M Wyb M10szt" → "Jajka M"; "Margaryna Rama 450g" → "Margaryna". Brand and size already have dedicated fields — do NOT repeat them here.
-   - "translations": object mapping language code → GENERIC product name in that language (no brand, no size). Languages to include: ${langList}. Natural shopping-list wording. Example for Spanish: "aceite de colza", "huevos M", "margarina".
+
+   - "expanded_name": product name in the receipt's own language. Follow TWO rules:
+       (a) REMOVE the brand (it has its own field).
+       (b) REMOVE packaging size that represents the container — weight or volume: "500g", "1L", "250ml", "450g", "800g". These belong in qty + unit.
+       (c) KEEP product-differentiating attributes — variant, grade, size letter, count-per-pack, type. These are part of the identity of the product, not packaging:
+            · egg grades (M, L, XL, S), "10szt" or "10 jaj" (10 eggs in a carton is the product spec),
+            · "pełnoziarnisty", "bez laktozy", "light", "zero", "bio", "eko",
+            · colour ("czerwony", "żółty"), cut ("plastry", "kostka"),
+            · sub-category ("penne", "spaghetti", "basmati"),
+            · fat % ("3,2%", "0%"), strength ("mocne", "delikatne").
+       Examples:
+            · "Olej Kujawski 1L"          → "Olej rzepakowy"
+            · "MlNeNanOptPl2 800G"        → "Mleko modyfikowane dla niemowląt"
+            · "Jaja M Wyb M10szt"         → "Jaja M 10szt"
+            · "Jaja Scios Ny2s"           → "Jaja Ny 2szt"
+            · "JajkoNiespodziLe20g"       → "Jajko-niespodzianka"
+            · "Margaryna Rama 450g"       → "Margaryna"
+            · "MakPełnoPenPas500g"        → "Makaron pełnoziarnisty penne"
+
+   - "translations": GENERIC product name per language. Same rules (a)(b)(c). Languages: ${langList}. Natural shopping-list wording. Spanish examples: "aceite de colza", "huevos M 10 uds", "margarina", "macarrones integrales penne".
+
    - "category": the most specific key from this list: ${CATEGORY_KEYS.join(", ")}. Do NOT default to "household" or "other" unless truly nothing fits.
-   - "brand": best-guess brand if clearly branded, else null. Brands are NOT translated.
+
+   - "brand": full brand name. AGGRESSIVELY expand receipt abbreviations into the real brand:
+       · "Wyb"         → "Wybrzeże"
+       · "Scios" / "Ściot" → "Ściot"
+       · "dr Diamant" / "drDiamant" → "Diamant"
+       · "Kuj"         → "Kujawski"
+       · "NeNan"       → "Nestlé NAN"
+       · "MlczDol"     → "Mleczna Dolina"
+       · "QueenBiat"   → "Queen Białczyk"
+       · "Bakalia"     → "Bakalland"
+       · "MaoamBerrie" → "Maoam"
+       · "ChupaXXL"    → "Chupa Chups"
+       · "PaRka"       → "Pasterska Rama" (uncertain — set null if unsure)
+       Only null if the name is clearly a generic (e.g. "Jabłko pol czerwone", "Cebula żółta luz", "Ziemniaki wczesne"). For unrecognised abbreviations set null rather than guessing wildly.
+
    - "qty": numeric quantity purchased. "1,526 x5,99" → 1.526 (kg weighed). "3 x7,99" → 3. "1 x9,99" → 1 (one package).
    - "unit": "kg" if qty is from weighing, "pcs" otherwise, or "l"/"ml" if clearly stated.
    - "unit_price": price per unit. Dot decimal.
