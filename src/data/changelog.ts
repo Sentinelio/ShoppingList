@@ -14,10 +14,43 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.96",
+    version: "v0.97",
     hash: "HEAD",
-    date: "2026-04-13",
+    date: "2026-04-21",
     time: "12:00",
+    type: "feat",
+    title: "Receipt importer — backend foundation (parse-receipt edge function)",
+    details: [
+      "New parse-receipt Supabase edge function uses Claude Vision (claude-sonnet-4) to extract structured JSON from receipt photos in any language",
+      "Detects store, address, NIP/tax-id, date, currency, total, and each line item (qty, unit_price, discount/OPUST, tax category)",
+      "Handles weighed items with comma decimals (1,526 kg × 5,99 → qty 1.526 kg)",
+      "Groups OPUST discount lines with the product above them",
+      "Migration 017: new receipts + receipt_items tables with permissive RLS",
+      "New receipt-photos storage bucket for paragon/ticket images",
+      "Client helpers in src/lib/receiptImport.ts (uploadReceiptPhoto + parseReceipt)",
+      "i18n keys added in en/es/pl for the upcoming review UI",
+      "UI to trigger import and apply to list arrives in v0.98",
+    ],
+  },
+  {
+    version: "v0.96b",
+    hash: "f9311e3",
+    date: "2026-04-21",
+    time: "10:30",
+    type: "fix",
+    title: "Unblocked production deploys since v0.90",
+    details: [
+      "Two TypeScript errors were preventing `tsc -b && vite build` from succeeding, so every push since v0.90 was silently skipped by GitHub Actions — last successful deploy was v0.89 (commit 800a878)",
+      "src/data/i18n.ts: duplicate \"cancel\" key removed in en/es/pl blocks (TS1117)",
+      "src/components/items/ItemDetail.tsx: handlePhotoFile now guards against null item prop (TS18047)",
+      "Production GitHub Pages now receives v0.90 → v0.96 in a single build",
+    ],
+  },
+  {
+    version: "v0.96",
+    hash: "79df738",
+    date: "2026-04-19",
+    time: "12:27",
     type: "feat",
     title: "Date totals in HECHOS + editable checked_at date",
     details: [
@@ -29,6 +62,19 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "v0.95",
+    hash: "7e2cce1",
+    date: "2026-04-13",
+    time: "11:00",
+    type: "feat",
+    title: "Last activity on lists + HECHOS grouped by date/category",
+    details: [
+      "List cards show the timestamp of the last item checked/added",
+      "HECHOS section groups checked items first by date, then by category with emoji headers",
+      "Paves the way for date totals in v0.96",
+    ],
+  },
+  {
     version: "v0.94",
     hash: "8aecb92",
     date: "2026-04-12",
@@ -36,7 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     type: "feat",
     title: "CI Builds panel in Admin — live build status from GitHub Actions",
     details: [
-      "New 'CI Builds' section in Admin → Log tab showing the last 8 GitHub Actions runs",
+      "New 'CI Builds' section in Admin → changelog tab showing the last 8 GitHub Actions runs",
       "Each entry shows: ✅/❌/🔄/⏳ status icon, workflow name, commit hash, timestamp, and conclusion badge",
       "Click any entry to open the full run details on GitHub",
       "🔄 button to refresh manually",
@@ -101,6 +147,22 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Polish translations: Marka, Notatka, URL zdjęcia, Ilość, Priorytet, Szybka ilość, Zapisano, Anuluj, Zmień zdjęcie, Ważne",
       "Row 2: brand (1/3), note (1/3), URL foto (1/3) — all same flex:1, all text-xs",
       "Qty input 36px, Unit select 44px — more compact for mobile",
+    ],
+  },
+  {
+    version: "v0.89",
+    hash: "e6a6df2",
+    date: "2026-04-12",
+    time: "19:00",
+    type: "feat",
+    title: "AddItemBar redesign — URL field, checkbox importante, no X",
+    details: [
+      "URL is now a direct text input (no more toggle button + popup)",
+      "Row 2 has 3 equal-width fields: brand (1/3), note (1/3), photo URL (1/3)",
+      "Important is now a checkbox + label with red accent color",
+      "Qty and Unit inputs more compact",
+      "Removed the X button — clicking outside the bar collapses it",
+      "Añadir button text is horizontal again",
     ],
   },
   {

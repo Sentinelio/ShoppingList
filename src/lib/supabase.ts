@@ -106,3 +106,62 @@ export interface DictEntry {
   is_brand?: boolean;
   created_at: string;
 }
+
+export interface Receipt {
+  id: string;
+  list_id: string;
+  store: string | null;
+  store_address: string | null;
+  nip: string | null;
+  receipt_date: string | null;
+  currency: string;
+  total: number | null;
+  photo_url: string | null;
+  raw_json: unknown;
+  added_by: string | null;
+  added_by_name: string | null;
+  created_at: string;
+}
+
+export interface ReceiptItem {
+  id: string;
+  receipt_id: string;
+  matched_item_id: string | null;
+  raw_name: string;
+  expanded_name: string | null;
+  brand: string | null;
+  qty: number | null;
+  unit: string | null;
+  unit_price: number | null;
+  total_price: number | null;
+  discount: number;
+  tax_category: string | null;
+  confidence: string | null;
+  created_at: string;
+}
+
+// Response shape returned by the parse-receipt edge function.
+// Not persisted directly; the UI maps this into Receipt + ReceiptItem rows
+// after the user reviews and confirms.
+export interface ParsedReceiptLine {
+  raw_name: string;
+  expanded_name: string | null;
+  brand: string | null;
+  qty: number | null;
+  unit: string | null;
+  unit_price: number | null;
+  total_price: number | null;
+  discount: number;
+  tax_category: string | null;
+  confidence: string | null;
+}
+
+export interface ParsedReceipt {
+  store: string | null;
+  store_address: string | null;
+  nip: string | null;
+  date: string | null;
+  currency: string;
+  total: number | null;
+  lines: ParsedReceiptLine[];
+}
