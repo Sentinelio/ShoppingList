@@ -4,7 +4,10 @@ import { t } from "../../data/i18n";
 import { getEnabledLangs } from "../../lib/langConfig";
 import { parseReceipt, uploadReceiptPhoto } from "../../lib/receiptImport";
 import { matchLineToItem } from "../../lib/receiptMatch";
-import { applyReceipt, type ReviewedLine } from "../../lib/receiptApply";
+import {
+  applyReceipt, rollbackReceipt,
+  type ReviewedLine, type ApplyReceiptResult,
+} from "../../lib/receiptApply";
 import { formatPrice } from "../../lib/itemData";
 import type { Item, ParsedReceipt } from "../../lib/supabase";
 
@@ -32,6 +35,8 @@ export default function ImportReceiptModal({
   const [parsed, setParsed] = useState<ParsedReceipt | null>(null);
   const [reviewed, setReviewed] = useState<ReviewedLine[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [lastResult, setLastResult] = useState<ApplyReceiptResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Reset state whenever the modal opens fresh.
@@ -42,6 +47,8 @@ export default function ImportReceiptModal({
       setParsed(null);
       setReviewed([]);
       setPhotoUrl(null);
+      setProgress({ done: 0, total: 0 });
+      setLastResult(null);
     }
   }, [open]);
 
@@ -99,15 +106,41 @@ export default function ImportReceiptModal({
     if (!parsed) return;
     try {
       setStage("applying");
-      await applyReceipt({
+      setProgress({ done: 0, total: reviewed.filter((r) => r.include).length });
+      const result = await applyReceipt({
         listId, parsed, reviewed, photoUrl, userId, userName,
+        onProgress: (done, total) => setProgress({ done, total }),
       });
-      setStage("done");
+      setLastResult(result);
       onApplied();
-      setTimeout(onClose, 900);
+      if (result.errors.length > 0) {
+        setErrorMsg(
+          `${result.errors.length}/${result.outcomes.length} ${t(userLang, "receiptPartialFail")}: ${result.errors[0].error ?? ""}`,
+        );
+        setStage("error");
+      } else {
+        setStage("done");
+        setTimeout(onClose, 900);
+      }
     } catch (err) {
       console.error("[apply receipt]", err);
-      setErrorMsg(err instanceof Error ? err.message : "unknown");
+      const msg = err instanceof Error ? err.message : JSON.stringify(err ?? {});
+      setErrorMsg(msg || "unknown");
+      setStage("error");
+    }
+  };
+
+  const handleRollback = async () => {
+    if (!lastResult) return;
+    try {
+      setStage("applying");
+      await rollbackReceipt(lastResult);
+      setLastResult(null);
+      onApplied();
+      onClose();
+    } catch (err) {
+      console.error("[rollback]", err);
+      setErrorMsg(err instanceof Error ? err.message : "rollback failed");
       setStage("error");
     }
   };
@@ -147,17 +180,50 @@ export default function ImportReceiptModal({
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>
               {stage === "uploading" && t(userLang, "receiptUploading")}
               {stage === "analyzing" && t(userLang, "receiptAnalyzing")}
-              {stage === "applying" && t(userLang, "receiptApply") + "…"}
+              {stage === "applying" && (
+                progress.total > 0
+                  ? `${t(userLang, "receiptApply")}… ${progress.done}/${progress.total}`
+                  : t(userLang, "receiptApply") + "…"
+              )}
             </div>
           </div>
         )}
 
         {stage === "error" && (
-          <div style={{ padding: "16px 0" }}>
-            <div style={{ color: "#ff6b6b", fontSize: 14, marginBottom: 10 }}>❌ {errorMsg}</div>
-            <button onClick={() => setStage("pick")} style={primaryBtn}>
-              {t(userLang, "tryAgain")}
-            </button>
+          <div style={{ padding: "16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ color: "#ff6b6b", fontSize: 13, wordBreak: "break-word" }}>❌ {errorMsg}</div>
+            {lastResult && (
+              <div style={{
+                padding: 8, borderRadius: 6,
+                background: "rgba(255,255,255,0.04)",
+                fontSize: 12, color: "rgba(255,255,255,0.75)",
+                maxHeight: 180, overflowY: "auto",
+              }}>
+                <div style={{ marginBottom: 4, fontWeight: 600 }}>
+                  {lastResult.outcomes.filter((o) => !o.error).length} / {lastResult.outcomes.length} ✅
+                </div>
+                {lastResult.outcomes.map((o) => (
+                  <div key={o.index} style={{ opacity: o.error ? 0.6 : 1 }}>
+                    {o.error ? "❌" : o.createdNew ? "🆕" : "↔"}{" "}
+                    {o.line.expanded_name || o.line.raw_name}
+                    {o.error && <span style={{ color: "#ff6b6b" }}> · {o.error}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setStage("pick")} style={primaryBtn}>
+                {t(userLang, "tryAgain")}
+              </button>
+              {lastResult && lastResult.outcomes.some((o) => !o.error) && (
+                <button
+                  onClick={handleRollback}
+                  style={{ ...primaryBtn, background: "#c23030" }}
+                >
+                  {t(userLang, "receiptRollback")}
+                </button>
+              )}
+            </div>
           </div>
         )}
 

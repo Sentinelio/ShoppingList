@@ -117,6 +117,8 @@ export const strings = {
     "receiptApply": "Apply to list",
     "receipts": "Receipts",
     "noReceipts": "No receipts imported yet",
+    "receiptPartialFail": "failed",
+    "receiptRollback": "Undo import",
   },
   es: {
     "welcome": "Bienvenido",
@@ -232,6 +234,8 @@ export const strings = {
     "receiptApply": "Aplicar a la lista",
     "receipts": "Tickets",
     "noReceipts": "Aún no has importado tickets",
+    "receiptPartialFail": "con errores",
+    "receiptRollback": "Deshacer importación",
   },
   pl: {
     "welcome": "Witaj",
@@ -347,6 +351,8 @@ export const strings = {
     "receiptApply": "Zastosuj do listy",
     "receipts": "Paragony",
     "noReceipts": "Brak zaimportowanych paragonów",
+    "receiptPartialFail": "błędów",
+    "receiptRollback": "Cofnij import",
   },
 } as const;
 

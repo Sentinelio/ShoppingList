@@ -14,8 +14,24 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v0.99",
+    version: "v1.00",
     hash: "HEAD",
+    date: "2026-04-22",
+    time: "11:00",
+    type: "feat",
+    title: "Receipt importer — faster, resilient, with rollback",
+    details: [
+      "Parser now uses claude-haiku-4-5 instead of sonnet-4 → imports are noticeably quicker (30-50% less latency on 10-20 line tickets)",
+      "Apply is parallelised with a concurrency of 4 — 10-line tickets write in the time one or two lines used to take",
+      "Progress indicator during apply: 'Aplicar a la lista… 3/10'",
+      "Per-line error handling: one bad row no longer throws away the whole import. The review screen now lists every line's outcome (✅ updated / 🆕 created / ❌ error with real Supabase message)",
+      "New 'Deshacer importación' button when the apply finished with errors — deletes the receipt + all newly-created items so the list is clean for a retry",
+      "Error text now includes Supabase error.message/details/hint/code instead of the generic 'unknown'",
+    ],
+  },
+  {
+    version: "v0.99",
+    hash: "baaa1bd",
     date: "2026-04-21",
     time: "15:30",
     type: "feat",
