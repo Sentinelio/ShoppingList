@@ -3,6 +3,7 @@ import type { Item } from "../../lib/supabase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { getCategoryColor } from "../../data/categories";
 import { t, type Lang } from "../../data/i18n";
+import { formatPrice } from "../../lib/itemData";
 
 interface ItemCardProps {
   item: Item;
@@ -10,6 +11,8 @@ interface ItemCardProps {
   shelfLang: string;
   isPending?: boolean;
   isFailed?: boolean;
+  avgPrice?: number | null;
+  avgPriceCurrency?: string | null;
   onToggle: (itemId: string, checked: boolean) => void;
   onClick: (item: Item) => void;
   onRetry?: (item: Item) => void;
@@ -21,6 +24,8 @@ function ItemCard({
   shelfLang,
   isPending,
   isFailed,
+  avgPrice,
+  avgPriceCurrency,
   onToggle,
   onClick,
   onRetry,
@@ -163,6 +168,16 @@ function ItemCard({
           style={{ fontSize: 10, color: "var(--item-shelf-color, #e8c364)" }}
         >
           {shelfName}
+        </p>
+      )}
+
+      {/* Average price hint (shared cross-user product price book) */}
+      {!isPending && !isFailed && avgPrice != null && avgPrice > 0 && (
+        <p
+          className="text-center leading-tight truncate w-full px-1"
+          style={{ fontSize: 10, color: "var(--item-price-color, var(--color-text-muted, #9ca3af))" }}
+        >
+          ~{formatPrice(avgPrice, avgPriceCurrency || "EUR")}
         </p>
       )}
 

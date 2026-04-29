@@ -78,6 +78,20 @@ export interface ItemPrice {
   created_at: string;
 }
 
+export interface ProductPrice {
+  id: string;
+  product_key: string;
+  product_name: string;
+  brand: string | null;
+  store: string | null;
+  price_value: number;
+  currency: string;
+  added_by: string | null;
+  added_by_name: string | null;
+  source_item_price_id: string | null;
+  created_at: string;
+}
+
 export interface ItemComment {
   id: string;
   item_id: string;

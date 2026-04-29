@@ -297,6 +297,51 @@ export function relativeTime(iso: string): string {
   return `hace ${months}mes${months > 1 ? "es" : ""}`;
 }
 
+// ── SHARED PRODUCT PRICES ──────────────────────────────────────────────
+// Cross-user/global price book keyed by a normalized product identity.
+// Mirrored from item_prices via a Postgres trigger (see migration 018).
+
+// Must stay in sync with compute_product_key() in 018_product_prices.sql.
+export function productKey(name: string, brand?: string | null): string {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const base = norm(name ?? "");
+  const b = brand ? norm(brand) : "";
+  return b ? `${base}|${b}` : base;
+}
+
+export interface ProductAvg {
+  avg: number;
+  currency: string;
+  count: number;
+}
+
+export async function getProductAvgsByKeys(
+  keys: string[],
+): Promise<Record<string, ProductAvg>> {
+  if (IS_DEMO || !supabase || keys.length === 0) return {};
+  const unique = Array.from(new Set(keys.filter(Boolean)));
+  if (unique.length === 0) return {};
+  const { data, error } = await supabase
+    .from("product_prices")
+    .select("product_key, price_value, currency")
+    .in("product_key", unique);
+  if (error || !data) return {};
+  const groups: Record<string, { sum: number; count: number; currency: string }> = {};
+  for (const row of data as Array<{ product_key: string; price_value: number; currency: string }>) {
+    const g = groups[row.product_key] || { sum: 0, count: 0, currency: row.currency };
+    g.sum += Number(row.price_value);
+    g.count += 1;
+    // Prefer the most common currency seen — first wins is fine for now.
+    if (!g.currency) g.currency = row.currency;
+    groups[row.product_key] = g;
+  }
+  const out: Record<string, ProductAvg> = {};
+  for (const [key, g] of Object.entries(groups)) {
+    out[key] = { avg: g.sum / g.count, currency: g.currency, count: g.count };
+  }
+  return out;
+}
+
 // Helper to format currency
 export function formatPrice(value: number, currency: string): string {
   const symbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "PLN" ? "zł" : currency === "GBP" ? "£" : currency;

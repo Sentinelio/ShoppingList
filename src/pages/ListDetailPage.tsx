@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice } from "../lib/itemData";
+import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice, productKey, getProductAvgsByKeys, type ProductAvg } from "../lib/itemData";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
@@ -185,6 +185,18 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       });
   }, [listId, items]);
 
+  // Fetch shared product-level averages (cross-list, cross-user) so each
+  // ItemCard can show a "~X.YZ €" hint without the user typing prices in.
+  // Keyed by productKey(item.original, item.brand).
+  const [productAvgs, setProductAvgs] = useState<Record<string, ProductAvg>>({});
+  useEffect(() => {
+    if (!items.length) { setProductAvgs({}); return; }
+    const keys = items.map(it => productKey(it.original, it.brand));
+    let cancelled = false;
+    getProductAvgsByKeys(keys).then(map => { if (!cancelled) setProductAvgs(map); });
+    return () => { cancelled = true; };
+  }, [items]);
+
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
@@ -266,22 +278,27 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   // Render a grid of ItemCards
   const renderItemGrid = (gridItems: Item[], checked?: boolean) => (
     <div className="grid grid-cols-3 gap-2.5 px-3">
-      {gridItems.map((item) => (
-        <div
-          key={item.id}
-          style={checked ? { opacity: 0.45 } : undefined}
-        >
-          <ItemCard
-            item={item}
-            userLang={userLang}
-            shelfLang={shelfLang}
-            isPending={pendingIds.has(item.id)}
-            isFailed={failedIds.has(item.id)}
-            onToggle={handleToggle}
-            onClick={handleCardClick}
-          />
-        </div>
-      ))}
+      {gridItems.map((item) => {
+        const avg = productAvgs[productKey(item.original, item.brand)];
+        return (
+          <div
+            key={item.id}
+            style={checked ? { opacity: 0.45 } : undefined}
+          >
+            <ItemCard
+              item={item}
+              userLang={userLang}
+              shelfLang={shelfLang}
+              isPending={pendingIds.has(item.id)}
+              isFailed={failedIds.has(item.id)}
+              avgPrice={avg?.avg ?? null}
+              avgPriceCurrency={avg?.currency ?? null}
+              onToggle={handleToggle}
+              onClick={handleCardClick}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 
