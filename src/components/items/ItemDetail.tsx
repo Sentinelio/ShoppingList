@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import type { Item } from "../../lib/supabase";
 import { getLangFlag } from "../../data/langs";
-import { t } from "../../data/i18n";
+import { t, formatQtyUnit } from "../../data/i18n";
 import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
@@ -338,7 +338,7 @@ export default function ItemDetail({
       {/* Qty + note */}
       {(qty || item.note) && (
         <div style={{ textAlign: "center", flexShrink: 0, padding: "0 16px 4px" }}>
-          {qty && <p style={{ fontSize: 20, fontWeight: 800, color: "var(--color-accent, #f0883e)" }}>{qty}{unit}</p>}
+          {qty && <p style={{ fontSize: 20, fontWeight: 800, color: "var(--color-accent, #f0883e)" }}>{formatQtyUnit(qty, unit, lang)}</p>}
           {item.note && <p style={{ fontSize: 13, color: "#8b92a8", fontStyle: "italic", marginTop: 4 }}>{item.note}</p>}
         </div>
       )}
@@ -619,7 +619,7 @@ export default function ItemDetail({
   const transVariants: React.ReactNode[] = [
     // v1: Flag List — yours + shelf highlighted, others below divider
     <div key="t0" style={{ padding: "12px 16px", flex: 1 }}>
-      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{qty}{unit}</span></div>
+      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{formatQtyUnit(qty, unit, lang)}</span></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
         {[{ flag: getLangFlag(userLang), word: displayName, label: "Tu idioma", bg: "rgba(108,138,255,0.08)", border: "rgba(108,138,255,0.2)", color: "var(--color-text)" },
           ...(showShelf ? [{ flag: getLangFlag(shelfLang) || countryFlag, word: shelfName, label: "Estante", bg: "rgba(232,195,100,0.08)", border: "rgba(232,195,100,0.2)", color: "var(--color-shelf, #e8c364)" }] : []),

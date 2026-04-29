@@ -2,7 +2,7 @@ import { memo } from "react";
 import type { Item } from "../../lib/supabase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { getCategoryColor } from "../../data/categories";
-import { t, type Lang } from "../../data/i18n";
+import { t, formatQtyUnit, type Lang } from "../../data/i18n";
 import { formatPrice } from "../../lib/itemData";
 
 interface ItemCardProps {
@@ -37,9 +37,7 @@ function ItemCard({
   const showShelf = shelfLang !== userLang && shelfName.toLowerCase() !== displayName.toLowerCase();
   const { emoji } = matchProductEmoji(item.original);
 
-  const hasQty = item.qty && item.qty !== "";
-  const hasUnit = item.unit && item.unit !== "";
-  const qtyDisplay = [hasQty && item.qty, hasUnit && item.unit].filter(Boolean).join("");
+  const qtyDisplay = formatQtyUnit(item.qty, item.unit, lang);
 
   const handleCardKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {

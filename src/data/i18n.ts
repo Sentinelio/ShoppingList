@@ -372,3 +372,20 @@ export function t(lang: string, key: TranslationKey): string {
   // Fallback to English
   return strings.en[key] ?? key;
 }
+
+// Format a qty + unit pair for display, with a space between them and a
+// language-specific abbreviation for "pcs"/"pack". Weight/volume units (kg, g,
+// L, ml, cl) are universal and rendered as-is.
+export function formatQtyUnit(
+  qty: string | null | undefined,
+  unit: string | null | undefined,
+  lang: string,
+): string {
+  if (!qty) return "";
+  if (!unit) return qty;
+  const u = unit.toLowerCase();
+  let label = unit;
+  if (u === "x") label = t(lang, "unitPcs");
+  else if (u === "pack" || u === "packs") label = t(lang, "unitPack");
+  return `${qty} ${label}`;
+}
