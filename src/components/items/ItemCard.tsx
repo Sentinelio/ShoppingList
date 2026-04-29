@@ -104,30 +104,53 @@ function ItemCard({
         </div>
       </div>
 
-      {/* Qty badge - top right */}
-      {qtyDisplay && (
+      {/* Top-right cluster: qty badge + note indicator (note sits to the
+          right of the qty so it stays out of the way of the price tag). */}
+      {(qtyDisplay || item.note) && (
         <div
-          className="absolute flex items-center justify-center rounded-md"
-          style={{
-            top: 6,
-            right: 6,
-            fontSize: 10,
-            fontWeight: 700,
-            padding: "1px 5px",
-            lineHeight: 1.4,
-            backgroundColor: `var(--item-qty-bg, ${catColor}4D)`,
-            color: "var(--item-qty-color, #e6e8ee)",
-          }}
+          className="absolute flex items-center gap-1"
+          style={{ top: 6, right: 6 }}
         >
-          {qtyDisplay}
+          {qtyDisplay && (
+            <div
+              className="flex items-center justify-center rounded-md"
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: "1px 5px",
+                lineHeight: 1.4,
+                backgroundColor: `var(--item-qty-bg, ${catColor}4D)`,
+                color: "var(--item-qty-color, #e6e8ee)",
+              }}
+            >
+              {qtyDisplay}
+            </div>
+          )}
+          {item.note && (
+            <span className="select-none" style={{ fontSize: 11, lineHeight: 1 }}>
+              {"\uD83D\uDCDD"}
+            </span>
+          )}
         </div>
       )}
 
-      {/* Note indicator - bottom right */}
-      {item.note && (
-        <span className="absolute select-none" style={{ bottom: 4, right: 6, fontSize: 10 }}>
-          {"\uD83D\uDCDD"}
-        </span>
+      {/* Average price tag - bottom right (shared cross-user price book) */}
+      {!isPending && !isFailed && avgPrice != null && avgPrice > 0 && (
+        <div
+          className="absolute flex items-center justify-center rounded-md"
+          style={{
+            bottom: 4,
+            right: 6,
+            fontSize: 10,
+            fontWeight: 600,
+            padding: "1px 5px",
+            lineHeight: 1.4,
+            backgroundColor: "var(--item-price-bg, rgba(74, 222, 128, 0.18))",
+            color: "var(--item-price-color, #4ade80)",
+          }}
+        >
+          ~{formatPrice(avgPrice, avgPriceCurrency || "EUR")}
+        </div>
       )}
 
       {/* Center: photo or emoji */}
@@ -168,16 +191,6 @@ function ItemCard({
           style={{ fontSize: 10, color: "var(--item-shelf-color, #e8c364)" }}
         >
           {shelfName}
-        </p>
-      )}
-
-      {/* Average price hint (shared cross-user product price book) */}
-      {!isPending && !isFailed && avgPrice != null && avgPrice > 0 && (
-        <p
-          className="text-center leading-tight truncate w-full px-1"
-          style={{ fontSize: 10, color: "var(--item-price-color, var(--color-text-muted, #9ca3af))" }}
-        >
-          ~{formatPrice(avgPrice, avgPriceCurrency || "EUR")}
         </p>
       )}
 

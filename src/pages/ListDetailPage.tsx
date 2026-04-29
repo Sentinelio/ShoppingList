@@ -187,15 +187,33 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   // Fetch shared product-level averages (cross-list, cross-user) so each
   // ItemCard can show a "~X.YZ €" hint without the user typing prices in.
-  // Keyed by productKey(item.original, item.brand).
+  // Keyed by productKey(item.original, item.brand). Subscribes to
+  // product_prices realtime so a peer (or this user) entering a price
+  // updates the card without a refresh.
   const [productAvgs, setProductAvgs] = useState<Record<string, ProductAvg>>({});
   useEffect(() => {
     if (!items.length) { setProductAvgs({}); return; }
     const keys = items.map(it => productKey(it.original, it.brand));
     let cancelled = false;
-    getProductAvgsByKeys(keys).then(map => { if (!cancelled) setProductAvgs(map); });
-    return () => { cancelled = true; };
-  }, [items]);
+    const refresh = () => {
+      getProductAvgsByKeys(keys).then(map => { if (!cancelled) setProductAvgs(map); });
+    };
+    refresh();
+
+    if (IS_DEMO || !supabase) return () => { cancelled = true; };
+    const channel = supabase
+      .channel(`product_prices:${listId}`)
+      .on(
+        "postgres_changes" as "system",
+        { event: "*", schema: "public", table: "product_prices" } as unknown as { event: "system" },
+        () => refresh(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [items, listId]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
