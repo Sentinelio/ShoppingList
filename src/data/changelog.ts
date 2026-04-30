@@ -17,7 +17,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "v1.03",
     hash: "HEAD",
     date: "2026-04-30",
-    time: "16:00",
+    time: "13:08",
     type: "feat",
     title: "Per-unit price tracking + debug merge-duplicates tool",
     details: [
@@ -33,7 +33,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "v1.02",
     hash: "edc766d",
     date: "2026-04-30",
-    time: "14:30",
+    time: "10:42",
     type: "feat",
     title: "Brand-agnostic product_key, country-scoped prices, list dedup",
     details: [
@@ -49,7 +49,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "v1.01",
     hash: "6c4ae93",
     date: "2026-04-30",
-    time: "13:00",
+    time: "08:29",
     type: "feat",
     title: "Handle long receipts + rename Done → Bought",
     details: [
