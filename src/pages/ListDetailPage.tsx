@@ -340,7 +340,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="min-h-screen bg-bg pb-32">
       {/* Header */}
       <header
         className="flex items-center gap-3 px-4 py-3 bg-bg border-b border-border-light"
@@ -474,7 +474,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div>
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-text-muted animate-pulse">{t(lang, "translating")}</p>
