@@ -91,6 +91,7 @@ export default function ImportReceiptModal({
       console.error("[import receipt]", err);
       const msg = err instanceof Error ? err.message : "unknown";
       if (msg === "not_a_receipt") setErrorMsg(t(userLang, "receiptNotARecipe"));
+      else if (msg === "receipt_too_long") setErrorMsg(t(userLang, "receiptTooLong"));
       else setErrorMsg(t(userLang, "receiptParseError"));
       setStage("error");
     } finally {
