@@ -10,7 +10,7 @@
 
 import { supabase, IS_DEMO, type ParsedReceipt, type Receipt } from "./supabase";
 import { addItem, toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { addItemPrice } from "./itemData";
+import { addItemPrice, logItemHistory } from "./itemData";
 
 export interface ReviewedLine {
   include: boolean;
@@ -166,6 +166,13 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyRec
         });
         itemId = created.id;
         outcome.createdNew = true;
+        // Log creation so the history pane reflects receipt-imported items
+        // the same way it does manually-added ones.
+        logItemHistory({
+          itemId, eventType: "created", icon: "🧾",
+          description: `${userName} importó ${original} desde un ticket`,
+          byUserId: userId, byUserName: userName,
+        }).catch(err => console.warn("[applyReceipt] history:created failed", err));
       } else if (line.brand) {
         try { await updateItem(itemId, { brand: line.brand }); } catch { /* non-fatal */ }
       }
@@ -174,6 +181,11 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyRec
 
       await toggleItem(itemId, true);
       try { await updateItem(itemId, { checked_at: checkedAt }); } catch { /* non-fatal */ }
+      logItemHistory({
+        itemId, eventType: "purchased", icon: "✅",
+        description: `${userName} marcó como comprado (ticket)`,
+        byUserId: userId, byUserName: userName,
+      }).catch(err => console.warn("[applyReceipt] history:purchased failed", err));
 
       // Store the unit price so the price book stays comparable across
       // purchases of different weights ("13.99 zł/kg" — not "8.76 zł

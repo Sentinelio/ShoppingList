@@ -440,19 +440,29 @@ export async function getUserProductPurchases(
 ): Promise<ItemPrice[]> {
   if (IS_DEMO || !supabase || !pkey || !userId) return [];
 
-  // PostgREST inner-join returns the parent item alongside each price so
-  // we can filter by the canonical (name-only) product key client-side.
-  const { data, error } = await supabase
+  // Two queries instead of a PostgREST inner-join — the embedded relation
+  // syntax was returning empty results in this project (custom auth, RLS
+  // off on items but on for item_prices: the relationship was not getting
+  // resolved server-side). Splitting into prices + items lookup is more
+  // predictable and lets us filter by the canonical product key locally.
+  const { data: rows, error } = await supabase
     .from("item_prices")
-    .select("*, items!inner(original, brand)")
+    .select("*")
     .eq("added_by", userId);
+  if (error || !rows || rows.length === 0) return [];
 
-  if (error || !data) return [];
+  const itemIds = Array.from(new Set(rows.map(r => (r as ItemPrice).item_id)));
+  const { data: items } = await supabase
+    .from("items")
+    .select("id, original")
+    .in("id", itemIds);
 
-  type Joined = ItemPrice & { items: { original: string; brand: string | null } };
-  return (data as Joined[])
-    .filter(row => productKey(row.items.original) === pkey)
-    .map(({ items: _items, ...rest }) => rest as ItemPrice);
+  const matchingItemIds = new Set(
+    (items ?? [])
+      .filter(it => productKey((it as { original: string }).original) === pkey)
+      .map(it => (it as { id: string }).id),
+  );
+  return (rows as ItemPrice[]).filter(r => matchingItemIds.has(r.item_id));
 }
 
 // ── DEDUP EXISTING LIST ────────────────────────────────────────────────
