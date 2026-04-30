@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/polyglot-shopping-cart-doquB
+      - claude/greeting-lbBjg
   workflow_dispatch:
 
 permissions:
