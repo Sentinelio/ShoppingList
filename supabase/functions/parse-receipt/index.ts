@@ -219,7 +219,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 8192,
+        max_tokens: 16384,
         messages: [{
           role: "user",
           content: [
@@ -237,6 +237,16 @@ Deno.serve(async (req: Request) => {
 
     const anthropicData = await anthropicRes.json()
     const content = anthropicData?.content?.[0]?.text ?? ""
+
+    // If the model hit the output limit the JSON will be truncated mid-line
+    // and JSON.parse blows up with a useless message. Surface a specific
+    // error so the UI can suggest splitting the receipt into two photos.
+    if (anthropicData?.stop_reason === "max_tokens") {
+      return new Response(
+        JSON.stringify({ error: "receipt_too_long" }),
+        { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      )
+    }
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error("Could not parse receipt response")

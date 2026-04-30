@@ -7,7 +7,8 @@ import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
-import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
+import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore, productKey, getUserProductPurchases, getProductPricesByBrand, type BrandPrice } from "../../lib/itemData";
+import type { ItemPrice } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { translateProduct } from "../../lib/translate";
 import { getEnabledLangs } from "../../lib/langConfig";
@@ -131,7 +132,37 @@ export default function ItemDetail({
   const prices = useItemPrices(itemId);
   const comments = useItemComments(itemId);
   const history = useItemHistory(itemId);
-  const stats = computeItemStats(prices);
+  // Stats scope: "list" = purchases on this list only (legacy behaviour);
+  // "global" = all this user's purchases of the same canonical product
+  // (brand-agnostic name match) across every list they belong to.
+  // Persisted so the user's preference survives reopens.
+  const [statsScope, setStatsScopeState] = useState<"list" | "global">(() => {
+    return localStorage.getItem("babelcart_stats_scope") === "global" ? "global" : "list";
+  });
+  const setStatsScope = (s: "list" | "global") => {
+    setStatsScopeState(s);
+    try { localStorage.setItem("babelcart_stats_scope", s); } catch { /* ignore */ }
+  };
+
+  const [globalPrices, setGlobalPrices] = useState<ItemPrice[]>([]);
+  const [brandPrices, setBrandPrices] = useState<BrandPrice[]>([]);
+  useEffect(() => {
+    if (!user || !item) { setGlobalPrices([]); setBrandPrices([]); return; }
+    const pkey = productKey(item.original);
+    if (!pkey) return;
+    let cancelled = false;
+    Promise.all([
+      getUserProductPurchases(pkey, user.id),
+      getProductPricesByBrand(pkey, user.country),
+    ]).then(([purchases, brands]) => {
+      if (cancelled) return;
+      setGlobalPrices(purchases);
+      setBrandPrices(brands);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, user?.country, item?.id, item?.original]);
+
+  const stats = computeItemStats(statsScope === "global" ? globalPrices : prices);
 
   // Add price form state
   const [showAddPriceForm, setShowAddPriceForm] = useState(false);
@@ -637,10 +668,10 @@ export default function ItemDetail({
 
     // v2: Bridge Visual — yours → emoji → shelf
     <div key="t1" style={{ padding: "12px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 8 }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#6c8aff", textTransform: "uppercase", letterSpacing: "0.1em" }}>🇵🇱 Tu idioma</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#6c8aff", textTransform: "uppercase", letterSpacing: "0.1em" }}>{getLangFlag(userLang)} Tu idioma</div>
       <div style={{ fontSize: 24, fontWeight: 800 }}>{displayName}</div>
       <div style={{ fontSize: 28, margin: "8px 0", color: "var(--color-accent)" }}>↓ {emojiChar} ↓</div>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "var(--color-shelf, #e8c364)", textTransform: "uppercase", letterSpacing: "0.1em" }}>🇪🇸 En la tienda</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "var(--color-shelf, #e8c364)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{getLangFlag(shelfLang) || countryFlag} En la tienda</div>
       <div style={{ fontSize: 28, fontWeight: 800, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>
       <div style={{ height: 1, width: "80%", background: "rgba(255,255,255,0.06)", margin: "12px auto" }} />
       <div style={{ fontSize: 10, color: "#555d74", marginBottom: 4 }}>Otros idiomas</div>
@@ -1035,7 +1066,80 @@ export default function ItemDetail({
     </div>,
   ];
 
-  const statsPane = statsVariants[labSel.stats] ?? statsVariants[0];
+  const baseStatsPane = statsVariants[labSel.stats] ?? statsVariants[0];
+
+  // Toggle: scope of stats (this list vs all user's lists).
+  // The "global" tab also exposes the cross-user brand price comparison
+  // — Pascual vs Mercadona vs Día — filtered by the user's country.
+  const scopeToggle = (
+    <div style={{
+      display: "flex", gap: 4, padding: "8px 12px 0", justifyContent: "center",
+    }}>
+      {(["list", "global"] as const).map(s => {
+        const active = statsScope === s;
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStatsScope(s)}
+            style={{
+              flex: 1,
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: active ? "1px solid var(--color-accent, #f0883e)" : "1px solid rgba(255,255,255,0.10)",
+              background: active ? "rgba(240,136,62,0.10)" : "transparent",
+              color: active ? "var(--color-accent, #f0883e)" : "#8b92a8",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {s === "list" ? "Esta lista" : "Todas mis listas"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const brandPanel = statsScope === "global" && brandPrices.length > 0 ? (
+    <div style={{ padding: "10px 16px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        Precios por marca {user?.country ? `· ${user.country}` : ""}
+      </div>
+      {brandPrices.map((b, i) => {
+        const cheapest = i === 0 && brandPrices.length > 1;
+        return (
+          <div key={b.brand ?? "_none"} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 10px",
+            background: cheapest ? "rgba(61,214,140,0.06)" : "var(--color-card, #161b26)",
+            borderRadius: 10,
+            border: `1px solid ${cheapest ? "rgba(61,214,140,0.20)" : "rgba(255,255,255,0.08)"}`,
+          }}>
+            <span style={{ fontSize: 14 }}>{cheapest ? "🏷" : "🏬"}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, flex: 1 }}>
+              {b.brandDisplay || <span style={{ color: "#555d74", fontStyle: "italic" }}>Sin marca</span>}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: cheapest ? "#3dd68c" : "var(--color-text)" }}>
+              {formatPrice(b.avg, b.currency)}
+            </span>
+            <span style={{ fontSize: 9, color: "#555d74", minWidth: 28, textAlign: "right" }}>
+              {b.count}×
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
+  const statsPane = (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "auto" }}>
+      {scopeToggle}
+      {baseStatsPane}
+      {brandPanel}
+    </div>
+  );
 
   // ── COMMENTS PANE — Real comments from Supabase ──────────────────────
   const myUserId = user?.id;

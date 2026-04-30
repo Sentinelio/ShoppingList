@@ -10,7 +10,7 @@
 
 import { supabase, IS_DEMO, type ParsedReceipt, type Receipt } from "./supabase";
 import { addItem, toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { addItemPrice } from "./itemData";
+import { addItemPrice, logItemHistory } from "./itemData";
 
 export interface ReviewedLine {
   include: boolean;
@@ -166,6 +166,13 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyRec
         });
         itemId = created.id;
         outcome.createdNew = true;
+        // Log creation so the history pane reflects receipt-imported items
+        // the same way it does manually-added ones.
+        logItemHistory({
+          itemId, eventType: "created", icon: "🧾",
+          description: `${userName} importó ${original} desde un ticket`,
+          byUserId: userId, byUserName: userName,
+        }).catch(err => console.warn("[applyReceipt] history:created failed", err));
       } else if (line.brand) {
         try { await updateItem(itemId, { brand: line.brand }); } catch { /* non-fatal */ }
       }
@@ -174,11 +181,42 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyRec
 
       await toggleItem(itemId, true);
       try { await updateItem(itemId, { checked_at: checkedAt }); } catch { /* non-fatal */ }
+      logItemHistory({
+        itemId, eventType: "purchased", icon: "✅",
+        description: `${userName} marcó como comprado (ticket)`,
+        byUserId: userId, byUserName: userName,
+      }).catch(err => console.warn("[applyReceipt] history:purchased failed", err));
 
-      if (line.unit_price != null || line.total_price != null) {
-        const price = line.total_price ?? line.unit_price ?? 0;
+      // Store the unit price so the price book stays comparable across
+      // purchases of different weights ("13.99 zł/kg" — not "8.76 zł
+      // for this 0.634 kg tray"). Fall back to deriving it from
+      // total_price ÷ qty when the receipt only gives the total. For
+      // piece-counted items (qty 1, no unit), unit_price ≡ total_price.
+      let priceToStore: number | null = null;
+      let qtyToStore: number | null = null;
+      let unitToStore: string | null = null;
+
+      if (line.unit_price != null) {
+        priceToStore = line.unit_price;
+        qtyToStore = line.qty ?? null;
+        unitToStore = line.unit ?? null;
+      } else if (line.total_price != null) {
+        if (line.qty != null && line.qty > 0) {
+          priceToStore = line.total_price / line.qty;
+          qtyToStore = line.qty;
+          unitToStore = line.unit ?? null;
+        } else {
+          priceToStore = line.total_price;
+        }
+      }
+
+      if (priceToStore != null) {
         try {
-          await addItemPrice({ itemId, store, price, currency, addedBy: userId, addedByName: userName });
+          await addItemPrice({
+            itemId, store, price: priceToStore, currency,
+            qty: qtyToStore, unit: unitToStore,
+            addedBy: userId, addedByName: userName,
+          });
         } catch (err) {
           console.warn("[applyReceipt] price insert failed", err);
         }

@@ -1,5 +1,6 @@
 import { supabase, IS_DEMO, type Item } from "../lib/supabase";
 import { demoAddItem, demoUpdateItem, demoDeleteItem, demoCheckDuplicate } from "../lib/demoStore";
+import { productKey } from "../lib/itemData";
 
 export interface AddItemParams {
   listId: string;
@@ -19,6 +20,54 @@ export interface AddItemParams {
 export async function addItem(params: AddItemParams): Promise<Item> {
   if (IS_DEMO) {
     return demoAddItem(params);
+  }
+
+  // De-dup: if a non-checked item with the same canonical product_key
+  // (name only, brand-agnostic) already exists in this list, sum quantities
+  // instead of creating a second row. The existing item's brand wins;
+  // empty brand gets filled from the new add. If units differ or qty isn't
+  // numeric, the existing qty is left untouched (no risky string concat).
+  const targetKey = productKey(params.original);
+  if (targetKey) {
+    const { data: candidates } = await supabase
+      .from("items")
+      .select("id, original, brand, qty, unit")
+      .eq("list_id", params.listId)
+      .eq("checked", false);
+
+    const existing = (candidates ?? []).find(
+      c => productKey(c.original as string) === targetKey,
+    );
+    if (existing) {
+      const oldQty = parseFloat((existing.qty as string) || "");
+      const newQty = parseFloat(params.qty || "");
+      const sameUnit = ((existing.unit as string) || "") === (params.unit || "");
+      const updates: Record<string, unknown> = {};
+
+      if (sameUnit && !isNaN(newQty)) {
+        const sum = (isNaN(oldQty) ? 0 : oldQty) + newQty;
+        updates.qty = String(sum);
+      }
+      if (!existing.brand && params.brand) {
+        updates.brand = params.brand;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        const { data: merged, error: mergeErr } = await supabase
+          .from("items")
+          .update(updates)
+          .eq("id", existing.id as string)
+          .select()
+          .single();
+        if (mergeErr) throw mergeErr;
+        return merged as Item;
+      }
+      // Nothing to update — return the existing item as-is so the UI just
+      // surfaces it instead of creating a duplicate.
+      const { data: asIs } = await supabase
+        .from("items").select("*").eq("id", existing.id as string).single();
+      if (asIs) return asIs as Item;
+    }
   }
 
   const row: Record<string, unknown> = {
