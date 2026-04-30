@@ -301,12 +301,12 @@ export function relativeTime(iso: string): string {
 // Cross-user/global price book keyed by a normalized product identity.
 // Mirrored from item_prices via a Postgres trigger (see migration 018).
 
-// Must stay in sync with compute_product_key() in 018_product_prices.sql.
-export function productKey(name: string, brand?: string | null): string {
-  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-  const base = norm(name ?? "");
-  const b = brand ? norm(brand) : "";
-  return b ? `${base}|${b}` : base;
+// Must stay in sync with compute_product_key() in 019_product_key_redesign.sql.
+// Brand is intentionally ignored: "Leche Pascual" and "Leche Mercadona"
+// share the same canonical key so the price-by-brand panel can compare them
+// and user stats can sum all milk purchases regardless of brand.
+export function productKey(name: string, _brand?: string | null): string {
+  return (name ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 export interface ProductAvg {
@@ -317,21 +317,23 @@ export interface ProductAvg {
 
 export async function getProductAvgsByKeys(
   keys: string[],
+  country?: string | null,
 ): Promise<Record<string, ProductAvg>> {
   if (IS_DEMO || !supabase || keys.length === 0) return {};
   const unique = Array.from(new Set(keys.filter(Boolean)));
   if (unique.length === 0) return {};
-  const { data, error } = await supabase
+  let q = supabase
     .from("product_prices")
     .select("product_key, price_value, currency")
     .in("product_key", unique);
+  if (country) q = q.eq("country", country);
+  const { data, error } = await q;
   if (error || !data) return {};
   const groups: Record<string, { sum: number; count: number; currency: string }> = {};
   for (const row of data as Array<{ product_key: string; price_value: number; currency: string }>) {
     const g = groups[row.product_key] || { sum: 0, count: 0, currency: row.currency };
     g.sum += Number(row.price_value);
     g.count += 1;
-    // Prefer the most common currency seen — first wins is fine for now.
     if (!g.currency) g.currency = row.currency;
     groups[row.product_key] = g;
   }
@@ -340,6 +342,97 @@ export async function getProductAvgsByKeys(
     out[key] = { avg: g.sum / g.count, currency: g.currency, count: g.count };
   }
   return out;
+}
+
+// ── BRAND-LEVEL PRICE COMPARISON ───────────────────────────────────────
+// For a given product (e.g. "leche"), break the global price book down
+// by brand so the UI can show "Pascual 2.45€ · Mercadona 1.95€".
+// Group key is normalized brand (case/space-insensitive) so typos that
+// share a normalized form merge; the displayed casing is the most common
+// original spelling across the rows.
+
+export interface BrandPrice {
+  brand: string | null;       // normalized lowercase brand, null = no brand
+  brandDisplay: string;       // most common original casing
+  avg: number;
+  min: number;
+  max: number;
+  count: number;
+  currency: string;
+}
+
+export async function getProductPricesByBrand(
+  pkey: string,
+  country?: string | null,
+): Promise<BrandPrice[]> {
+  if (IS_DEMO || !supabase || !pkey) return [];
+  let q = supabase
+    .from("product_prices")
+    .select("brand, price_value, currency")
+    .eq("product_key", pkey);
+  if (country) q = q.eq("country", country);
+  const { data, error } = await q;
+  if (error || !data) return [];
+
+  const groups: Record<string, {
+    sum: number; count: number; min: number; max: number;
+    currency: string; spellings: Record<string, number>;
+  }> = {};
+  for (const r of data as Array<{ brand: string | null; price_value: number; currency: string }>) {
+    const norm = (r.brand ?? "").trim().toLowerCase();
+    const orig = (r.brand ?? "").trim();
+    const g = groups[norm] || {
+      sum: 0, count: 0, min: Infinity, max: -Infinity,
+      currency: r.currency, spellings: {},
+    };
+    const v = Number(r.price_value);
+    g.sum += v;
+    g.count += 1;
+    if (v < g.min) g.min = v;
+    if (v > g.max) g.max = v;
+    if (orig) g.spellings[orig] = (g.spellings[orig] || 0) + 1;
+    groups[norm] = g;
+  }
+
+  return Object.entries(groups).map(([norm, g]) => {
+    const display = Object.entries(g.spellings)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+    return {
+      brand: norm || null,
+      brandDisplay: display,
+      avg: g.sum / g.count,
+      min: g.min,
+      max: g.max,
+      count: g.count,
+      currency: g.currency,
+    };
+  }).sort((a, b) => a.avg - b.avg);
+}
+
+// ── CROSS-LIST USER PURCHASE HISTORY ───────────────────────────────────
+// Returns every priced/auto-logged purchase the given user has logged for
+// this canonical product, across ALL their lists. Feeds the "global" tab
+// of the item detail stats panel.
+
+export async function getUserProductPurchases(
+  pkey: string,
+  userId: string,
+): Promise<ItemPrice[]> {
+  if (IS_DEMO || !supabase || !pkey || !userId) return [];
+
+  // PostgREST inner-join returns the parent item alongside each price so
+  // we can filter by the canonical (name-only) product key client-side.
+  const { data, error } = await supabase
+    .from("item_prices")
+    .select("*, items!inner(original, brand)")
+    .eq("added_by", userId);
+
+  if (error || !data) return [];
+
+  type Joined = ItemPrice & { items: { original: string; brand: string | null } };
+  return (data as Joined[])
+    .filter(row => productKey(row.items.original) === pkey)
+    .map(({ items: _items, ...rest }) => rest as ItemPrice);
 }
 
 // Helper to format currency

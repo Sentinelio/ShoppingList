@@ -196,7 +196,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     const keys = items.map(it => productKey(it.original, it.brand));
     let cancelled = false;
     const refresh = () => {
-      getProductAvgsByKeys(keys).then(map => { if (!cancelled) setProductAvgs(map); });
+      getProductAvgsByKeys(keys, user?.country).then(map => { if (!cancelled) setProductAvgs(map); });
     };
     refresh();
 
@@ -213,7 +213,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [items, listId]);
+  }, [items, listId, user?.country]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
