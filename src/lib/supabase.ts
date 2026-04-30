@@ -73,6 +73,11 @@ export interface ItemPrice {
   store: string | null;
   price_value: number | null;
   currency: string;
+  // For weighed/measured items, price_value is per-unit and qty + unit
+  // record how much was purchased. Total paid = price_value * qty.
+  // Older rows have qty NULL (treated as qty = 1 by stats).
+  qty: number | null;
+  unit: string | null;
   added_by: string | null;
   added_by_name: string | null;
   created_at: string;

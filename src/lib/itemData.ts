@@ -16,18 +16,27 @@ export async function addItemPrice(params: {
   currency: string;
   addedBy: string;
   addedByName: string;
+  // For weighed items, price is per-unit (per kg/L) and qty/unit record
+  // how much was purchased so the actual amount paid is recoverable as
+  // price × qty. For piece-counted items, omit both and price is the
+  // amount paid as before.
+  qty?: number | null;
+  unit?: string | null;
 }): Promise<ItemPrice | null> {
   if (IS_DEMO || !supabase) return null;
+  const row: Record<string, unknown> = {
+    item_id: params.itemId,
+    store: params.store,
+    price_value: params.price,
+    currency: params.currency,
+    added_by: params.addedBy,
+    added_by_name: params.addedByName,
+  };
+  if (params.qty != null) row.qty = params.qty;
+  if (params.unit) row.unit = params.unit;
   const { data, error } = await supabase
     .from("item_prices")
-    .insert({
-      item_id: params.itemId,
-      store: params.store,
-      price_value: params.price,
-      currency: params.currency,
-      added_by: params.addedBy,
-      added_by_name: params.addedByName,
-    })
+    .insert(row)
     .select()
     .single();
   if (error) throw error;
@@ -217,9 +226,20 @@ export function computeItemStats(prices: ItemPrice[]): ItemStats {
     };
   }
 
-  // Money stats from priced rows only
-  const total = pricedRows.reduce((s, p) => s + Number(p.price_value), 0);
-  const avg = pricedRows.length > 0 ? total / pricedRows.length : 0;
+  // Money stats from priced rows only.
+  // Total spent = sum(price_value × qty) — for weighed items qty is the kg/L
+  // and price_value is per-unit, so this gives the real money paid. Legacy
+  // rows have qty NULL → treated as qty = 1, preserving the old behaviour
+  // where price_value already was the total.
+  const total = pricedRows.reduce((s, p) => {
+    const q = p.qty != null && p.qty > 0 ? Number(p.qty) : 1;
+    return s + Number(p.price_value) * q;
+  }, 0);
+  // Average is over UNIT prices (price_value as-is), so €/kg comparisons
+  // stay sensible across purchases with different weights.
+  const avg = pricedRows.length > 0
+    ? pricedRows.reduce((s, p) => s + Number(p.price_value), 0) / pricedRows.length
+    : 0;
 
   let bestPrice: number | null = null;
   let bestStore: string | null = null;
@@ -433,6 +453,100 @@ export async function getUserProductPurchases(
   return (data as Joined[])
     .filter(row => productKey(row.items.original) === pkey)
     .map(({ items: _items, ...rest }) => rest as ItemPrice);
+}
+
+// ── DEDUP EXISTING LIST ────────────────────────────────────────────────
+// One-shot helper that retroactively applies the addItem() dedup rule to
+// every duplicate already in a list. For each group of items that share
+// the same canonical product_key, the oldest row becomes the canonical
+// one and the rest are merged into it (item_prices/comments/history are
+// repointed via item_id update; receipt_items.matched_item_id has ON
+// DELETE SET NULL so it self-cleans). Returns how many rows were merged.
+
+export interface MergeDuplicatesResult {
+  groupsMerged: number;
+  itemsRemoved: number;
+}
+
+export async function mergeListDuplicates(listId: string): Promise<MergeDuplicatesResult> {
+  if (IS_DEMO || !supabase) return { groupsMerged: 0, itemsRemoved: 0 };
+
+  const { data: items, error } = await supabase
+    .from("items")
+    .select("id, original, brand, qty, unit, checked, checked_at, created_at")
+    .eq("list_id", listId)
+    .order("created_at", { ascending: true });
+  if (error || !items) return { groupsMerged: 0, itemsRemoved: 0 };
+
+  type Row = {
+    id: string; original: string; brand: string | null;
+    qty: string | null; unit: string | null;
+    checked: boolean; checked_at: string | null; created_at: string;
+  };
+  const groups = new Map<string, Row[]>();
+  for (const it of items as Row[]) {
+    const k = productKey(it.original);
+    if (!k) continue;
+    const arr = groups.get(k) ?? [];
+    arr.push(it);
+    groups.set(k, arr);
+  }
+
+  let groupsMerged = 0;
+  let itemsRemoved = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [canonical, ...rest] = group;
+
+    // Sum quantities only when units match across the whole group.
+    const baseQty = parseFloat(canonical.qty ?? "");
+    const targetUnit = canonical.unit ?? "";
+    let mergedQty = isNaN(baseQty) ? 0 : baseQty;
+    let canMergeQty = !isNaN(baseQty) || canonical.qty == null || canonical.qty === "";
+    for (const r of rest) {
+      const v = parseFloat(r.qty ?? "");
+      const sameUnit = (r.unit ?? "") === targetUnit;
+      if (sameUnit && !isNaN(v)) mergedQty += v;
+      else canMergeQty = false;
+    }
+
+    const inheritedBrand = canonical.brand
+      ? canonical.brand
+      : rest.find(r => r.brand)?.brand ?? null;
+    const anyChecked = group.some(g => g.checked);
+    const earliestCheckedAt = group
+      .map(g => g.checked_at)
+      .filter((x): x is string => !!x)
+      .sort()[0] ?? null;
+
+    // Repoint child rows BEFORE deleting the orphan items, otherwise
+    // their item_prices/comments/history get cascade-deleted.
+    const orphanIds = rest.map(r => r.id);
+    if (orphanIds.length > 0) {
+      await supabase.from("item_prices").update({ item_id: canonical.id }).in("item_id", orphanIds);
+      await supabase.from("item_comments").update({ item_id: canonical.id }).in("item_id", orphanIds);
+      await supabase.from("item_history").update({ item_id: canonical.id }).in("item_id", orphanIds);
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (canMergeQty && mergedQty > 0) updates.qty = String(mergedQty);
+    if (!canonical.brand && inheritedBrand) updates.brand = inheritedBrand;
+    if (anyChecked && !canonical.checked) {
+      updates.checked = true;
+      if (earliestCheckedAt) updates.checked_at = earliestCheckedAt;
+    }
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("items").update(updates).eq("id", canonical.id);
+    }
+
+    if (orphanIds.length > 0) {
+      await supabase.from("items").delete().in("id", orphanIds);
+      itemsRemoved += orphanIds.length;
+    }
+    groupsMerged += 1;
+  }
+
+  return { groupsMerged, itemsRemoved };
 }
 
 // Helper to format currency

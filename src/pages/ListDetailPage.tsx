@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice, productKey, getProductAvgsByKeys, type ProductAvg } from "../lib/itemData";
+import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice, productKey, getProductAvgsByKeys, mergeListDuplicates, type ProductAvg } from "../lib/itemData";
 import { supabase, IS_DEMO } from "../lib/supabase";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
@@ -73,6 +73,13 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [editingName, setEditingName] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showImportReceipt, setShowImportReceipt] = useState(false);
+
+  // Debug-only: visible when the URL contains ?debug=1. Used to gate
+  // tools like "merge duplicates" that retroactively apply new dedup
+  // rules to existing data.
+  const debugMode = typeof window !== "undefined" && window.location.search.includes("debug=1");
+  const [mergingDupes, setMergingDupes] = useState(false);
+  const [mergeResult, setMergeResult] = useState<string | null>(null);
 
   // Normalize strings for accent/case-insensitive matching (so "leche" also
   // finds "Lèche", "LECHE", etc.).
@@ -871,6 +878,37 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         >
           {confirmLeave ? `⚠️ ${t(lang, "confirm") || "Confirm"}` : `🚪 ${t(lang, "leave")}`}
         </button>
+        {debugMode && (
+          <div className="mt-4 pt-4 border-t border-border-light">
+            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">🛠 Debug</div>
+            <button
+              onClick={async () => {
+                setMergingDupes(true);
+                setMergeResult(null);
+                try {
+                  const r = await mergeListDuplicates(listId);
+                  setMergeResult(
+                    r.groupsMerged === 0
+                      ? "No hay duplicados que combinar."
+                      : `${r.groupsMerged} grupo${r.groupsMerged === 1 ? "" : "s"} combinado${r.groupsMerged === 1 ? "" : "s"} · ${r.itemsRemoved} item${r.itemsRemoved === 1 ? "" : "s"} eliminado${r.itemsRemoved === 1 ? "" : "s"}.`
+                  );
+                } catch (err) {
+                  setMergeResult(`Error: ${err instanceof Error ? err.message : String(err)}`);
+                } finally {
+                  setMergingDupes(false);
+                }
+              }}
+              disabled={mergingDupes}
+              className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer disabled:opacity-50"
+              style={{ background: "rgba(108,138,255,0.10)", color: "#6c8aff", border: "1px solid rgba(108,138,255,0.25)" }}
+            >
+              {mergingDupes ? "Combinando…" : "🔗 Combinar duplicados"}
+            </button>
+            {mergeResult && (
+              <div className="mt-2 text-xs text-text-soft text-center">{mergeResult}</div>
+            )}
+          </div>
+        )}
         <button onClick={() => setShowListSettings(false)} className="w-full mt-2 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
       </Modal>
 
