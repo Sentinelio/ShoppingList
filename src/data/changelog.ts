@@ -14,8 +14,20 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v1.01",
+    version: "v1.02",
     hash: "HEAD",
+    date: "2026-10-20",
+    time: "20:00",
+    type: "feat",
+    title: "Profile setup in a single screen",
+    details: [
+      "The 4-step setup (welcome, name, country, language) is now one form: name, the language you speak and the country you live in",
+      "Language and country are pre-filled from the browser locale when possible, and the form switches language as soon as you pick yours",
+    ],
+  },
+  {
+    version: "v1.01",
+    hash: "0ebb6fd",
     date: "2026-10-20",
     time: "18:30",
     type: "refactor",
