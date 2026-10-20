@@ -128,18 +128,35 @@ $env:BABELCART_DRY_RUN = "1"
   --hooksDir C:\path\to\repo\pocketbase\pb_hooks
 
 # in the repo, another terminal
-npm run test:pb -- --admin-email admin@test.local --admin-pass Test-Password-123
+npm run test:pb -- --dry-run --admin-email admin@test.local --admin-pass Test-Password-123
 ```
+
+`--dry-run` also checks the request each Claude route would send (model,
+prompt); it needs a server started with `BABELCART_DRY_RUN=1`.
 
 Run the frontend against it with `VITE_PB_URL=http://127.0.0.1:8091 npm run dev`.
 
-Against the real server (Claude is called for real; creates and deletes its own
-throwaway users and lists):
+### Against the real server
 
-```powershell
-npm run test:pb -- --url https://server-pc.tail3b4002.ts.net --live `
-  --admin-email <superuser> --admin-pass <password> [--receipt C:\path\ticket.jpg]
-```
+Every run creates and deletes its own throwaway users and lists (and bumps the
+usage count of the `thanks` phrase by one).
+
+- **Default mode, no Claude calls.** The Claude routes are only checked for
+  auth (401) and input validation (400). Use it to verify a deployment, the
+  Funnel routing and realtime:
+  ```powershell
+  npm run test:pb -- --url https://server-pc.tail3b4002.ts.net
+  # add --admin-email <superuser> --admin-pass <password> to include the is_admin tests
+  ```
+- **`--live` calls Claude for real** (costs API calls; `translate` leaves
+  "zanahorias" in `dictionary`):
+  ```powershell
+  npm run test:pb -- --url https://server-pc.tail3b4002.ts.net --live `
+    --admin-email <superuser> --admin-pass <password> [--receipt C:\path\ticket.jpg]
+  ```
+
+Never use `--dry-run` against the real server: it doesn't run with
+`BABELCART_DRY_RUN`, so those tests would call Claude and fail.
 
 ## Data model
 

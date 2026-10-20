@@ -7,8 +7,13 @@
 //   --url <url>          PocketBase URL (env PB_URL, default http://127.0.0.1:8091)
 //   --admin-email <e>    superuser email (env PB_ADMIN_EMAIL)   — needed to flag a
 //   --admin-pass <p>     superuser password (env PB_ADMIN_PASS)   test user as is_admin
+//   (default)            never reaches Claude: the Claude routes are only checked
+//                        for auth (401) and input validation (400). Safe against
+//                        the real server, costs no API calls.
+//   --dry-run            also check the request each Claude route would send
+//                        (model, prompt). Server must run with BABELCART_DRY_RUN=1
+//                        (local test instance only).
 //   --live               call Claude for real (server must have ANTHROPIC_API_KEY).
-//                        Without it the server must run with BABELCART_DRY_RUN=1.
 //   --receipt <path>     image for the live parse-receipt test (optional)
 //   --keep               don't delete the test users/lists at the end
 //
@@ -32,6 +37,12 @@ const URL_ = arg("url", process.env.PB_URL ?? "http://127.0.0.1:8091");
 const ADMIN_EMAIL = arg("admin-email", process.env.PB_ADMIN_EMAIL);
 const ADMIN_PASS = arg("admin-pass", process.env.PB_ADMIN_PASS);
 const LIVE = flag("live");
+const DRY = flag("dry-run");
+if (LIVE && DRY) {
+  console.error("--live and --dry-run are mutually exclusive");
+  process.exit(2);
+}
+const MODE = LIVE ? "LIVE Claude" : DRY ? "dry run" : "no Claude calls";
 const RECEIPT = arg("receipt", undefined);
 const KEEP = flag("keep");
 
@@ -116,7 +127,7 @@ const PNG = Buffer.from(
 );
 
 // ── run ───────────────────────────────────────────────────────────────────
-console.log(`BabelCart backend tests → ${URL_} (${LIVE ? "LIVE Claude" : "dry run"})`);
+console.log(`BabelCart backend tests → ${URL_} (${MODE})`);
 
 const su = new PocketBase(URL_);
 su.autoCancellation(false);
@@ -503,7 +514,7 @@ if (su.authStore.isValid) {
   await test("admin can't edit their own is_admin either", async () => {
     await rejects(D.pb.collection("users").update(D.id, { is_admin: false }), [400, 403, 404], "admin self-edit");
   });
-  if (!LIVE) {
+  if (DRY) {
     await test("seed-dictionary as admin reaches the Claude call", async () => {
       const r = await D.pb.send("/api/babelcart/seed-dictionary", { method: "POST", body: { count: 3, prompt: "dairy products", mode: "brands" } });
       eq(r.dry_run, true, "dry_run");
@@ -514,7 +525,7 @@ if (su.authStore.isValid) {
   console.log("  (skipped is_admin tests: pass --admin-email/--admin-pass)");
 }
 
-section(LIVE ? "Claude routes (LIVE)" : "Claude routes (up to the Claude call)");
+section(LIVE ? "Claude routes (LIVE)" : DRY ? "Claude routes (up to the Claude call)" : "Claude routes (auth + validation only)");
 await test("routes require auth", async () => {
   const anon = new PocketBase(URL_);
   for (const p of ["translate", "translate-ui", "parse-receipt", "seed-dictionary", "phrase-used"]) {
@@ -526,7 +537,7 @@ await test("routes validate their input (400)", async () => {
   await rejects(A.pb.send("/api/babelcart/translate-ui", { method: "POST", body: { strings: {} } }), [400], "translate-ui");
   await rejects(A.pb.send("/api/babelcart/parse-receipt", { method: "POST", body: {} }), [400], "parse-receipt");
 });
-if (!LIVE) {
+if (DRY) {
   await test("translate builds the prompt for the translate model", async () => {
     const r = await A.pb.send("/api/babelcart/translate", { method: "POST", body: { text: "lehe", langs: ["es", "pl", "en"] } });
     eq(r.dry_run, true, "dry_run");
@@ -549,7 +560,7 @@ if (!LIVE) {
     const r2 = await A.pb.send("/api/babelcart/parse-receipt", { method: "POST", body: { imageUrl: "https://example.com/x.jpg" } });
     eq(r2.request.images, ["url"], "url source");
   });
-} else {
+} else if (LIVE) {
   await test("translate (live) returns {t,c} and saves to dictionary", async () => {
     const word = "zanahorias";
     const r = await A.pb.send("/api/babelcart/translate", { method: "POST", body: { text: word, langs: ["es", "en", "pl"] } });
