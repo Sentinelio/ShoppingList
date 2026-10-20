@@ -26,7 +26,7 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         manualChunks(id: string) {
-          if (id.includes('node_modules/@supabase/')) return 'supabase'
+          if (id.includes('node_modules/pocketbase/')) return 'pocketbase'
           if (id.includes('node_modules/react-dom/')) return 'react-dom'
           if (id.includes('node_modules/react/')) return 'react'
           return undefined

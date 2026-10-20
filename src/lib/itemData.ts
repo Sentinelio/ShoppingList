@@ -1,13 +1,13 @@
 // CRUD + computed stats for per-item data: prices, comments, history.
-// All operations use Supabase directly. RLS ensures only list members
-// can read/write data for items in their lists.
+// All operations go straight to PocketBase. Collection rules ensure only
+// active list members can read/write data for items in their lists.
 
-import { supabase, IS_DEMO, type ItemPrice, type ItemComment, type ItemHistoryEvent } from "./supabase";
+import { pb, IS_DEMO, type ItemPrice, type ItemComment, type ItemHistoryEvent } from "./pocketbase";
 
 // ── PURCHASES / PRICES ─────────────────────────────────────────────────
 // item_prices stores purchase events. A row can represent:
 //   - A manual price entry (store + price set)
-//   - An auto-logged purchase (store + price both null) when user marks done
+//   - An auto-logged purchase (store + price both empty) when user marks done
 
 export async function addItemPrice(params: {
   itemId: string;
@@ -17,21 +17,15 @@ export async function addItemPrice(params: {
   addedBy: string;
   addedByName: string;
 }): Promise<ItemPrice | null> {
-  if (IS_DEMO || !supabase) return null;
-  const { data, error } = await supabase
-    .from("item_prices")
-    .insert({
-      item_id: params.itemId,
-      store: params.store,
-      price_value: params.price,
-      currency: params.currency,
-      added_by: params.addedBy,
-      added_by_name: params.addedByName,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as ItemPrice;
+  if (IS_DEMO) return null;
+  return pb.collection("item_prices").create<ItemPrice>({
+    item_id: params.itemId,
+    store: params.store,
+    price_value: params.price,
+    currency: params.currency,
+    added_by: params.addedBy,
+    added_by_name: params.addedByName,
+  });
 }
 
 /** Auto-log a purchase when user marks an item as done (no price/store). */
@@ -40,21 +34,15 @@ export async function logAutoPurchase(params: {
   byUserId: string;
   byUserName: string;
 }): Promise<ItemPrice | null> {
-  if (IS_DEMO || !supabase) return null;
-  const { data, error } = await supabase
-    .from("item_prices")
-    .insert({
-      item_id: params.itemId,
-      store: null,
-      price_value: null,
-      currency: "EUR",
-      added_by: params.byUserId,
-      added_by_name: params.byUserName,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as ItemPrice;
+  if (IS_DEMO) return null;
+  return pb.collection("item_prices").create<ItemPrice>({
+    item_id: params.itemId,
+    store: null,
+    price_value: null,
+    currency: "EUR",
+    added_by: params.byUserId,
+    added_by_name: params.byUserName,
+  });
 }
 
 /** Remove the most recent auto-logged purchase by this user (last 60s). */
@@ -62,38 +50,35 @@ export async function removeRecentAutoPurchase(params: {
   itemId: string;
   byUserId: string;
 }): Promise<void> {
-  if (IS_DEMO || !supabase) return;
-  const cutoff = new Date(Date.now() - 60 * 1000).toISOString();
-  const { data } = await supabase
-    .from("item_prices")
-    .select("id")
-    .eq("item_id", params.itemId)
-    .eq("added_by", params.byUserId)
-    .is("price_value", null)
-    .is("store", null)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (data && data.length > 0) {
-    await supabase.from("item_prices").delete().eq("id", data[0].id);
+  if (IS_DEMO) return;
+  const cutoff = new Date(Date.now() - 60 * 1000).toISOString().replace("T", " ");
+  const newest = await pb.collection("item_prices").getList<ItemPrice>(1, 1, {
+    filter: pb.filter(
+      "item_id = {:itemId} && added_by = {:userId} && price_value = 0 && store = '' && created_at >= {:cutoff}",
+      { itemId: params.itemId, userId: params.byUserId, cutoff },
+    ),
+    sort: "-created_at",
+  });
+  if (newest.items.length > 0) {
+    await pb.collection("item_prices").delete(newest.items[0].id);
   }
 }
 
 export async function deleteItemPrice(priceId: string): Promise<void> {
-  if (IS_DEMO || !supabase) return;
-  const { error } = await supabase.from("item_prices").delete().eq("id", priceId);
-  if (error) throw error;
+  if (IS_DEMO) return;
+  await pb.collection("item_prices").delete(priceId);
 }
 
 export async function getItemPrices(itemId: string): Promise<ItemPrice[]> {
-  if (IS_DEMO || !supabase) return [];
-  const { data, error } = await supabase
-    .from("item_prices")
-    .select("*")
-    .eq("item_id", itemId)
-    .order("created_at", { ascending: false });
-  if (error || !data) return [];
-  return data as ItemPrice[];
+  if (IS_DEMO) return [];
+  try {
+    return await pb.collection("item_prices").getFullList<ItemPrice>({
+      filter: pb.filter("item_id = {:itemId}", { itemId }),
+      sort: "-created_at",
+    });
+  } catch {
+    return [];
+  }
 }
 
 // ── COMMENTS ───────────────────────────────────────────────────────────
@@ -105,37 +90,31 @@ export async function addItemComment(params: {
   addedByName: string;
   addedByLang: string;
 }): Promise<ItemComment | null> {
-  if (IS_DEMO || !supabase) return null;
-  const { data, error } = await supabase
-    .from("item_comments")
-    .insert({
-      item_id: params.itemId,
-      text: params.text,
-      added_by: params.addedBy,
-      added_by_name: params.addedByName,
-      added_by_lang: params.addedByLang,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as ItemComment;
+  if (IS_DEMO) return null;
+  return pb.collection("item_comments").create<ItemComment>({
+    item_id: params.itemId,
+    text: params.text,
+    added_by: params.addedBy,
+    added_by_name: params.addedByName,
+    added_by_lang: params.addedByLang,
+  });
 }
 
 export async function deleteItemComment(commentId: string): Promise<void> {
-  if (IS_DEMO || !supabase) return;
-  const { error } = await supabase.from("item_comments").delete().eq("id", commentId);
-  if (error) throw error;
+  if (IS_DEMO) return;
+  await pb.collection("item_comments").delete(commentId);
 }
 
 export async function getItemComments(itemId: string): Promise<ItemComment[]> {
-  if (IS_DEMO || !supabase) return [];
-  const { data, error } = await supabase
-    .from("item_comments")
-    .select("*")
-    .eq("item_id", itemId)
-    .order("created_at", { ascending: true });
-  if (error || !data) return [];
-  return data as ItemComment[];
+  if (IS_DEMO) return [];
+  try {
+    return await pb.collection("item_comments").getFullList<ItemComment>({
+      filter: pb.filter("item_id = {:itemId}", { itemId }),
+      sort: "created_at",
+    });
+  } catch {
+    return [];
+  }
 }
 
 // ── HISTORY ────────────────────────────────────────────────────────────
@@ -148,8 +127,8 @@ export async function logItemHistory(params: {
   byUserId: string;
   byUserName: string;
 }): Promise<void> {
-  if (IS_DEMO || !supabase) return;
-  const { error } = await supabase.from("item_history").insert({
+  if (IS_DEMO) return;
+  await pb.collection("item_history").create({
     item_id: params.itemId,
     event_type: params.eventType,
     description: params.description,
@@ -157,18 +136,18 @@ export async function logItemHistory(params: {
     by_user_id: params.byUserId,
     by_user_name: params.byUserName,
   });
-  if (error) throw error;
 }
 
 export async function getItemHistory(itemId: string): Promise<ItemHistoryEvent[]> {
-  if (IS_DEMO || !supabase) return [];
-  const { data, error } = await supabase
-    .from("item_history")
-    .select("*")
-    .eq("item_id", itemId)
-    .order("created_at", { ascending: false });
-  if (error || !data) return [];
-  return data as ItemHistoryEvent[];
+  if (IS_DEMO) return [];
+  try {
+    return await pb.collection("item_history").getFullList<ItemHistoryEvent>({
+      filter: pb.filter("item_id = {:itemId}", { itemId }),
+      sort: "-created_at",
+    });
+  } catch {
+    return [];
+  }
 }
 
 // ── COMPUTED STATS ─────────────────────────────────────────────────────
@@ -299,9 +278,9 @@ export function relativeTime(iso: string): string {
 
 // ── SHARED PRODUCT PRICES ──────────────────────────────────────────────
 // Cross-user/global price book keyed by a normalized product identity.
-// Mirrored from item_prices via a Postgres trigger (see migration 018).
+// Mirrored from item_prices by a PocketBase hook (pocketbase/pb_hooks/babelcart_data.pb.js).
 
-// Must stay in sync with compute_product_key() in 018_product_prices.sql.
+// Must stay in sync with computeProductKey() in pocketbase/pb_hooks/lib/products.js.
 export function productKey(name: string, brand?: string | null): string {
   const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
   const base = norm(name ?? "");
@@ -318,16 +297,27 @@ export interface ProductAvg {
 export async function getProductAvgsByKeys(
   keys: string[],
 ): Promise<Record<string, ProductAvg>> {
-  if (IS_DEMO || !supabase || keys.length === 0) return {};
+  if (IS_DEMO || keys.length === 0) return {};
   const unique = Array.from(new Set(keys.filter(Boolean)));
   if (unique.length === 0) return {};
-  const { data, error } = await supabase
-    .from("product_prices")
-    .select("product_key, price_value, currency")
-    .in("product_key", unique);
-  if (error || !data) return {};
+  const data: Array<{ product_key: string; price_value: number; currency: string }> = [];
+  try {
+    // Chunk the OR filter so the query string stays reasonably short.
+    for (let i = 0; i < unique.length; i += 40) {
+      const chunk = unique.slice(i, i + 40);
+      const filter = chunk.map((_, j) => `product_key = {:k${j}}`).join(" || ");
+      const params = Object.fromEntries(chunk.map((k, j) => [`k${j}`, k]));
+      const rows = await pb.collection("product_prices").getFullList<{ product_key: string; price_value: number; currency: string }>({
+        filter: pb.filter(filter, params),
+        fields: "product_key,price_value,currency",
+      });
+      data.push(...rows);
+    }
+  } catch {
+    return {};
+  }
   const groups: Record<string, { sum: number; count: number; currency: string }> = {};
-  for (const row of data as Array<{ product_key: string; price_value: number; currency: string }>) {
+  for (const row of data) {
     const g = groups[row.product_key] || { sum: 0, count: 0, currency: row.currency };
     g.sum += Number(row.price_value);
     g.count += 1;

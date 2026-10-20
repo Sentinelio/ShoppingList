@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useAuth } from './hooks/useAuth'
-import { IS_DEMO } from './lib/supabase'
+import { IS_DEMO } from './lib/pocketbase'
 import SetupWizard from './components/setup/SetupWizard'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
@@ -45,8 +45,19 @@ function App() {
     setRoute({ page: page as Page, params })
   }, [])
 
-  // Admin page — accessible without auth
+  // Admin page — only for users flagged is_admin (set from the PocketBase
+  // dashboard /_/); the server enforces the same on every admin write.
   if (route.page === 'admin') {
+    if (!IS_DEMO && loading) {
+      return (
+        <div className="flex items-center justify-center h-full bg-bg">
+          <div className="text-text-soft animate-pulse">Loading admin…</div>
+        </div>
+      )
+    }
+    if (!IS_DEMO && !user?.is_admin) {
+      return <AdminLocked userId={user?.id ?? null} onBack={() => navigate('lists')} />
+    }
     return (
       <ErrorBoundary>
         <Suspense
@@ -103,6 +114,35 @@ function App() {
         </>
       )
   }
+}
+
+function AdminLocked({ userId, onBack }: { userId: string | null; onBack: () => void }) {
+  return (
+    <div className="flex items-center justify-center h-full bg-bg p-6">
+      <div className="max-w-sm text-center">
+        <div className="text-4xl mb-3">🔒</div>
+        <h1 className="text-text font-bold text-lg mb-2">Admin only</h1>
+        {userId ? (
+          <p className="text-text-muted text-sm mb-4">
+            Ask the server owner to enable <code>is_admin</code> for this user in the
+            PocketBase dashboard (<code>/_/</code> → users), then reload.
+            <br />
+            <span className="inline-block mt-3 font-mono text-xs text-text select-all bg-card border border-border rounded-lg px-2 py-1">{userId}</span>
+          </p>
+        ) : (
+          <p className="text-text-muted text-sm mb-4">
+            Open the app and create your profile first; then an admin can enable <code>is_admin</code> for it.
+          </p>
+        )}
+        <button
+          onClick={onBack}
+          className="px-4 py-2 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card"
+        >
+          ← Back
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default App

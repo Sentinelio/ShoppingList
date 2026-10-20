@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { supabase, IS_DEMO } from "../lib/supabase";
+import { pb, IS_DEMO, callRoute, upsertByKey } from "../lib/pocketbase";
 import { LANGS } from "../data/langs";
 import { ALL_LANGUAGES } from "../data/allLanguages";
 import { getEnabledLangs, enableLang, disableLang, getStoredUITranslations, saveUITranslations } from "../lib/langConfig";
@@ -25,7 +25,7 @@ import { syncLabSelectionToRemote } from "../lib/itemDetailLab";
 import { useSelection } from "../hooks/useTheme";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
-import type { Item, ListMember } from "../lib/supabase";
+import type { Item, ListMember } from "../lib/pocketbase";
 import {
   ensureStorePhrasesLoaded,
   upsertStorePhrase,
@@ -40,6 +40,7 @@ import { useStorePhrases } from "../hooks/useStorePhrases";
 type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
 
 interface DictRow {
+  id?: string;
   key: string;
   translations: Record<string, string>;
   category: string;
@@ -684,6 +685,28 @@ function ItemsLayoutsPicker({ selectedId }: { selectedId: string }) {
   );
 }
 
+// PocketBase has no bulk delete: fetch the ids, then delete in small batches.
+// Returns an error message, or null on success.
+async function deleteDictionaryRows(ids: string[]): Promise<string | null> {
+  try {
+    for (let i = 0; i < ids.length; i += 8) {
+      await Promise.all(ids.slice(i, i + 8).map(id => pb.collection("dictionary").delete(id)));
+    }
+    return null;
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
+async function deleteDictionaryWhere(filter: string): Promise<string | null> {
+  try {
+    const rows = await pb.collection("dictionary").getFullList<{ id: string }>({ filter, fields: "id", batch: 1000 });
+    return deleteDictionaryRows(rows.map(r => r.id));
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
@@ -779,40 +802,39 @@ export default function AdminPage() {
       return;
     }
     // 1. Reassign lists created by this user to the next active member (instead of deleting)
-    const { data: ownedLists } = await supabase
-      .from("lists")
-      .select("id")
-      .eq("created_by", userId);
+    const ownedLists = await pb.collection("lists").getFullList<{ id: string }>({
+      filter: pb.filter("created_by = {:userId}", { userId }),
+      fields: "id",
+    }).catch(() => [] as Array<{ id: string }>);
     let reassigned = 0;
     let deleted = 0;
-    for (const list of ownedLists ?? []) {
+    for (const list of ownedLists) {
       // Find another active member to take ownership
-      const { data: otherMembers } = await supabase
-        .from("list_members")
-        .select("user_id")
-        .eq("list_id", list.id)
-        .eq("status", "active")
-        .neq("user_id", userId)
-        .limit(1);
-      if (otherMembers && otherMembers.length > 0) {
+      const otherMembers = await pb.collection("list_members").getList<{ id: string; user_id: string }>(1, 1, {
+        filter: pb.filter("list_id = {:listId} && status = 'active' && user_id != {:userId}", { listId: list.id, userId }),
+      });
+      if (otherMembers.items.length > 0) {
         // Reassign list to next member and promote them to owner
-        const newOwner = otherMembers[0].user_id;
-        await supabase.from("lists").update({ created_by: newOwner }).eq("id", list.id);
-        await supabase.from("list_members").update({ role: "owner" }).eq("list_id", list.id).eq("user_id", newOwner);
+        const newOwner = otherMembers.items[0];
+        await pb.collection("lists").update(list.id, { created_by: newOwner.user_id });
+        await pb.collection("list_members").update(newOwner.id, { role: "owner" });
         reassigned++;
       } else {
         // No other members — safe to delete the list
-        await supabase.from("lists").delete().eq("id", list.id);
+        await pb.collection("lists").delete(list.id);
         deleted++;
       }
     }
-    // 2. Remove this user from any list_members rows
-    await supabase.from("list_members").delete().eq("user_id", userId);
+    // 2. Deleting the user cascades its list_members rows
     // 3. Finally delete the user
-    const { error } = await supabase.from("users").delete().eq("id", userId);
-    if (error) { showToast(`Error: ${error.message}`); return; }
+    try {
+      await pb.collection("users").delete(userId);
+    } catch (error) {
+      showToast(`Error: ${(error as Error).message}`);
+      return;
+    }
     setUsers(prev => prev.filter(u => u.id !== userId));
-    if (deleted > 0) setLists(prev => prev.filter(l => !(ownedLists ?? []).some(ol => ol.id === l.id) || reassigned > 0));
+    if (deleted > 0) setLists(prev => prev.filter(l => !ownedLists.some(ol => ol.id === l.id) || reassigned > 0));
     const parts: string[] = ["User deleted"];
     if (reassigned > 0) parts.push(`${reassigned} list${reassigned > 1 ? "s" : ""} reassigned`);
     if (deleted > 0) parts.push(`${deleted} empty list${deleted > 1 ? "s" : ""} removed`);
@@ -826,8 +848,12 @@ export default function AdminPage() {
       showToast("List deleted (demo)");
       return;
     }
-    const { error } = await supabase.from("lists").delete().eq("id", listId);
-    if (error) { showToast(`Error: ${error.message}`); return; }
+    try {
+      await pb.collection("lists").delete(listId);
+    } catch (error) {
+      showToast(`Error: ${(error as Error).message}`);
+      return;
+    }
     setLists(prev => prev.filter(l => l.id !== listId));
     showToast("List deleted");
   };
@@ -837,11 +863,10 @@ export default function AdminPage() {
       showToast("Demo mode — local dictionary only");
       return;
     }
-    const q = supabase.from("dictionary").delete();
-    const { error } = await (onlyCategory
-      ? q.eq("category", onlyCategory)
-      : q.neq("key", ""));
-    if (error) { showToast(`Error: ${error.message}`); return; }
+    const error = await deleteDictionaryWhere(
+      onlyCategory ? pb.filter("category = {:c}", { c: onlyCategory }) : "",
+    );
+    if (error) { showToast(`Error: ${error}`); return; }
     showToast(onlyCategory ? `Cleared category '${onlyCategory}'` : "Dictionary cleared");
     fetchDictionary();
   };
@@ -849,8 +874,10 @@ export default function AdminPage() {
   const clearCategories = async (ids: string[]) => {
     if (IS_DEMO) { showToast("Demo mode — local dictionary only"); return; }
     if (ids.length === 0) return;
-    const { error } = await supabase.from("dictionary").delete().in("category", ids);
-    if (error) { showToast(`Error: ${error.message}`); return; }
+    const error = await deleteDictionaryWhere(
+      pb.filter(ids.map((_, i) => `category = {:c${i}}`).join(" || "), Object.fromEntries(ids.map((c, i) => [`c${i}`, c]))),
+    );
+    if (error) { showToast(`Error: ${error}`); return; }
     showToast(`Cleared ${ids.length} categories`);
     fetchDictionary();
   };
@@ -861,9 +888,8 @@ export default function AdminPage() {
     const valid = new Set(CATEGORY_ORDER);
     const orphans = dictRows.filter(d => !valid.has(d.category));
     if (orphans.length === 0) { showToast("No orphan entries found"); return; }
-    const keys = orphans.map(o => o.key);
-    const { error } = await supabase.from("dictionary").delete().in("key", keys);
-    if (error) { showToast(`Error: ${error.message}`); return; }
+    const error = await deleteDictionaryRows(orphans.map(o => o.id).filter((id): id is string => !!id));
+    if (error) { showToast(`Error: ${error}`); return; }
     showToast(`🧹 Cleaned ${orphans.length} orphan entries`);
     fetchDictionary();
   };
@@ -876,24 +902,19 @@ export default function AdminPage() {
       if (!row.translations || !(langCode in row.translations)) continue;
       const next: Record<string, string> = { ...row.translations };
       delete next[langCode];
-      const { error } = await supabase.from("dictionary").update({ translations: next }).eq("key", row.key);
-      if (!error) updated++;
+      try {
+        await upsertByKey("dictionary", row.key, { translations: next });
+        updated++;
+      } catch { /* skip */ }
     }
     return { updated };
   };
 
-  // Call the translate Edge Function for a single item and return its translation in a target language
+  // Call the translate route for a single item and return its translation in a target language
   const translateOne = async (text: string, targetLang: string): Promise<string | null> => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/translate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}`, "apikey": supabaseKey },
-        body: JSON.stringify({ text, langs: [targetLang] }),
-      });
-      const data = await res.json();
-      if (res.ok && data?.t?.[targetLang]) return String(data.t[targetLang]);
+      const data = await callRoute<{ t?: Record<string, string> }>("translate", { text, langs: [targetLang] });
+      if (data?.t?.[targetLang]) return String(data.t[targetLang]);
     } catch { /* ignore */ }
     return null;
   };
@@ -912,8 +933,10 @@ export default function AdminPage() {
         const translated = await translateOne(row.key, langCode);
         if (!translated) return;
         const next = { ...(row.translations || {}), [langCode]: translated };
-        await supabase.from("dictionary").update({ translations: next }).eq("key", row.key);
-        done++;
+        try {
+          await upsertByKey("dictionary", row.key, { translations: next });
+          done++;
+        } catch { /* skip */ }
       }));
       showToast(`Translating ${langCode}: ${done}/${missing.length}`);
     }
@@ -925,40 +948,25 @@ export default function AdminPage() {
   const buildOneCategory = async (categoryId: string, mode: "generic" | "brands" = "generic") => {
     const seed = SEED_CATEGORIES.find(s => s.category === categoryId);
     if (!seed) { showToast("No seed config for this category"); return; }
-    if (IS_DEMO) { showToast("Connect Supabase first"); return; }
+    if (IS_DEMO) { showToast("Connect the backend first"); return; }
 
     setBuildingCategory(categoryId);
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/seed-dictionary`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseKey}`,
-          "apikey": supabaseKey,
-        },
-        body: JSON.stringify({
-          count: mode === "brands" ? 15 : seed.count,
-          // For brands we reuse the seed prompt only as a section label to
-          // steer Claude toward the right product space (e.g. "drinks",
-          // "snacks, cookies, chocolate").
-          prompt: seed.prompt,
-          category: seed.category,
-          storeType: seed.storeType,
-          mode,
-        }),
+      const data = await callRoute<{ inserted: number }>("seed-dictionary", {
+        count: mode === "brands" ? 15 : seed.count,
+        // For brands we reuse the seed prompt only as a section label to
+        // steer Claude toward the right product space (e.g. "drinks",
+        // "snacks, cookies, chocolate").
+        prompt: seed.prompt,
+        category: seed.category,
+        storeType: seed.storeType,
+        mode,
       });
-      const data = await res.json();
-      if (res.ok) {
-        const label = mode === "brands" ? `${seed.name} brands` : seed.name;
-        showToast(`✅ ${label}: ${data.inserted} added`);
-        fetchDictionary();
-      } else {
-        showToast(`❌ ${data.error}`);
-      }
+      const label = mode === "brands" ? `${seed.name} brands` : seed.name;
+      showToast(`✅ ${label}: ${data.inserted} added`);
+      fetchDictionary();
     } catch (err) {
-      showToast(`❌ ${err}`);
+      showToast(`❌ ${(err as Error).message}`);
     }
     setBuildingCategory(null);
   };
@@ -968,7 +976,7 @@ export default function AdminPage() {
     label: string,
     mode: "generic" | "brands" = "generic",
   ) => {
-    if (IS_DEMO) { showToast("Connect Supabase first"); return; }
+    if (IS_DEMO) { showToast("Connect the backend first"); return; }
     const seeds = categoryIds
       .map(id => SEED_CATEGORIES.find(s => s.category === id))
       .filter((s): s is typeof SEED_CATEGORIES[number] => !!s);
@@ -996,20 +1004,9 @@ export default function AdminPage() {
         created_at: "",
       })));
     } else {
-      const all: DictRow[] = [];
-      const pageSize = 1000;
-      let from = 0;
-      for (;;) {
-        const { data, error } = await supabase
-          .from("dictionary")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error || !data) break;
-        all.push(...(data as DictRow[]));
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
+      const all = await pb.collection("dictionary")
+        .getFullList<DictRow>({ sort: "-created_at", batch: 1000 })
+        .catch(() => [] as DictRow[]);
       setDictRows(all);
     }
     setLoading(false);
@@ -1018,8 +1015,8 @@ export default function AdminPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     if (!IS_DEMO) {
-      const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
-      if (data) setUsers(data as UserRow[]);
+      const data = await pb.collection("users").getFullList<UserRow>({ sort: "-created_at" }).catch(() => null);
+      if (data) setUsers(data);
     }
     setLoading(false);
   }, []);
@@ -1027,22 +1024,26 @@ export default function AdminPage() {
   const fetchLists = useCallback(async () => {
     setLoading(true);
     if (!IS_DEMO) {
-      const { data } = await supabase.from("lists").select("*").order("created_at", { ascending: false });
-      if (data) setLists(data as ListRow[]);
+      const data = await pb.collection("lists").getFullList<ListRow>({ sort: "-created_at" }).catch(() => null);
+      if (data) setLists(data);
       // Fetch member counts
-      const { data: members } = await supabase.from("list_members").select("list_id, status");
+      const members = await pb.collection("list_members")
+        .getFullList<{ list_id: string; status: string }>({ fields: "list_id,status" })
+        .catch(() => null);
       if (members) {
         const counts: Record<string, number> = {};
-        (members as Array<{ list_id: string; status: string }>).forEach(m => {
+        members.forEach(m => {
           if (m.status === "active") counts[m.list_id] = (counts[m.list_id] || 0) + 1;
         });
         setListMembers(counts);
       }
       // Fetch item counts
-      const { data: items } = await supabase.from("items").select("list_id");
+      const items = await pb.collection("items")
+        .getFullList<{ list_id: string }>({ fields: "list_id" })
+        .catch(() => null);
       if (items) {
         const counts: Record<string, number> = {};
-        (items as Array<{ list_id: string }>).forEach(i => {
+        items.forEach(i => {
           counts[i.list_id] = (counts[i.list_id] || 0) + 1;
         });
         setListItems(counts);
@@ -1061,7 +1062,12 @@ export default function AdminPage() {
   // Save dictionary entry
   const saveEntry = async (key: string, translations: Record<string, string>, category: string) => {
     if (IS_DEMO) { showToast("Demo mode — can't save"); return; }
-    await supabase.from("dictionary").upsert({ key: key.toLowerCase().trim(), translations, category });
+    try {
+      await upsertByKey("dictionary", key.toLowerCase().trim(), { translations, category });
+    } catch (err) {
+      showToast(`Error: ${(err as Error).message}`);
+      return;
+    }
     showToast("Saved!");
     fetchDictionary();
     setEditingEntry(null);
@@ -1070,7 +1076,8 @@ export default function AdminPage() {
 
   const deleteEntry = async (key: string) => {
     if (IS_DEMO) return;
-    await supabase.from("dictionary").delete().eq("key", key);
+    const row = dictRows.find(r => r.key === key);
+    if (row?.id) await pb.collection("dictionary").delete(row.id).catch(() => {});
     showToast("Deleted");
     fetchDictionary();
   };
@@ -1146,7 +1153,7 @@ export default function AdminPage() {
           }}
         >
           <span
-            title={IS_DEMO ? "Running in Demo Mode (no Supabase connection)" : "Connected to Supabase"}
+            title={IS_DEMO ? "Running in Demo Mode (no backend connection)" : "Connected to PocketBase"}
             style={{
               display: "inline-block",
               width: 10,
@@ -1164,7 +1171,7 @@ export default function AdminPage() {
               whiteSpace: "nowrap",
             }}
           >
-            {IS_DEMO ? "Demo Mode" : "Supabase"}
+            {IS_DEMO ? "Demo Mode" : "PocketBase"}
           </span>
         </div>
       </header>
@@ -1896,23 +1903,18 @@ export default function AdminPage() {
           const generateUI = async (langCode: string) => {
             const langName = ALL_LANGUAGES.find(l => l.code === langCode)?.name ?? langCode;
             showToast(`Generating UI for ${langName}...`);
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-            const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
             try {
-              const res = await fetch(`${supabaseUrl}/functions/v1/translate-ui`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}`, "apikey": supabaseKey },
-                body: JSON.stringify({ strings: strings.en, targetLang: langCode, targetLangName: langName }),
+              const data = await callRoute<{ translations?: Record<string, string> }>("translate-ui", {
+                strings: strings.en, targetLang: langCode, targetLangName: langName,
               });
-              const data = await res.json();
-              if (res.ok && data.translations) {
+              if (data.translations) {
                 saveUITranslations(langCode, data.translations);
                 showToast(`✅ ${langName} UI ready! (${Object.keys(data.translations).length} strings)`);
               } else {
-                showToast(`❌ ${data.error || "Failed"}`);
+                showToast(`❌ Failed`);
               }
             } catch (err) {
-              showToast(`❌ ${err}`);
+              showToast(`❌ ${(err as Error).message}`);
             }
           };
 
@@ -2143,7 +2145,7 @@ export default function AdminPage() {
                               setLists(prev => prev.map(x => ({ ...x, require_approval: next })));
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
-                                if (ids.length > 0) await supabase.from("lists").update({ require_approval: next }).in("id", ids);
+                                await Promise.all(ids.map(id => pb.collection("lists").update(id, { require_approval: next }).catch(() => {})));
                               }
                             }}
                             className="cursor-pointer shrink-0"
@@ -2172,7 +2174,7 @@ export default function AdminPage() {
                               setLists(prev => prev.map(x => ({ ...x, who_can_approve: next })));
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
-                                if (ids.length > 0) await supabase.from("lists").update({ who_can_approve: next }).in("id", ids);
+                                await Promise.all(ids.map(id => pb.collection("lists").update(id, { who_can_approve: next }).catch(() => {})));
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
@@ -2194,7 +2196,7 @@ export default function AdminPage() {
                               setLists(prev => prev.map(x => ({ ...x, who_can_remove: next })));
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
-                                if (ids.length > 0) await supabase.from("lists").update({ who_can_remove: next }).in("id", ids);
+                                await Promise.all(ids.map(id => pb.collection("lists").update(id, { who_can_remove: next }).catch(() => {})));
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
@@ -2333,7 +2335,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-text-muted w-20 shrink-0">Mode</span>
-                    <span className="text-text text-[11px]">{IS_DEMO ? "Demo (no backend)" : "Supabase"}</span>
+                    <span className="text-text text-[11px]">{IS_DEMO ? "Demo (no backend)" : "PocketBase"}</span>
                   </div>
                 </div>
               </div>

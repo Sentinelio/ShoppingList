@@ -1,4 +1,4 @@
-import { supabase, IS_DEMO, type Item } from "../lib/supabase";
+import { pb, IS_DEMO, type Item } from "../lib/pocketbase";
 import { demoAddItem, demoUpdateItem, demoDeleteItem, demoCheckDuplicate } from "../lib/demoStore";
 
 export interface AddItemParams {
@@ -36,19 +36,7 @@ export async function addItem(params: AddItemParams): Promise<Item> {
   if (params.important) row.important = params.important;
   if (params.brand) row.brand = params.brand;
 
-  let { data, error } = await supabase.from("items").insert(row).select().single();
-
-  // If insert fails with photo/important, retry without optional columns
-  if (error && (params.photo || params.important)) {
-    delete row.photo;
-    delete row.important;
-    const retry = await supabase.from("items").insert(row).select().single();
-    data = retry.data;
-    error = retry.error;
-  }
-
-  if (error) throw error;
-  return data as Item;
+  return pb.collection("items").create<Item>(row);
 }
 
 export async function updateItem(
@@ -61,32 +49,7 @@ export async function updateItem(
     return result;
   }
 
-  let { data, error } = await supabase
-    .from("items")
-    .update(updates)
-    .eq("id", itemId)
-    .select()
-    .single();
-
-  // If update fails because of unknown columns (photo/important), retry without them
-  if (error && ("important" in updates || "photo" in updates)) {
-    const safe: Record<string, unknown> = { ...updates };
-    delete safe.important;
-    delete safe.photo;
-    if (Object.keys(safe).length > 0) {
-      const retry = await supabase.from("items").update(safe).eq("id", itemId).select().single();
-      data = retry.data;
-      error = retry.error;
-    } else {
-      // Nothing to update on the server — return the item as-is
-      const get = await supabase.from("items").select("*").eq("id", itemId).single();
-      data = get.data;
-      error = get.error;
-    }
-  }
-
-  if (error) throw error;
-  return data as Item;
+  return pb.collection("items").update<Item>(itemId, updates);
 }
 
 export async function toggleItem(itemId: string, checked: boolean): Promise<Item> {
@@ -100,15 +63,10 @@ export async function toggleItem(itemId: string, checked: boolean): Promise<Item
     return result;
   }
 
-  const { data, error } = await supabase
-    .from("items")
-    .update({ checked, checked_at: checked ? new Date().toISOString() : null })
-    .eq("id", itemId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Item;
+  return pb.collection("items").update<Item>(itemId, {
+    checked,
+    checked_at: checked ? new Date().toISOString() : null,
+  });
 }
 
 export async function deleteItem(itemId: string): Promise<void> {
@@ -116,8 +74,7 @@ export async function deleteItem(itemId: string): Promise<void> {
     demoDeleteItem(itemId);
     return;
   }
-  const { error } = await supabase.from("items").delete().eq("id", itemId);
-  if (error) throw error;
+  await pb.collection("items").delete(itemId);
 }
 
 export async function checkDuplicate(
@@ -131,15 +88,17 @@ export async function checkDuplicate(
   const enName = translations.en?.toLowerCase();
   if (!enName) return null;
 
-  const { data, error } = await supabase
-    .from("items")
-    .select("*")
-    .eq("list_id", listId);
+  let data: Item[];
+  try {
+    data = await pb.collection("items").getFullList<Item>({
+      filter: pb.filter("list_id = {:listId}", { listId }),
+    });
+  } catch {
+    return null;
+  }
 
-  if (error || !data) return null;
-
-  const match = (data as Item[]).find(
-    (item) => item.translations.en?.toLowerCase() === enName,
+  const match = data.find(
+    (item) => item.translations?.en?.toLowerCase() === enName,
   );
 
   return match ?? null;

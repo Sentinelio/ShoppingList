@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "../ui/Modal";
 import { t } from "../../data/i18n";
 import { getEnabledLangs } from "../../lib/langConfig";
-import { parseReceipt, uploadReceiptPhoto } from "../../lib/receiptImport";
+import { parseReceipt } from "../../lib/receiptImport";
 import { matchLineToItem } from "../../lib/receiptMatch";
 import {
   applyReceipt, rollbackReceipt,
   type ReviewedLine, type ApplyReceiptResult,
 } from "../../lib/receiptApply";
 import { formatPrice } from "../../lib/itemData";
-import type { Item, ParsedReceipt } from "../../lib/supabase";
+import type { Item, ParsedReceipt } from "../../lib/pocketbase";
 
 const UNIT_OPTIONS = ["", "pcs", "pack", "kg", "g", "l", "ml", "cl"];
 
@@ -34,7 +34,7 @@ export default function ImportReceiptModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [parsed, setParsed] = useState<ParsedReceipt | null>(null);
   const [reviewed, setReviewed] = useState<ReviewedLine[]>([]);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [lastResult, setLastResult] = useState<ApplyReceiptResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -46,7 +46,7 @@ export default function ImportReceiptModal({
       setErrorMsg("");
       setParsed(null);
       setReviewed([]);
-      setPhotoUrl(null);
+      setPhotoFile(null);
       setProgress({ done: 0, total: 0 });
       setLastResult(null);
     }
@@ -56,9 +56,8 @@ export default function ImportReceiptModal({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      setStage("uploading");
-      const url = await uploadReceiptPhoto(file);
-      setPhotoUrl(url);
+      // The photo is attached to the receipt row when the user applies it.
+      setPhotoFile(file);
       setStage("analyzing");
       const targetLangs = [...new Set([userLang, shelfLang, "en", ...getEnabledLangs()])];
       const result = await parseReceipt({ file, targetLangs });
@@ -108,7 +107,7 @@ export default function ImportReceiptModal({
       setStage("applying");
       setProgress({ done: 0, total: reviewed.filter((r) => r.include).length });
       const result = await applyReceipt({
-        listId, parsed, reviewed, photoUrl, userId, userName,
+        listId, parsed, reviewed, photoFile, userId, userName,
         onProgress: (done, total) => setProgress({ done, total }),
       });
       setLastResult(result);

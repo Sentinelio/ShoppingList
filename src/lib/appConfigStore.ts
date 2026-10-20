@@ -1,7 +1,8 @@
 // ── Global App Configuration Store ──────────────────────────────────────
-// Syncs admin configuration to Supabase so ALL users see the same settings.
+// Syncs admin configuration to PocketBase so ALL users see the same settings.
+// Writes are admin-only on the server; for everyone else they fail silently.
 
-import { supabase, IS_DEMO } from "./supabase";
+import { pb, IS_DEMO, upsertByKey } from "./pocketbase";
 
 export const CONFIG_KEYS = [
   "themes",
@@ -25,28 +26,26 @@ const LS_KEY_MAP: Record<ConfigKey, string> = {
   ui_translations: "babelcart_ui_translations",
 };
 
-// ── Write: save to localStorage + Supabase ─────────────────────────────
+// ── Write: save to localStorage + PocketBase ───────────────────────────
 
 export async function saveConfig(key: ConfigKey, value: unknown) {
-  // localStorage is already written by the caller — we only sync to Supabase
-  if (!IS_DEMO && supabase) {
+  // localStorage is already written by the caller — we only sync to the server
+  if (!IS_DEMO) {
     try {
-      await supabase
-        .from("app_config")
-        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
-    } catch { /* table might not exist yet */ }
+      await upsertByKey("app_config", key, { value });
+    } catch { /* not an admin, or offline */ }
   }
 }
 
-// ── Read: fetch config from Supabase → apply to localStorage ───────────
-// SAFETY: only overwrites a localStorage key if Supabase has a non-null,
+// ── Read: fetch config from PocketBase → apply to localStorage ─────────
+// SAFETY: only overwrites a localStorage key if the server has a non-null,
 // non-empty value for it. Never writes empty objects or null.
 
 export async function loadRemoteConfig(): Promise<boolean> {
-  if (IS_DEMO || !supabase) return false;
+  if (IS_DEMO) return false;
   try {
-    const { data, error } = await supabase.from("app_config").select("key, value");
-    if (error || !data || !Array.isArray(data) || data.length === 0) return false;
+    const data = await pb.collection("app_config").getFullList<{ key: string; value: unknown }>({ fields: "key,value" });
+    if (data.length === 0) return false;
 
     let applied = false;
     for (const row of data) {
@@ -65,27 +64,27 @@ export async function loadRemoteConfig(): Promise<boolean> {
       } catch { /* quota */ }
     }
     return applied;
-  } catch { /* table might not exist yet */ }
+  } catch { /* offline */ }
   return false;
 }
 
-// ── Push all localStorage to Supabase (called from admin on init) ──────
+// ── Push all localStorage to PocketBase (called from admin on init) ────
 
 export async function pushAllConfigToRemote() {
-  if (IS_DEMO || !supabase) return;
-  const rows: Array<{ key: string; value: unknown; updated_at: string }> = [];
+  if (IS_DEMO) return;
+  const rows: Array<{ key: string; value: unknown }> = [];
   for (const key of CONFIG_KEYS) {
     const lsKey = LS_KEY_MAP[key];
     try {
       const raw = localStorage.getItem(lsKey);
       if (raw) {
         const value = JSON.parse(raw);
-        rows.push({ key, value, updated_at: new Date().toISOString() });
+        rows.push({ key, value });
       }
     } catch { /* skip malformed */ }
   }
   if (rows.length === 0) return;
   try {
-    await supabase.from("app_config").upsert(rows, { onConflict: "key" });
-  } catch { /* table might not exist yet */ }
+    await Promise.all(rows.map(r => upsertByKey("app_config", r.key, { value: r.value })));
+  } catch { /* not an admin, or offline */ }
 }

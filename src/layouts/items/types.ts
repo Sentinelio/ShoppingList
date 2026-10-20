@@ -2,7 +2,7 @@
 // src/layouts/items/registry.tsx implements this interface, so the parent
 // (ListDetailPage or the admin preview) can swap them interchangeably.
 
-import type { Item, ListMember } from "../../lib/supabase";
+import type { Item, ListMember } from "../../lib/pocketbase";
 
 export interface ItemsLayoutProps {
   items: Item[];

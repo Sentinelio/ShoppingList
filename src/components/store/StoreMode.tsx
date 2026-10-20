@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Item } from "../../lib/supabase";
+import type { Item } from "../../lib/pocketbase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";

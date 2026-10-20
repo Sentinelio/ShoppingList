@@ -1,4 +1,4 @@
-import type { Item, ParsedReceiptLine } from "./supabase";
+import type { Item, ParsedReceiptLine } from "./pocketbase";
 
 // Strip accents, lowercase, and remove numeric tails like "500g", "1l",
 // "x6", "2x", "pack" — anything that is typically size/packaging noise so

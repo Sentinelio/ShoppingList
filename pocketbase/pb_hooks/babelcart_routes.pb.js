@@ -5,7 +5,7 @@
 // Each handler runs isolated: shared code is loaded with require() inside it.
 
 // ─────────────────────────────────────────────────────────────────────────
-// POST /api/babelcart/join   { code }  →  { list, status }
+// POST /api/babelcart/join   { code }  →  { list, status, already }
 // A non-member can't see the list, so joining by code happens here.
 // ─────────────────────────────────────────────────────────────────────────
 routerAdd("POST", "/api/babelcart/join", (e) => {
@@ -40,7 +40,7 @@ routerAdd("POST", "/api/babelcart/join", (e) => {
       member.set("status", status)
       $app.save(member)
     }
-    return e.json(200, { list: publicList(list), status: member.getString("status") })
+    return e.json(200, { list: publicList(list), status: member.getString("status"), already: true })
   }
 
   member = new Record($app.findCollectionByNameOrId("list_members"))
@@ -51,7 +51,7 @@ routerAdd("POST", "/api/babelcart/join", (e) => {
   $app.save(member)
   console.log(`[babelcart/join] user ${uid} → list ${list.id} (${status})`)
 
-  return e.json(200, { list: publicList(list), status: status })
+  return e.json(200, { list: publicList(list), status: status, already: false })
 }, $apis.requireAuth())
 
 // ─────────────────────────────────────────────────────────────────────────

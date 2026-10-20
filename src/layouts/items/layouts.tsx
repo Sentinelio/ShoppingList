@@ -7,7 +7,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { Fragment } from "react";
-import type { Item } from "../../lib/supabase";
+import type { Item } from "../../lib/pocketbase";
 import { getCategoryColor, getCategoryEmoji, CATEGORIES } from "../../data/categories";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { displayNameOf, qtyLabelOf, shelfNameOf, type ItemsLayoutProps } from "./types";

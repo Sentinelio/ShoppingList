@@ -1,25 +1,7 @@
-import { supabase, IS_DEMO, type ParsedReceipt } from "./supabase";
+import { IS_DEMO, callRoute, type ParsedReceipt } from "./pocketbase";
 
-const BUCKET = "receipt-photos";
-
-export async function uploadReceiptPhoto(file: File): Promise<string | null> {
-  if (IS_DEMO || !supabase) return null;
-
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { cacheControl: "3600", upsert: false });
-
-  if (error) {
-    console.error("[uploadReceiptPhoto]", error);
-    throw error;
-  }
-
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
-}
+// The receipt photo is no longer uploaded up front: it is attached to the
+// `photo` file field when the receipt row is created (see receiptApply.ts).
 
 // Reads a File as base64 without the `data:...;base64,` prefix.
 function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> {
@@ -39,12 +21,9 @@ function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> 
 export async function parseReceipt(
   input: { file?: File; imageUrl?: string; targetLangs?: string[] },
 ): Promise<ParsedReceipt> {
-  if (IS_DEMO || !supabase) {
-    throw new Error("Receipt parsing requires Supabase connection");
+  if (IS_DEMO) {
+    throw new Error("Receipt parsing requires a backend connection");
   }
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
   let body: Record<string, unknown>;
   if (input.file) {
@@ -59,19 +38,6 @@ export async function parseReceipt(
     body.targetLangs = input.targetLangs;
   }
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/parse-receipt`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${supabaseAnonKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "parse failed" }));
-    throw new Error(err.error ?? `parse-receipt failed (${res.status})`);
-  }
-
-  return res.json() as Promise<ParsedReceipt>;
+  // Errors carry the server message, e.g. "not_a_receipt" (HTTP 422).
+  return callRoute<ParsedReceipt>("parse-receipt", body);
 }

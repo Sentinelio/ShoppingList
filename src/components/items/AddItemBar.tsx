@@ -15,7 +15,7 @@ interface AddItemBarProps {
   shelfLang: string;
   userId: string;
   userName: string;
-  onItemAdded: (item: import("../../lib/supabase").Item | null) => void;
+  onItemAdded: (item: import("../../lib/pocketbase").Item | null) => void;
 }
 
 function getUnits(lang: string) {

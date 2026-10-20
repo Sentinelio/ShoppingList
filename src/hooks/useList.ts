@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase, IS_DEMO, type List, type ListMember, type Item } from "../lib/supabase";
+import { pb, IS_DEMO, callRoute, subscribe, toError, type List, type ListMember, type Item, type User } from "../lib/pocketbase";
 import { getAllLocallyImportant } from "../lib/importantStore";
 import {
   demoGetLists, demoCreateList, demoGetList, demoJoinList,
   demoDeleteList, demoLeaveList, demoGetMembers, demoGetItems, onDemoChange,
 } from "../lib/demoStore";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // ── types for demo localStorage shape ───────────────────
 
@@ -43,6 +42,22 @@ function generateCode(): string {
   return code;
 }
 
+// list_members rows are addressed by (list_id, user_id) in the UI.
+async function findMemberRow(listId: string, userId: string): Promise<{ id: string }> {
+  try {
+    return await pb.collection("list_members").getFirstListItem(
+      pb.filter("list_id = {:listId} && user_id = {:userId}", { listId, userId }),
+    );
+  } catch (err) {
+    throw toError(err);
+  }
+}
+
+async function deleteMemberRow(listId: string, userId: string): Promise<void> {
+  const row = await findMemberRow(listId, userId);
+  await pb.collection("list_members").delete(row.id);
+}
+
 // ── useLists ────────────────────────────────────────────
 
 export function useLists(userId: string | undefined) {
@@ -64,24 +79,13 @@ export function useLists(userId: string | undefined) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("list_members")
-      .select("list_id, lists(*)")
-      .eq("user_id", userId)
-      .eq("status", "active");
-
-    if (!error && data) {
-      // Supabase typegen reports `lists` as an array for this join even though
-      // it's a belongs-to (single row). Narrow through unknown.
-      const rows = data as unknown as Array<{ lists: List | List[] | null }>;
-      const fetched: List[] = [];
-      for (const row of rows) {
-        const l = row.lists;
-        if (!l) continue;
-        if (Array.isArray(l)) fetched.push(...l);
-        else fetched.push(l);
-      }
+    // The list rule already restricts results to lists where the user is an
+    // active member.
+    try {
+      const fetched = await pb.collection("lists").getFullList<List>({ sort: "created_at" });
       setLists(fetched);
+    } catch (err) {
+      console.error("[useLists]", err);
     }
 
     setLoading(false);
@@ -134,21 +138,13 @@ export function useMyPendingRequests(userId: string | undefined) {
       return;
     }
 
-    const { data } = await supabase
-      .from("list_members")
-      .select("list_id, status, joined_at, lists(name, code)")
-      .eq("user_id", userId)
-      .eq("status", "pending");
-
-    if (data) {
-      type JoinRow = { list_id: string; status: string; joined_at: string; lists: { name?: string; code?: string } | null };
-      setRequests((data as JoinRow[]).map(r => ({
-        list_id: r.list_id,
-        list_name: r.lists?.name ?? "?",
-        list_code: r.lists?.code ?? "",
-        status: r.status,
-        joined_at: r.joined_at,
-      })));
+    // Pending users can't read the list itself yet, so the server resolves
+    // the names (GET /api/babelcart/my-requests).
+    try {
+      const data = await pb.send<PendingRequest[]>("/api/babelcart/my-requests", { method: "GET" });
+      setRequests(data.map(r => ({ ...r, joined_at: r.joined_at.replace(" ", "T") })));
+    } catch (err) {
+      console.error("[useMyPendingRequests]", err);
     }
   }, [userId]);
 
@@ -169,12 +165,7 @@ export async function cancelJoinRequest(listId: string, userId: string): Promise
     localStorage.setItem("polyglot_demo_db", JSON.stringify(db));
     return;
   }
-  const { error } = await supabase
-    .from("list_members")
-    .delete()
-    .eq("list_id", listId)
-    .eq("user_id", userId);
-  if (error) throw error;
+  await deleteMemberRow(listId, userId);
 }
 
 // ── useListDetail ───────────────────────────────────────
@@ -214,29 +205,29 @@ export function useListDetail(listId: string | undefined) {
       return;
     }
 
-    // Narrow column sets to avoid pulling the (potentially large) photo
-    // URL column on the initial fetch — we still get it through the realtime
-    // subscription when a specific item is opened.
-    const [listRes, membersRes, itemsRes] = await Promise.all([
-      supabase.from("lists").select("*").eq("id", listId).single(),
-      supabase.from("list_members").select("list_id, user_id, role, status, joined_at, users(name, lang, country, last_seen_at)").eq("list_id", listId),
-      supabase.from("items").select("*").eq("list_id", listId).order("created_at", { ascending: true }),
+    const byList = pb.filter("list_id = {:listId}", { listId });
+    const [listRes, membersRes, itemsRes] = await Promise.allSettled([
+      pb.collection("lists").getOne<List>(listId),
+      pb.collection("list_members").getFullList<ListMember & { expand?: { user_id?: User } }>({
+        filter: byList,
+        expand: "user_id",
+      }),
+      pb.collection("items").getFullList<Item>({ filter: byList, sort: "created_at" }),
     ]);
 
-    if (!listRes.error && listRes.data) setList(listRes.data as List);
-    if (!membersRes.error && membersRes.data) {
-      type MemberRow = ListMember & { users: { name?: string; lang?: string; country?: string; last_seen_at?: string } | null };
-      setMembers((membersRes.data as MemberRow[]).map(m => ({
+    if (listRes.status === "fulfilled") setList(listRes.value);
+    if (membersRes.status === "fulfilled") {
+      setMembers(membersRes.value.map(({ expand, ...m }) => ({
         ...m,
-        user_name: m.users?.name,
-        user_lang: m.users?.lang,
-        user_country: m.users?.country,
-        user_last_seen_at: m.users?.last_seen_at,
+        user_name: expand?.user_id?.name,
+        user_lang: expand?.user_id?.lang,
+        user_country: expand?.user_id?.country,
+        user_last_seen_at: expand?.user_id?.last_seen_at ?? undefined,
       })));
     }
-    if (!itemsRes.error && itemsRes.data) {
+    if (itemsRes.status === "fulfilled") {
       const localImportant = getAllLocallyImportant();
-      setItems((itemsRes.data as Item[]).map(i => ({
+      setItems(itemsRes.value.map(i => ({
         ...i,
         important: i.important || localImportant.has(i.id),
       })));
@@ -259,47 +250,21 @@ export function useListDetail(listId: string | undefined) {
   useEffect(() => {
     if (!listId || IS_DEMO) return;
 
-    const channel: RealtimeChannel = supabase
-      .channel(`items:${listId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "items", filter: `list_id=eq.${listId}` },
-        (payload) => {
-          const inserted = payload.new as Item;
-          const localImportant = getAllLocallyImportant();
-          setItems((prev) => [
-            ...prev,
-            { ...inserted, important: inserted.important || localImportant.has(inserted.id) },
-          ]);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "items", filter: `list_id=eq.${listId}` },
-        (payload) => {
-          const updated = payload.new as Item;
-          const localImportant = getAllLocallyImportant();
-          setItems((prev) =>
-            prev.map((item) =>
-              item.id === updated.id
-                ? { ...updated, important: updated.important || localImportant.has(updated.id) }
-                : item
-            ),
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "items", filter: `list_id=eq.${listId}` },
-        (payload) => {
-          setItems((prev) => prev.filter((item) => item.id !== (payload.old as Partial<Item>).id));
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return subscribe<Item>(
+      "items",
+      pb.filter("list_id = {:listId}", { listId }),
+      (action, record) => {
+        const localImportant = getAllLocallyImportant();
+        const withImportant = { ...record, important: record.important || localImportant.has(record.id) };
+        if (action === "create") {
+          setItems((prev) => (prev.some((i) => i.id === record.id) ? prev : [...prev, withImportant]));
+        } else if (action === "update") {
+          setItems((prev) => prev.map((item) => (item.id === record.id ? withImportant : item)));
+        } else if (action === "delete") {
+          setItems((prev) => prev.filter((item) => item.id !== record.id));
+        }
+      },
+    );
   }, [listId]);
 
   return { list, members, setMembers, items, setItems, loading, refresh };
@@ -314,23 +279,8 @@ export async function createList(name: string, userId: string): Promise<List> {
 
   const code = generateCode();
 
-  const { data, error } = await supabase
-    .from("lists")
-    .insert({ name, code, created_by: userId })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  const newList = data as List;
-
-  const { error: memberError } = await supabase
-    .from("list_members")
-    .insert({ list_id: newList.id, user_id: userId, role: "owner", status: "active" });
-
-  if (memberError) throw memberError;
-
-  return newList;
+  // The server adds the creator as active owner (pb_hooks).
+  return pb.collection("lists").create<List>({ name, code, created_by: userId });
 }
 
 export async function joinList(code: string, userId: string): Promise<List> {
@@ -338,26 +288,15 @@ export async function joinList(code: string, userId: string): Promise<List> {
     return demoJoinList(code, userId);
   }
 
-  const { data, error } = await supabase
-    .from("lists")
-    .select("*")
-    .eq("code", code.toUpperCase())
-    .single();
-
-  if (error || !data) throw error ?? new Error("List not found");
-
-  const list = data as List;
-
-  // If list doesn't require approval, join directly as active member
-  const status = list.require_approval === false ? "active" : "pending";
-
-  const { error: memberError } = await supabase
-    .from("list_members")
-    .insert({ list_id: list.id, user_id: userId, role: "member", status });
-
-  if (memberError) throw memberError;
-
-  return list;
+  // A non-member can't read the list, so the server looks the code up and
+  // creates the membership for the signed-in user: active if the list
+  // doesn't require approval, pending otherwise.
+  const res = await callRoute<{ list: List; status: string; already: boolean }>("join", { code: code.toUpperCase() });
+  if (res.already && res.status === "pending") {
+    // JoinListModal shows "already pending" for this message.
+    throw new Error("duplicate: join request already pending");
+  }
+  return res.list;
 }
 
 export async function renameList(listId: string, name: string): Promise<void> {
@@ -367,8 +306,7 @@ export async function renameList(listId: string, name: string): Promise<void> {
     if (idx >= 0) { db.lists[idx].name = name; localStorage.setItem('polyglot_demo_db', JSON.stringify(db)); }
     return;
   }
-  const { error } = await supabase.from("lists").update({ name }).eq("id", listId);
-  if (error) throw error;
+  await pb.collection("lists").update(listId, { name });
 }
 
 export async function deleteList(listId: string): Promise<void> {
@@ -376,8 +314,19 @@ export async function deleteList(listId: string): Promise<void> {
     demoDeleteList(listId);
     return;
   }
-  const { error } = await supabase.from("lists").delete().eq("id", listId);
-  if (error) throw error;
+  await pb.collection("lists").delete(listId);
+}
+
+// "Leave" button: owners delete the whole list (as before); other members
+// only remove themselves, since deleting a list is owner-only on the server.
+export async function exitList(listId: string, userId: string): Promise<void> {
+  if (IS_DEMO) {
+    demoDeleteList(listId);
+    return;
+  }
+  const list = await pb.collection("lists").getOne<List>(listId);
+  if (list.owners?.includes(userId)) await deleteList(listId);
+  else await leaveList(listId, userId);
 }
 
 export async function leaveList(listId: string, userId: string): Promise<void> {
@@ -385,12 +334,7 @@ export async function leaveList(listId: string, userId: string): Promise<void> {
     demoLeaveList(listId, userId);
     return;
   }
-  const { error } = await supabase
-    .from("list_members")
-    .delete()
-    .eq("list_id", listId)
-    .eq("user_id", userId);
-  if (error) throw error;
+  await deleteMemberRow(listId, userId);
 }
 
 export async function approveMember(listId: string, userId: string): Promise<void> {
@@ -405,12 +349,8 @@ export async function approveMember(listId: string, userId: string): Promise<voi
     }
     return;
   }
-  const { error } = await supabase
-    .from("list_members")
-    .update({ status: "active" })
-    .eq("list_id", listId)
-    .eq("user_id", userId);
-  if (error) throw error;
+  const row = await findMemberRow(listId, userId);
+  await pb.collection("list_members").update(row.id, { status: "active" });
 }
 
 export async function rejectMember(listId: string, userId: string): Promise<void> {
@@ -420,12 +360,7 @@ export async function rejectMember(listId: string, userId: string): Promise<void
     localStorage.setItem("polyglot_demo_db", JSON.stringify(db));
     return;
   }
-  const { error } = await supabase
-    .from("list_members")
-    .delete()
-    .eq("list_id", listId)
-    .eq("user_id", userId);
-  if (error) throw error;
+  await deleteMemberRow(listId, userId);
 }
 
 // Remove an active member from a list (same implementation as rejectMember,

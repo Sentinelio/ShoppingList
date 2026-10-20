@@ -1,16 +1,16 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail, deleteList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
+import { useListDetail, exitList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice, productKey, getProductAvgsByKeys, type ProductAvg } from "../lib/itemData";
-import { supabase, IS_DEMO } from "../lib/supabase";
+import { pb, IS_DEMO, subscribe } from "../lib/pocketbase";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
 import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
 import { getLangFlag, getLangName } from "../data/langs";
 import { copyToClipboard } from "../lib/clipboard";
-import type { Item } from "../lib/supabase";
+import type { Item } from "../lib/pocketbase";
 import ItemCard from "../components/items/ItemCard";
 import AddItemBar from "../components/items/AddItemBar";
 import ItemDetail from "../components/items/ItemDetail";
@@ -169,13 +169,15 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   // Fetch latest price per item for total calculation
   const [itemPrices, setItemPrices] = useState<Record<string, { value: number; currency: string }>>({});
   useEffect(() => {
-    if (IS_DEMO || !supabase || !listId) return;
-    supabase
-      .from("item_prices")
-      .select("item_id, price_value, currency")
-      .not("price_value", "is", null)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
+    if (IS_DEMO || !listId) return;
+    pb.collection("item_prices")
+      .getFullList<{ item_id: string; price_value: number; currency: string }>({
+        filter: pb.filter("item_id.list_id = {:listId} && price_value != 0", { listId }),
+        sort: "-created_at",
+        fields: "item_id,price_value,currency",
+      })
+      .catch(() => null)
+      .then((data) => {
         if (!data) return;
         const latest: Record<string, { value: number; currency: string }> = {};
         for (const row of data as Array<{ item_id: string; price_value: number; currency: string }>) {
@@ -200,18 +202,11 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     };
     refresh();
 
-    if (IS_DEMO || !supabase) return () => { cancelled = true; };
-    const channel = supabase
-      .channel(`product_prices:${listId}`)
-      .on(
-        "postgres_changes" as "system",
-        { event: "*", schema: "public", table: "product_prices" } as unknown as { event: "system" },
-        () => refresh(),
-      )
-      .subscribe();
+    if (IS_DEMO) return () => { cancelled = true; };
+    const unsubscribe = subscribe("product_prices", "", () => refresh());
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [items, listId]);
 
@@ -578,7 +573,9 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                       // Group by date string
                       const byDate: Record<string, Item[]> = {};
                       const today = new Date().toLocaleDateString();
-                      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
+                      const yesterdayDate = new Date();
+                      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                      const yesterday = yesterdayDate.toLocaleDateString();
                       for (const item of checkedItems) {
                         const dateStr = item.checked_at
                           ? new Date(item.checked_at).toLocaleDateString()
@@ -853,7 +850,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         <button
           onClick={async () => {
             if (confirmLeave) {
-              try { await deleteList(listId); } catch { /* realtime will sync */ }
+              try { if (user) await exitList(listId, user.id); } catch { /* realtime will sync */ }
               setConfirmLeave(false);
               setShowListSettings(false);
               onNavigate("lists");

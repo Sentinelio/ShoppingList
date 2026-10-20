@@ -8,7 +8,7 @@
 // can decide whether to rollback (delete the receipt + newly-created
 // items) or keep what succeeded.
 
-import { supabase, IS_DEMO, type ParsedReceipt, type Receipt } from "./supabase";
+import { pb, IS_DEMO, type ParsedReceipt, type Receipt } from "./pocketbase";
 import { addItem, toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { addItemPrice } from "./itemData";
 
@@ -42,7 +42,8 @@ export interface ApplyReceiptParams {
   listId: string;
   parsed: ParsedReceipt;
   reviewed: ReviewedLine[];
-  photoUrl: string | null;
+  // Stored in the receipt's `photo` file field.
+  photoFile: File | null;
   userId: string;
   userName: string;
   onProgress?: (done: number, total: number) => void;
@@ -90,38 +91,40 @@ async function mapLimit<T, R>(
 }
 
 export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyReceiptResult> {
-  if (IS_DEMO || !supabase) {
+  if (IS_DEMO) {
     return { receipt: null, outcomes: [], errors: [] };
   }
 
   const {
-    listId, parsed, reviewed, photoUrl, userId, userName,
+    listId, parsed, reviewed, photoFile, userId, userName,
     onProgress, concurrency = 4,
   } = params;
 
   // 1. Create the receipt row.
-  const { data: receiptRow, error: receiptErr } = await supabase
-    .from("receipts")
-    .insert({
-      list_id: listId,
-      store: parsed.store,
-      store_address: parsed.store_address,
-      nip: parsed.nip,
-      receipt_date: parsed.date,
-      currency: parsed.currency,
-      total: parsed.total,
-      photo_url: photoUrl,
-      raw_json: parsed,
-      added_by: userId,
-      added_by_name: userName,
-    })
-    .select()
-    .single();
+  const form = new FormData();
+  const fields: Record<string, string | number | null> = {
+    list_id: listId,
+    store: parsed.store,
+    store_address: parsed.store_address,
+    nip: parsed.nip,
+    receipt_date: parsed.date,
+    currency: parsed.currency,
+    total: parsed.total,
+    added_by: userId,
+    added_by_name: userName,
+  };
+  for (const [k, v] of Object.entries(fields)) {
+    if (v != null) form.append(k, String(v));
+  }
+  form.append("raw_json", JSON.stringify(parsed));
+  if (photoFile) form.append("photo", photoFile);
 
-  if (receiptErr) {
+  let receipt: Receipt;
+  try {
+    receipt = await pb.collection("receipts").create<Receipt>(form);
+  } catch (receiptErr) {
     throw new Error(`Receipt row insert failed: ${formatSbError(receiptErr)}`);
   }
-  const receipt = receiptRow as Receipt;
 
   const store = parsed.store ?? "";
   const currency = parsed.currency ?? "EUR";
@@ -185,7 +188,7 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyRec
       }
 
       try {
-        await supabase.from("receipt_items").insert({
+        await pb.collection("receipt_items").create({
           receipt_id: receipt.id,
           matched_item_id: itemId,
           raw_name: line.raw_name,
@@ -223,7 +226,7 @@ export async function applyReceipt(params: ApplyReceiptParams): Promise<ApplyRec
 export async function rollbackReceipt(
   result: ApplyReceiptResult,
 ): Promise<void> {
-  if (IS_DEMO || !supabase || !result.receipt) return;
+  if (IS_DEMO || !result.receipt) return;
 
   const newItemIds = result.outcomes
     .filter((o) => o.createdNew && o.itemId)
@@ -234,7 +237,7 @@ export async function rollbackReceipt(
   }
 
   try {
-    await supabase.from("receipts").delete().eq("id", result.receipt.id);
+    await pb.collection("receipts").delete(result.receipt.id);
   } catch (err) {
     console.warn("[rollback] delete receipt", err);
   }

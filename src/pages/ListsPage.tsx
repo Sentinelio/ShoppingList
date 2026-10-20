@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useLists, deleteList, useMyPendingRequests, cancelJoinRequest } from "../hooks/useList";
-import { supabase, IS_DEMO } from "../lib/supabase";
+import { useLists, exitList, useMyPendingRequests, cancelJoinRequest } from "../hooks/useList";
+import { pb, IS_DEMO } from "../lib/pocketbase";
 import { copyToClipboard } from "../lib/clipboard";
 import { demoGetMembers, demoGetItems } from "../lib/demoStore";
 import { t } from "../data/i18n";
 import type { Lang } from "../data/i18n";
-import type { List, ListMember, Item } from "../lib/supabase";
+import type { List, ListMember, Item } from "../lib/pocketbase";
 import { CHANGELOG } from "../data/changelog";
 import SwipeRow from "../components/ui/SwipeRow";
 import Modal from "../components/ui/Modal";
@@ -45,13 +45,11 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   // Fetch latest item timestamp per list
   useEffect(() => {
     if (IS_DEMO || lists.length === 0) return;
-    const ids = lists.map(l => l.id);
-    supabase
-      .from("items")
-      .select("list_id, created_at")
-      .in("list_id", ids)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
+    // The items rule only returns items of lists the user is a member of.
+    pb.collection("items")
+      .getFullList<{ list_id: string; created_at: string }>({ fields: "list_id,created_at", sort: "-created_at" })
+      .catch(() => null)
+      .then((data) => {
         if (!data) return;
         const latest: Record<string, string> = {};
         for (const row of data as Array<{ list_id: string; created_at: string }>) {
@@ -73,7 +71,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
 
   const handleDelete = async (listId: string) => {
     try {
-      await deleteList(listId);
+      if (user) await exitList(listId, user.id);
       refresh();
     } catch {
       // ignore

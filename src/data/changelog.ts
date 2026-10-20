@@ -14,8 +14,29 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v1.00",
+    version: "v1.01",
     hash: "HEAD",
+    date: "2026-10-20",
+    time: "18:30",
+    type: "refactor",
+    title: "Backend moved from Supabase to a self-hosted PocketBase",
+    details: [
+      "The app now talks to PocketBase (VITE_PB_URL) through the official `pocketbase` SDK; @supabase/supabase-js is gone. The old Supabase project is abandoned and the database starts empty",
+      "Real, invisible auth: the first launch creates an account with a random email + long random password kept in localStorage and signs in with it on every launch. Nothing changes for the user (same profile wizard, same demo mode)",
+      "Locked-down permissions: everything inside a list (items, prices, comments, history, receipts) is only visible/editable by its active members. Rules use lists.active_members / lists.owners, kept in sync by server hooks",
+      "Joining by code goes through POST /api/babelcart/join (non-members can't read the list); approve / reject / remove keep the owner / any-member settings",
+      "Edge Functions → PocketBase routes under /api/babelcart/ (translate, translate-ui, parse-receipt, seed-dictionary, phrase-used) with the same prompts; models configurable on the server",
+      "The translate route now saves new words to the dictionary itself; dictionary, store phrases and app config are writable only by admins (users.is_admin, set from the PocketBase dashboard). #admin is locked for everyone else",
+      "Product price book (product_prices) is filled by a server hook on item_prices, like the old trigger",
+      "Receipt photos are stored in the receipt's photo field; item photos in a new item_photos collection",
+      "Store phrases now live in their own store_phrases collection (seeded with the 6 default phrases); taps are counted server-side too",
+      "Members who are not owners now leave the list from the list settings instead of deleting it for everyone",
+      "Backend code lives in pocketbase/ (migrations, hooks, deploy script, tests); the old supabase/ folder moved to legacy/supabase/",
+    ],
+  },
+  {
+    version: "v1.00",
+    hash: "88afce0",
     date: "2026-04-22",
     time: "11:00",
     type: "feat",

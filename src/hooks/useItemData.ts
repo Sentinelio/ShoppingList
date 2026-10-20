@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { supabase, IS_DEMO, type ItemPrice, type ItemComment, type ItemHistoryEvent } from "../lib/supabase";
+import { pb, IS_DEMO, subscribe, type ItemPrice, type ItemComment, type ItemHistoryEvent } from "../lib/pocketbase";
 import { getItemPrices, getItemComments, getItemHistory } from "../lib/itemData";
+
+// Each hook loads the rows of one item and reloads them on any realtime
+// change for that item. The subscription is closed on unmount.
 
 // ── PRICES ─────────────────────────────────────────────────────────────
 
@@ -12,20 +15,17 @@ export function useItemPrices(itemId: string | undefined): ItemPrice[] {
     let cancelled = false;
     getItemPrices(itemId).then(p => { if (!cancelled) setPrices(p); });
 
-    if (IS_DEMO || !supabase) return () => { cancelled = true; };
+    if (IS_DEMO) return () => { cancelled = true; };
 
-    const channel = supabase
-      .channel(`item_prices:${itemId}`)
-      .on(
-        "postgres_changes" as "system",
-        { event: "*", schema: "public", table: "item_prices", filter: `item_id=eq.${itemId}` } as unknown as { event: "system" },
-        () => { getItemPrices(itemId).then(p => { if (!cancelled) setPrices(p); }); }
-      )
-      .subscribe();
+    const unsubscribe = subscribe<ItemPrice>(
+      "item_prices",
+      pb.filter("item_id = {:itemId}", { itemId }),
+      () => { getItemPrices(itemId).then(p => { if (!cancelled) setPrices(p); }); },
+    );
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [itemId]);
 
@@ -42,20 +42,17 @@ export function useItemComments(itemId: string | undefined): ItemComment[] {
     let cancelled = false;
     getItemComments(itemId).then(c => { if (!cancelled) setComments(c); });
 
-    if (IS_DEMO || !supabase) return () => { cancelled = true; };
+    if (IS_DEMO) return () => { cancelled = true; };
 
-    const channel = supabase
-      .channel(`item_comments:${itemId}`)
-      .on(
-        "postgres_changes" as "system",
-        { event: "*", schema: "public", table: "item_comments", filter: `item_id=eq.${itemId}` } as unknown as { event: "system" },
-        () => { getItemComments(itemId).then(c => { if (!cancelled) setComments(c); }); }
-      )
-      .subscribe();
+    const unsubscribe = subscribe<ItemComment>(
+      "item_comments",
+      pb.filter("item_id = {:itemId}", { itemId }),
+      () => { getItemComments(itemId).then(c => { if (!cancelled) setComments(c); }); },
+    );
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [itemId]);
 
@@ -72,20 +69,17 @@ export function useItemHistory(itemId: string | undefined): ItemHistoryEvent[] {
     let cancelled = false;
     getItemHistory(itemId).then(h => { if (!cancelled) setHistory(h); });
 
-    if (IS_DEMO || !supabase) return () => { cancelled = true; };
+    if (IS_DEMO) return () => { cancelled = true; };
 
-    const channel = supabase
-      .channel(`item_history:${itemId}`)
-      .on(
-        "postgres_changes" as "system",
-        { event: "*", schema: "public", table: "item_history", filter: `item_id=eq.${itemId}` } as unknown as { event: "system" },
-        () => { getItemHistory(itemId).then(h => { if (!cancelled) setHistory(h); }); }
-      )
-      .subscribe();
+    const unsubscribe = subscribe<ItemHistoryEvent>(
+      "item_history",
+      pb.filter("item_id = {:itemId}", { itemId }),
+      () => { getItemHistory(itemId).then(h => { if (!cancelled) setHistory(h); }); },
+    );
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [itemId]);
 

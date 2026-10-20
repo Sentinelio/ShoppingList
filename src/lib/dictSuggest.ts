@@ -4,7 +4,7 @@
 // merges it with LOCAL_DICTIONARY, pre-normalizes all translations into a
 // single searchable string per entry, and exposes a fast substring matcher.
 
-import { supabase, IS_DEMO } from "./supabase";
+import { pb, IS_DEMO } from "./pocketbase";
 import { LOCAL_DICTIONARY, type DictEntry } from "../data/localDictionary";
 
 export interface DictSuggestion {
@@ -47,15 +47,12 @@ function localEntryToSuggestion(e: DictEntry): DictSuggestion {
 async function fetchRemoteDict(): Promise<DictSuggestion[]> {
   if (IS_DEMO) return [];
   const all: DictSuggestion[] = [];
-  const pageSize = 1000;
-  let from = 0;
-  for (;;) {
-    const { data, error } = await supabase
-      .from("dictionary")
-      .select("key, translations, category")
-      .range(from, from + pageSize - 1);
-    if (error || !data) break;
-    for (const row of data as Array<{ key: string; translations: Record<string, string>; category: string }>) {
+  try {
+    const data = await pb.collection("dictionary").getFullList<{ key: string; translations: Record<string, string>; category: string }>({
+      batch: 1000,
+      fields: "key,translations,category",
+    });
+    for (const row of data) {
       const translations = row.translations || {};
       all.push({
         key: row.key,
@@ -64,9 +61,7 @@ async function fetchRemoteDict(): Promise<DictSuggestion[]> {
         haystack: buildHaystack(translations),
       });
     }
-    if (data.length < pageSize) break;
-    from += pageSize;
-  }
+  } catch { /* offline: no remote suggestions */ }
   return all;
 }
 

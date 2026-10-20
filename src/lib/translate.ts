@@ -1,4 +1,4 @@
-import { supabase, IS_DEMO, type DictEntry as DbDictEntry } from './supabase';
+import { pb, IS_DEMO, pbFirst, callRoute, type DictEntry as DbDictEntry } from './pocketbase';
 import { LOCAL_DICTIONARY, type DictEntry } from '../data/localDictionary';
 
 export interface TranslateResult {
@@ -131,7 +131,7 @@ export async function translateProduct(
     // but keep the local translations as a base
   }
 
-  // In demo mode without Supabase, skip API calls
+  // In demo mode without a backend, skip API calls
   if (IS_DEMO) {
     const translations: Record<string, string> = {};
     for (const lang of targetLangs) {
@@ -141,29 +141,22 @@ export async function translateProduct(
     return { translations, category: local?.category ?? 'other' };
   }
 
-  // 2. Supabase dictionary table. Brands live there under their canonical
+  // 2. PocketBase dictionary collection. Brands live there under their canonical
   // form, but the user may type any variant ("coca cola", "COCA-COLA") —
   // we query by the punctuation-stripped key.
   const normalizedKey = normalizeKey(text);
   try {
     // First try the exact (lowercased) key for back-compat with older rows.
     let dbEntry: DbDictEntry | null = null;
-    const { data: exactHit } = await supabase
-      .from('dictionary')
-      .select('*')
-      .eq('key', text.toLowerCase().trim())
-      .single();
-    if (exactHit) dbEntry = exactHit as DbDictEntry;
+    const exactHit = await pbFirst<DbDictEntry>('dictionary', 'key = {:key}', { key: text.toLowerCase().trim() });
+    if (exactHit) dbEntry = exactHit;
 
     // If nothing, look for any row whose `en` translation collapses to the
     // same normalized key (typical for brands stored as "Coca-Cola").
     if (!dbEntry) {
-      const { data: candidates } = await supabase
-        .from('dictionary')
-        .select('*')
-        .eq('is_brand', true);
+      const candidates = await pb.collection('dictionary').getFullList<DbDictEntry>({ filter: 'is_brand = true' });
       if (candidates) {
-        for (const row of candidates as DbDictEntry[]) {
+        for (const row of candidates) {
           const canonical = row.translations?.en ?? row.key;
           if (canonical && normalizeKey(canonical) === normalizedKey) {
             dbEntry = row;
@@ -200,27 +193,13 @@ export async function translateProduct(
     }
   } catch { /* continue to API */ }
 
-  // 3. Supabase Edge Function (Claude API) — using direct fetch for reliability
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-  const fnUrl = `${supabaseUrl}/functions/v1/translate`;
-
+  // 3. Server route (Claude API). It also saves the result to the
+  //    dictionary, which clients can't write to.
   try {
-    const response = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`,
-        'apikey': supabaseKey,
-      },
-      body: JSON.stringify({ text, langs: targetLangs }),
-    });
-
-    const fnData = await response.json();
-
-    if (!response.ok) {
-      throw new Error(`Edge Function ${response.status}: ${JSON.stringify(fnData)}`);
-    }
+    const fnData = await callRoute<{
+      t?: Record<string, string>; c?: string; b?: boolean;
+      translations?: Record<string, string>; category?: string; isBrand?: boolean;
+    }>('translate', { text, langs: targetLangs });
 
     // Handle both formats: {translations, category, isBrand} or {t, c, b}
     const apiTranslations = fnData.translations ?? fnData.t ?? {};
@@ -242,26 +221,7 @@ export async function translateProduct(
       }
     }
 
-    const result: TranslateResult = { translations, category, isBrand };
-
-    // Save to dictionary for future lookups. Brands use their canonical
-    // english form as the key (lowercase, normalized) so duplicate variants
-    // resolve to the same row.
-    try {
-      const dictKey = isBrand
-        ? normalizeKey(translations.en ?? text)
-        : text.toLowerCase().trim();
-      await supabase.from('dictionary').upsert({
-        key: dictKey,
-        translations: result.translations,
-        category: result.category,
-        is_brand: isBrand,
-      });
-    } catch {
-      // ignore upsert errors
-    }
-
-    return result;
+    return { translations, category, isBrand };
   } catch {
     const translations: Record<string, string> = { [userLang]: text, en: text };
     return { translations, category: local?.category ?? 'other' };

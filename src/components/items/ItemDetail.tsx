@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
-import type { Item } from "../../lib/supabase";
+import type { Item } from "../../lib/pocketbase";
 import { getLangFlag } from "../../data/langs";
 import { t, formatQtyUnit } from "../../data/i18n";
 import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";

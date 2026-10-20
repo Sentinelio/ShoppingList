@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { Item } from "../../lib/supabase";
+import type { Item } from "../../lib/pocketbase";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { getCategoryColor } from "../../data/categories";
 import { t, formatQtyUnit, type Lang } from "../../data/i18n";

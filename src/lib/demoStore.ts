@@ -1,5 +1,5 @@
 // Demo mode: detects if Supabase is not configured and provides in-memory storage
-import type { User, List, ListMember, Item } from './supabase';
+import type { User, List, ListMember, Item } from './pocketbase';
 
 const DEMO_STORAGE_KEY = 'polyglot_demo_db';
 

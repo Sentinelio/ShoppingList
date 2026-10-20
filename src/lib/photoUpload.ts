@@ -1,22 +1,19 @@
-import { supabase, IS_DEMO } from "./supabase";
+import { pb, IS_DEMO } from "./pocketbase";
 
-const BUCKET = "item-photos";
-
+// Item photos live in the `item_photos` collection (replaces the
+// `item-photos` storage bucket); items.photo keeps the public file URL.
 export async function uploadItemPhoto(file: File): Promise<string | null> {
-  if (IS_DEMO || !supabase) return null;
+  if (IS_DEMO) return null;
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const form = new FormData();
+  form.append("file", file);
+  form.append("uploaded_by", pb.authStore.record?.id ?? "");
 
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { cacheControl: "3600", upsert: false });
-
-  if (error) {
+  try {
+    const rec = await pb.collection("item_photos").create(form);
+    return pb.files.getURL(rec, rec.file as string);
+  } catch (error) {
     console.error("[uploadItemPhoto]", error);
     throw error;
   }
-
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
 }
