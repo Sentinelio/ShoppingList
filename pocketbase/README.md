@@ -23,10 +23,60 @@ The frontend reaches it at `VITE_PB_URL` (`.env.production`:
 | Service | NSSM service `PocketBase`, listening on `127.0.0.1:8090` |
 | Data | `C:\pocketbase\pb_data` (SQLite + uploaded files) |
 | Migrations / hooks | `C:\pocketbase\pb_migrations`, `C:\pocketbase\pb_hooks` (copied from this folder) |
-| Public URL | Tailscale Funnel → `https://server-pc.tail3b4002.ts.net` (dashboard at `/_/`) |
+| Public API | Tailscale Funnel → `https://server-pc.tail3b4002.ts.net/api/` |
+| Dashboard | `https://server-pc.tail3b4002.ts.net:8445/_/` (Tailscale only) or `http://127.0.0.1:8090/_/` on the server |
 
 > ⚠️ The same domain serves another app on **`/webhook`** and **`/health/public`**.
-> PocketBase only uses `/api/*` and `/_/`; don't route anything else there.
+> Don't change or remove those handlers.
+
+## Tailscale (Funnel + dashboard)
+
+Only `/api` is public. The dashboard is not reachable from the internet.
+
+```
+https://server-pc.tail3b4002.ts.net (Funnel on)
+|-- /api           proxy http://127.0.0.1:8090/api      ← PocketBase API (public)
+|-- /webhook       proxy http://127.0.0.1:8801/webhook  ← other app
+|-- /health/public proxy http://127.0.0.1:8801/health/public
+
+https://server-pc.tail3b4002.ts.net:8445 (tailnet only)
+|-- / proxy http://127.0.0.1:8090                       ← dashboard /_/ (+ its /api)
+```
+
+- The `/api` target includes `/api`: Tailscale strips the mount path and
+  appends the rest to the target, so PocketBase still receives `/api/...`.
+- Everything the app uses lives under `/api/`: records, auth, files
+  (`/api/files/...`), realtime (`/api/realtime`, long-lived SSE, works through
+  the Funnel) and the custom routes (`/api/babelcart/*`).
+- The dashboard needs `/_/` and `/api/` on the same origin, which is why port
+  8445 proxies the whole of PocketBase.
+
+Set up (elevated PowerShell):
+
+```powershell
+tailscale serve status --json > C:\pocketbase\tailscale-serve-backup.json
+tailscale funnel --bg --https=443 --set-path=/api http://127.0.0.1:8090/api
+tailscale serve --bg --https=8445 http://127.0.0.1:8090
+tailscale funnel --https=443 --set-path=/ off   # only if a "/" → 8090 handler exists
+tailscale funnel status
+```
+
+Check:
+
+```powershell
+npm run test:pb -- --url https://server-pc.tail3b4002.ts.net             # from the repo; no Claude calls
+curl.exe -sN --max-time 5 https://server-pc.tail3b4002.ts.net/api/realtime  # shows event:PB_CONNECT
+curl.exe -s -o NUL -w "%{http_code}`n" https://server-pc.tail3b4002.ts.net/_/       # 404 (not public)
+curl.exe -s -o NUL -w "%{http_code}`n" https://server-pc.tail3b4002.ts.net:8445/_/  # 200 (from the tailnet)
+```
+
+Roll back to the previous setup (whole PocketBase on `/`, dashboard public):
+
+```powershell
+tailscale funnel --bg --https=443 --set-path=/ http://127.0.0.1:8090
+tailscale funnel --https=443 --set-path=/api off
+tailscale serve --https=8445 off
+```
 
 ## Environment variables (on the service)
 
@@ -60,10 +110,18 @@ serve --http=127.0.0.1:8090 --origins=https://sentinelio.github.io,http://localh
    nssm set PocketBase AppStdout C:\pocketbase\service.log
    nssm set PocketBase AppStderr C:\pocketbase\service.log
    ```
-3. Publish it: `tailscale funnel --bg 8090` (or add `/` → `127.0.0.1:8090`
-   next to the existing `/webhook` and `/health/public` handlers).
+3. Publish only the API through the Funnel, next to the existing `/webhook`
+   and `/health/public` handlers, and the dashboard on port 8445 for the
+   tailnet only (see [Tailscale](#tailscale-funnel--dashboard)):
+   ```powershell
+   tailscale funnel --bg --https=443 --set-path=/api http://127.0.0.1:8090/api
+   tailscale serve --bg --https=8445 http://127.0.0.1:8090
+   ```
+   The dashboard is then at `https://server-pc.tail3b4002.ts.net:8445/_/` over
+   Tailscale, or `http://127.0.0.1:8090/_/` on the server itself.
 4. Deploy this folder with `-Reset` (below), then create the superuser.
-5. Open the app once to create your profile, then in `/_/` → **users** tick
+5. Open the app once to create your profile, then in the dashboard
+   (`https://server-pc.tail3b4002.ts.net:8445/_/`) → **users** tick
    `is_admin` on your user (the app's `#admin` page shows your user id).
 
 ## Deploy

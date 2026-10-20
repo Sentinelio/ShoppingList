@@ -114,5 +114,6 @@ if ($Reset) {
   Write-Host ""
   Write-Host "pb_data was wiped: recreate the superuser now, e.g.:" -ForegroundColor Yellow
   Write-Host "  & `"$exe`" superuser upsert you@example.com 'a-long-password' --dir `"$dstData`"" -ForegroundColor Yellow
-  Write-Host "Then open https://server-pc.tail3b4002.ts.net/_/ to log in." -ForegroundColor Yellow
+  Write-Host "Then log in to the dashboard: https://server-pc.tail3b4002.ts.net:8445/_/ (over Tailscale)" -ForegroundColor Yellow
+  Write-Host "or http://127.0.0.1:8090/_/ on this server." -ForegroundColor Yellow
 }
