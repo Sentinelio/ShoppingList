@@ -5,8 +5,11 @@
 //
 // Options / env:
 //   --url <url>          PocketBase URL (env PB_URL, default http://127.0.0.1:8091)
-//   --admin-email <e>    superuser email (env PB_ADMIN_EMAIL)   — needed to flag a
-//   --admin-pass <p>     superuser password (env PB_ADMIN_PASS)   test user as is_admin
+//   --admin-email <e>    superuser email (env PB_ADMIN_EMAIL) — needed to flag a test
+//                        user as is_admin. If no password is given, it is asked
+//                        for on the terminal without echoing it (recommended).
+//   --admin-pass <p>     superuser password (env PB_ADMIN_PASS). Avoid it: npm
+//                        prints the full command line, password included.
 //   (default)            never reaches Claude: the Claude routes are only checked
 //                        for auth (401) and input validation (400). Safe against
 //                        the real server, costs no API calls.
@@ -35,7 +38,7 @@ const flag = (name) => argv.includes(`--${name}`);
 
 const URL_ = arg("url", process.env.PB_URL ?? "http://127.0.0.1:8091");
 const ADMIN_EMAIL = arg("admin-email", process.env.PB_ADMIN_EMAIL);
-const ADMIN_PASS = arg("admin-pass", process.env.PB_ADMIN_PASS);
+let ADMIN_PASS = arg("admin-pass", process.env.PB_ADMIN_PASS);
 const LIVE = flag("live");
 const DRY = flag("dry-run");
 if (LIVE && DRY) {
@@ -49,6 +52,42 @@ const KEEP = flag("keep");
 if (typeof EventSource === "undefined") {
   console.error("Run with: node --experimental-eventsource pocketbase/tests/run.mjs");
   process.exit(2);
+}
+
+// Reads a line from the terminal without echoing it.
+function promptHidden(question) {
+  const stdin = process.stdin;
+  if (!stdin.isTTY) {
+    console.error("--admin-email without a password needs an interactive terminal (or set PB_ADMIN_PASS).");
+    process.exit(2);
+  }
+  return new Promise((resolve) => {
+    process.stdout.write(question);
+    let value = "";
+    const onData = (chunk) => {
+      for (const ch of chunk) {
+        if (ch === "\r" || ch === "\n" || ch === "\u0004") { // Enter / Ctrl+D
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdin.off("data", onData);
+          process.stdout.write("\n");
+          resolve(value);
+          return;
+        }
+        if (ch === "\u0003") { // Ctrl+C
+          stdin.setRawMode(false);
+          process.stdout.write("\n");
+          process.exit(130);
+        }
+        if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1); // Backspace
+        else value += ch;
+      }
+    };
+    stdin.setRawMode(true);
+    stdin.setEncoding("utf8");
+    stdin.on("data", onData);
+    stdin.resume();
+  });
 }
 
 // ── tiny test harness ─────────────────────────────────────────────────────
@@ -131,6 +170,9 @@ console.log(`BabelCart backend tests → ${URL_} (${MODE})`);
 
 const su = new PocketBase(URL_);
 su.autoCancellation(false);
+if (ADMIN_EMAIL && !ADMIN_PASS) {
+  ADMIN_PASS = await promptHidden(`Superuser password for ${ADMIN_EMAIL}: `);
+}
 if (ADMIN_EMAIL && ADMIN_PASS) {
   await su.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASS);
 }

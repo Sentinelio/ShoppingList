@@ -199,18 +199,25 @@ Run the frontend against it with `VITE_PB_URL=http://127.0.0.1:8091 npm run dev`
 Every run creates and deletes its own throwaway users and lists (and bumps the
 usage count of the `thanks` phrase by one).
 
+To include the `is_admin` tests, pass only `--admin-email <superuser>`: the
+script then asks for the password on the terminal without showing it. Don't
+use `--admin-pass` with real credentials — `npm run` prints the full command
+line, password included (and it stays in the shell history). In a
+non-interactive run, set `PB_ADMIN_PASS` in the environment instead.
+
 - **Default mode, no Claude calls.** The Claude routes are only checked for
   auth (401) and input validation (400). Use it to verify a deployment, the
   Funnel routing and realtime:
   ```powershell
   npm run test:pb -- --url https://server-pc.tail3b4002.ts.net
-  # add --admin-email <superuser> --admin-pass <password> to include the is_admin tests
+  # with the is_admin tests (asks for the password):
+  npm run test:pb -- --url https://server-pc.tail3b4002.ts.net --admin-email <superuser>
   ```
 - **`--live` calls Claude for real** (costs API calls; `translate` leaves
   "zanahorias" in `dictionary`):
   ```powershell
   npm run test:pb -- --url https://server-pc.tail3b4002.ts.net --live `
-    --admin-email <superuser> --admin-pass <password> [--receipt C:\path\ticket.jpg]
+    --admin-email <superuser> [--receipt C:\path\ticket.jpg]
   ```
 
 Never use `--dry-run` against the real server: it doesn't run with
