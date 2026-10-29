@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { t, type Lang } from "../data/i18n";
 import { LANGS } from "../data/langs";
-import { COUNTRIES } from "../data/countries";
+import { getCountries } from "../data/countries";
 
 interface SettingsPageProps {
   onNavigate: (page: string) => void;
@@ -88,7 +88,7 @@ export default function SettingsPage({ onNavigate }: SettingsPageProps) {
                   onChange={e => { setSelectedCountry(e.target.value); saveField({ country: e.target.value }); }}
                   className="w-full py-3 px-4 bg-bg border border-border-light rounded-xl text-text outline-none focus:border-accent transition-colors appearance-none cursor-pointer text-sm"
                 >
-                  {COUNTRIES.map(c => (
+                  {getCountries().map(c => (
                     <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
                   ))}
                 </select>

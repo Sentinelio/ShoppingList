@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { t, type Lang, strings } from "../../data/i18n";
 import { LANGS } from "../../data/langs";
-import { COUNTRIES } from "../../data/countries";
+import { getCountries } from "../../data/countries";
 import { isNetworkError } from "../../lib/netError";
 
 interface SetupWizardProps {
@@ -15,7 +15,7 @@ function detectDefaults(): { lang: string; country: string } {
   const [primary, region] = locale.split("-");
   const lang = LANGS.some((l) => l.code === primary) ? primary : "en";
   const country =
-    region && COUNTRIES.some((c) => c.code === region.toUpperCase()) ? region.toUpperCase() : "";
+    region && getCountries().some((c) => c.code === region.toUpperCase()) ? region.toUpperCase() : "";
   return { lang, country };
 }
 
@@ -132,7 +132,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <option value="" disabled>
                   {t(ui, "setupCountryTitle")}
                 </option>
-                {COUNTRIES.map((c) => (
+                {getCountries().map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.flag} {c.name}
                   </option>

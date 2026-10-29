@@ -135,6 +135,46 @@ Recommended service arguments (CORS limited to the app):
 serve --http=127.0.0.1:8090 --origins=https://sentinelio.github.io,http://localhost:5173,http://localhost:4173
 ```
 
+## Configuración editada desde el admin
+
+Everything the app reads that is edited in the admin panel (`#admin`, users
+with `is_admin`). All writes are admin-only on the server (collection rules).
+
+| What | Where (collection / key) | Read by | Cache | Shows up in other open apps |
+|---|---|---|---|---|
+| Themes and list layout | `app_config` · `themes` | `src/lib/themeStore.ts` | localStorage `babelcart_themes_v1` + memory | at once (realtime) |
+| Enabled languages (and so the countries) | `app_config` · `enabled_langs` | `src/lib/langConfig.ts`, `getCountries()` | localStorage `babelcart_enabled_langs` | at once |
+| UI strings for extra languages | `app_config` · `ui_translations` | `t()` in `src/data/i18n.ts` | localStorage `babelcart_ui_translations` | at once |
+| Item detail variants (lab) | `app_config` · `lab_selection` | `src/lib/itemDetailLab.ts` | localStorage `babelcart_item_detail_lab_v1` | at once |
+| Custom store types, categories, mapping | `app_config` · `custom_store_types`, `custom_categories`, `cat_mapping` | admin catalog; category names/emoji/colour in the app (`src/data/categories.ts`) | localStorage `babelcart_custom_*` | at once |
+| Dictionary (suggestions) | `dictionary` | `src/lib/dictSuggest.ts` | memory, per session | at once (reloaded 1.5 s after the last change) |
+| Dictionary (translating a new product) | `dictionary` | `src/lib/translate.ts` | none: asks the server every time | at once |
+| Staff phrases | `store_phrases` | `src/lib/storePhrasesStore.ts` | memory (usage counts per device in localStorage) | at once |
+| Bulk list settings (Admin → Lists) | `lists` | `useListDetail` | none | when the list is opened again |
+
+How it stays fresh (`src/lib/liveConfig.ts`, `src/main.tsx`):
+
+- `app_config` is applied **before the first render** (at most 2 s wait, then
+  the cached copy), so a reload is always enough. Any row the admin saved
+  replaces the browser's copy, empty lists included.
+- While the app is open, realtime subscriptions on `app_config`,
+  `dictionary` and `store_phrases` apply changes as they happen; an
+  `app_config` change re-renders the current page. When the tab comes back
+  to the foreground everything is read again (realtime can miss events while
+  a phone sleeps).
+
+Before this (fixed in 2026-10): `app_config` loaded after the first render
+(two reloads needed), an emptied value (e.g. the last custom category
+removed) never reached other browsers until their data was cleared, the
+countries were fixed at start-up, the dictionary and phrases only refreshed
+on reload, and opening the admin pushed that browser's whole local config to
+the server, overwriting newer settings (also via a stale in-memory theme
+selection).
+
+Admin errors are never silent: a failed action shows a red banner until
+dismissed (with the Tailscale hint for network failures) and logs the full
+error with `console.error`. The header dot pings `/api/health` every 30 s.
+
 ## Install from scratch
 
 1. Download the latest PocketBase for Windows (amd64) from

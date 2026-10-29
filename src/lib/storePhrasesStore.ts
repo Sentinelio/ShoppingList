@@ -126,7 +126,8 @@ async function fetchFromRemote(): Promise<StorePhrase[]> {
     return data
       .map((r, i) => fromRow(r, i))
       .sort((a, b) => a.sort_order - b.sort_order);
-  } catch {
+  } catch (err) {
+    console.error("[storePhrases] could not load store_phrases, using the built-in ones", err);
     remoteOk = false;
     return FALLBACK;
   }
@@ -231,11 +232,11 @@ export async function reorderStorePhrases(orderedKeys: string[]): Promise<void> 
     await Promise.all(
       next.map(p => upsertByKey("store_phrases", p.key, toRow(p))),
     );
-  } catch {
-    // If persistence fails we'll still have the optimistic local order.
-    // Refresh to reconcile with whatever actually landed.
+  } catch (err) {
+    // Refresh to reconcile with whatever actually landed, then surface the
+    // real server error.
     await refreshStorePhrases();
-    throw new Error("Failed to persist new order");
+    throw err;
   }
 }
 
@@ -284,6 +285,8 @@ export async function fillPhrasesForLang(
   // parallel so the optimistic cache sync via refreshStorePhrases at the end
   // reflects the final state without races.
   let filled = 0;
+  let firstError: unknown = null;
+  let failed = 0;
   const keys = Object.keys(stringsToTranslate);
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
@@ -297,10 +300,17 @@ export async function fillPhrasesForLang(
         translations: { ...phrase.translations, [lang]: translation.trim() },
       });
       filled++;
-    } catch { /* skip individual failures */ }
+    } catch (err) {
+      failed++;
+      firstError ??= err;
+    }
     onProgress?.(i + 1, keys.length);
   }
   await refreshStorePhrases();
+  if (failed) {
+    console.error(`[storePhrases] ${failed} phrase(s) could not be saved for ${lang}`, firstError);
+    throw firstError instanceof Error ? firstError : new Error(`${failed} phrase(s) could not be saved`);
+  }
   return { filled };
 }
 

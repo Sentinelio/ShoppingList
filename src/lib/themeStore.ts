@@ -78,7 +78,11 @@ function persist() {
   } catch { /* ignore quota */ }
 }
 
+// Re-reads localStorage: main.tsx calls this after applying the server's
+// app_config, and the module-level `current` was read before that (at import
+// time). Saving with that stale copy used to overwrite newer settings.
 export function initThemes() {
+  current = readSelection();
   if (typeof document === "undefined") return;
   applyCssVars(current);
 }

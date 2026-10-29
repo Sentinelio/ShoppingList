@@ -11,7 +11,7 @@ import CreateListModal from "../components/lists/CreateListModal";
 import JoinListModal from "../components/lists/JoinListModal";
 import { readJoinHash } from "../lib/joinLink";
 import { LANGS } from "../data/langs";
-import { COUNTRIES, getCountryFlag } from "../data/countries";
+import { getCountries, getCountryFlag } from "../data/countries";
 import { IconBack, IconChevronRight, IconPlus } from "../components/ui/icons";
 
 interface ListsPageProps {
@@ -334,7 +334,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                   onChange={e => updateUser({ country: e.target.value })}
                   className="w-full py-3 px-4 bg-bg border border-border-light rounded-xl text-text outline-none focus:border-accent appearance-none cursor-pointer text-sm"
                 >
-                  {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+                  {getCountries().map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">▾</div>
               </div>

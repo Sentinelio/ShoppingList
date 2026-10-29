@@ -226,15 +226,30 @@ export const CATEGORY_ORDER = [
   "other",
 ];
 
+// Custom categories created in the admin (app_config "custom_categories",
+// copied to localStorage by lib/appConfigStore.ts). Read directly here to
+// avoid an import cycle with lib/customStoreConfig.ts.
+type CategoryDef = { emoji: string; color: string; en: string; es: string; pl: string };
+function customCategory(cat: string): CategoryDef | undefined {
+  try {
+    const raw = localStorage.getItem("babelcart_custom_categories");
+    if (!raw) return undefined;
+    return (JSON.parse(raw) as Array<CategoryDef & { id: string }>).find(c => c.id === cat);
+  } catch {
+    return undefined;
+  }
+}
+const categoryDef = (cat: string): CategoryDef | undefined => CATEGORIES[cat] ?? customCategory(cat);
+
 export function getCategoryName(cat: string, lang: string): string {
-  const c = CATEGORIES[cat] ?? CATEGORIES.other;
+  const c = categoryDef(cat) ?? CATEGORIES.other;
   return (c as Record<string, string>)[lang] ?? c.en;
 }
 
 export function getCategoryEmoji(cat: string): string {
-  return CATEGORIES[cat]?.emoji ?? "🛒";
+  return categoryDef(cat)?.emoji ?? "🛒";
 }
 
 export function getCategoryColor(cat: string): string {
-  return CATEGORIES[cat]?.color ?? "#8b949e";
+  return categoryDef(cat)?.color ?? "#8b949e";
 }

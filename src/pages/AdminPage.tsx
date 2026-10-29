@@ -5,7 +5,7 @@ import { LANGS } from "../data/langs";
 import { ALL_LANGUAGES } from "../data/allLanguages";
 import { getEnabledLangs, enableLang, disableLang, getStoredUITranslations, saveUITranslations } from "../lib/langConfig";
 import { strings } from "../data/i18n";
-import { COUNTRIES } from "../data/countries";
+import { getCountries } from "../data/countries";
 import { CATEGORIES, CATEGORY_ORDER } from "../data/categories";
 import { LOCAL_DICTIONARY } from "../data/localDictionary";
 import {
@@ -20,10 +20,11 @@ import { SEED_CATEGORIES } from "../data/seedCategories";
 import { CHANGELOG, type ChangeType } from "../data/changelog";
 import { ALL_THEMES, VIEW_LABELS, type ThemeView } from "../data/themes";
 import { setThemeId, setItemsLayoutId, resetThemes } from "../lib/themeStore";
-import { pushAllConfigToRemote } from "../lib/appConfigStore";
 import { syncLabSelectionToRemote } from "../lib/itemDetailLab";
 import { useSelection } from "../hooks/useTheme";
 import ThemePreview from "../components/admin/ThemePreview";
+import { ConnectionBadge, AdminErrorBanner } from "../components/admin/AdminStatus";
+import { reportAdminError, describeError } from "../lib/adminErrors";
 import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
 import type { Item, ListMember } from "../lib/pocketbase";
 import {
@@ -305,7 +306,7 @@ function PhrasesAdminSection() {
       await deleteStorePhrase(key);
       showToast(`Deleted '${key}'`);
     } catch (err) {
-      showToast(`Error: ${(err as Error).message}`);
+      reportAdminError(`Borrar frase '${key}'`, err);
     }
   };
 
@@ -315,7 +316,7 @@ function PhrasesAdminSection() {
       const { filled } = await fillPhrasesForLang(lang);
       showToast(filled > 0 ? `✅ Filled ${filled} ${lang} phrases` : `All phrases already have ${lang}`);
     } catch (err) {
-      showToast(`Error: ${(err as Error).message}`);
+      reportAdminError(`Traducir frases a ${lang}`, err);
     }
     setFillingLang(null);
   };
@@ -415,7 +416,7 @@ function PhrasesAdminSection() {
             await reorderStorePhrases(newKeys);
             showToast("Order updated");
           } catch (err) {
-            showToast(`Error: ${(err as Error).message}`);
+            reportAdminError("Reordenar frases", err);
           }
           setLocalOrder(null);
         }}
@@ -499,7 +500,7 @@ function PhraseEditModal({
       });
       onSaved(isNew ? `Phrase '${key}' added` : `Phrase '${key}' updated`);
     } catch (err) {
-      onSaved(`Error: ${(err as Error).message}`);
+      reportAdminError(`Guardar frase '${key}'`, err);
     }
     setSaving(false);
   };
@@ -625,9 +626,15 @@ function ItemsLayoutsPicker({ selectedId }: { selectedId: string }) {
           const isActive = layout.id === selectedId;
           const Comp = layout.Component;
           return (
-            <button
+            // A div, not a <button>: the previews render the layouts' own
+            // buttons, and a button can't contain buttons.
+            <div
               key={layout.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
               onClick={() => setItemsLayoutId(layout.id)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setItemsLayoutId(layout.id); } }}
               className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
               style={{
                 background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
@@ -677,7 +684,7 @@ function ItemsLayoutsPicker({ selectedId }: { selectedId: string }) {
                   </span>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -694,7 +701,8 @@ async function deleteDictionaryRows(ids: string[]): Promise<string | null> {
     }
     return null;
   } catch (err) {
-    return (err as Error).message;
+    console.error("[admin] delete dictionary rows failed", err);
+    return describeError(err);
   }
 }
 
@@ -703,7 +711,8 @@ async function deleteDictionaryWhere(filter: string): Promise<string | null> {
     const rows = await pb.collection("dictionary").getFullList<{ id: string }>({ filter, fields: "id", batch: 1000 });
     return deleteDictionaryRows(rows.map(r => r.id));
   } catch (err) {
-    return (err as Error).message;
+    console.error("[admin] list dictionary rows failed", err);
+    return describeError(err);
   }
 }
 
@@ -776,15 +785,16 @@ export default function AdminPage() {
     fetch("https://api.github.com/repos/Sentinelio/ShoppingList/actions/runs?per_page=8")
       .then(r => r.json())
       .then(d => { if (d.workflow_runs) setCiRuns(d.workflow_runs); })
-      .catch(() => {})
+      .catch(err => console.error("[admin] GitHub Actions status", err))
       .finally(() => setCiLoading(false));
   }, []);
   useEffect(() => { fetchCI(); }, [fetchCI]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
-  // Push all admin config to Supabase on mount
-  useEffect(() => { void pushAllConfigToRemote(); }, []);
+  // (It used to push this browser's whole localStorage config to the server
+  // on mount, which could overwrite newer settings saved from elsewhere.
+  // Every setter now saves its own key.)
 
   // Detect iframe lab changes via postMessage and sync to Supabase
   useEffect(() => {
@@ -802,35 +812,37 @@ export default function AdminPage() {
       return;
     }
     // 1. Reassign lists created by this user to the next active member (instead of deleting)
-    const ownedLists = await pb.collection("lists").getFullList<{ id: string }>({
-      filter: pb.filter("created_by = {:userId}", { userId }),
-      fields: "id",
-    }).catch(() => [] as Array<{ id: string }>);
+    let ownedLists: Array<{ id: string }> = [];
     let reassigned = 0;
     let deleted = 0;
-    for (const list of ownedLists) {
-      // Find another active member to take ownership
-      const otherMembers = await pb.collection("list_members").getList<{ id: string; user_id: string }>(1, 1, {
-        filter: pb.filter("list_id = {:listId} && status = 'active' && user_id != {:userId}", { listId: list.id, userId }),
-      });
-      if (otherMembers.items.length > 0) {
-        // Reassign list to next member and promote them to owner
-        const newOwner = otherMembers.items[0];
-        await pb.collection("lists").update(list.id, { created_by: newOwner.user_id });
-        await pb.collection("list_members").update(newOwner.id, { role: "owner" });
-        reassigned++;
-      } else {
-        // No other members — safe to delete the list
-        await pb.collection("lists").delete(list.id);
-        deleted++;
-      }
-    }
-    // 2. Deleting the user cascades its list_members rows
-    // 3. Finally delete the user
     try {
+      ownedLists = await pb.collection("lists").getFullList<{ id: string }>({
+        filter: pb.filter("created_by = {:userId}", { userId }),
+        fields: "id",
+      });
+      for (const list of ownedLists) {
+        // Find another active member to take ownership
+        const otherMembers = await pb.collection("list_members").getList<{ id: string; user_id: string }>(1, 1, {
+          filter: pb.filter("list_id = {:listId} && status = 'active' && user_id != {:userId}", { listId: list.id, userId }),
+        });
+        if (otherMembers.items.length > 0) {
+          // Reassign list to next member and promote them to owner
+          const newOwner = otherMembers.items[0];
+          await pb.collection("lists").update(list.id, { created_by: newOwner.user_id });
+          await pb.collection("list_members").update(newOwner.id, { role: "owner" });
+          reassigned++;
+        } else {
+          // No other members — safe to delete the list
+          await pb.collection("lists").delete(list.id);
+          deleted++;
+        }
+      }
+      // 2. Deleting the user cascades its list_members rows
+      // 3. Finally delete the user
       await pb.collection("users").delete(userId);
     } catch (error) {
-      showToast(`Error: ${(error as Error).message}`);
+      reportAdminError("Borrar usuario", error);
+      fetchLists();
       return;
     }
     setUsers(prev => prev.filter(u => u.id !== userId));
@@ -851,7 +863,7 @@ export default function AdminPage() {
     try {
       await pb.collection("lists").delete(listId);
     } catch (error) {
-      showToast(`Error: ${(error as Error).message}`);
+      reportAdminError("Borrar lista", error);
       return;
     }
     setLists(prev => prev.filter(l => l.id !== listId));
@@ -866,7 +878,7 @@ export default function AdminPage() {
     const error = await deleteDictionaryWhere(
       onlyCategory ? pb.filter("category = {:c}", { c: onlyCategory }) : "",
     );
-    if (error) { showToast(`Error: ${error}`); return; }
+    if (error) { reportAdminError(onlyCategory ? `Vaciar categoría '${onlyCategory}'` : "Vaciar diccionario", new Error(error)); return; }
     showToast(onlyCategory ? `Cleared category '${onlyCategory}'` : "Dictionary cleared");
     fetchDictionary();
   };
@@ -877,7 +889,7 @@ export default function AdminPage() {
     const error = await deleteDictionaryWhere(
       pb.filter(ids.map((_, i) => `category = {:c${i}}`).join(" || "), Object.fromEntries(ids.map((c, i) => [`c${i}`, c]))),
     );
-    if (error) { showToast(`Error: ${error}`); return; }
+    if (error) { reportAdminError("Vaciar categorías", new Error(error)); return; }
     showToast(`Cleared ${ids.length} categories`);
     fetchDictionary();
   };
@@ -889,7 +901,7 @@ export default function AdminPage() {
     const orphans = dictRows.filter(d => !valid.has(d.category));
     if (orphans.length === 0) { showToast("No orphan entries found"); return; }
     const error = await deleteDictionaryRows(orphans.map(o => o.id).filter((id): id is string => !!id));
-    if (error) { showToast(`Error: ${error}`); return; }
+    if (error) { reportAdminError("Limpiar entradas huérfanas", new Error(error)); return; }
     showToast(`🧹 Cleaned ${orphans.length} orphan entries`);
     fetchDictionary();
   };
@@ -898,6 +910,8 @@ export default function AdminPage() {
   const purgeLanguageFromDictionary = async (langCode: string) => {
     if (IS_DEMO) return { updated: 0 };
     let updated = 0;
+    let failed = 0;
+    let firstError: unknown = null;
     for (const row of dictRows) {
       if (!row.translations || !(langCode in row.translations)) continue;
       const next: Record<string, string> = { ...row.translations };
@@ -905,8 +919,12 @@ export default function AdminPage() {
       try {
         await upsertByKey("dictionary", row.key, { translations: next });
         updated++;
-      } catch { /* skip */ }
+      } catch (err) {
+        failed++;
+        firstError ??= err;
+      }
     }
+    if (failed) reportAdminError(`Quitar ${langCode} del diccionario (${failed} fallos)`, firstError);
     return { updated };
   };
 
@@ -915,7 +933,10 @@ export default function AdminPage() {
     try {
       const data = await callRoute<{ t?: Record<string, string> }>("translate", { text, langs: [targetLang] });
       if (data?.t?.[targetLang]) return String(data.t[targetLang]);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error(`[admin] translate '${text}' → ${targetLang} failed`, err);
+      throw err;
+    }
     return null;
   };
 
@@ -926,21 +947,27 @@ export default function AdminPage() {
     if (missing.length === 0) { showToast(`All items already have ${langCode} translations`); return; }
     setBulkRunning(`fillLang:${langCode}`);
     let done = 0;
+    let failed = 0;
+    let firstError: unknown = null;
     const CONCURRENCY = 4;
     for (let i = 0; i < missing.length; i += CONCURRENCY) {
       const slice = missing.slice(i, i + CONCURRENCY);
       await Promise.all(slice.map(async row => {
-        const translated = await translateOne(row.key, langCode);
-        if (!translated) return;
-        const next = { ...(row.translations || {}), [langCode]: translated };
         try {
+          const translated = await translateOne(row.key, langCode);
+          if (!translated) return;
+          const next = { ...(row.translations || {}), [langCode]: translated };
           await upsertByKey("dictionary", row.key, { translations: next });
           done++;
-        } catch { /* skip */ }
+        } catch (err) {
+          failed++;
+          firstError ??= err;
+        }
       }));
       showToast(`Translating ${langCode}: ${done}/${missing.length}`);
     }
     setBulkRunning(null);
+    if (failed) reportAdminError(`Traducir diccionario a ${langCode}: ${failed} de ${missing.length} fallaron`, firstError);
     showToast(`✅ Filled ${done}/${missing.length} ${langCode} translations`);
     fetchDictionary();
   };
@@ -952,7 +979,7 @@ export default function AdminPage() {
 
     setBuildingCategory(categoryId);
     try {
-      const data = await callRoute<{ inserted: number }>("seed-dictionary", {
+      const data = await callRoute<{ inserted?: number; generated?: number; dry_run?: boolean }>("seed-dictionary", {
         count: mode === "brands" ? 15 : seed.count,
         // For brands we reuse the seed prompt only as a section label to
         // steer Claude toward the right product space (e.g. "drinks",
@@ -963,10 +990,12 @@ export default function AdminPage() {
         mode,
       });
       const label = mode === "brands" ? `${seed.name} brands` : seed.name;
-      showToast(`✅ ${label}: ${data.inserted} added`);
+      if (data.dry_run) showToast(`🧪 ${label}: dry run (BABELCART_DRY_RUN), nothing saved`);
+      else if (!data.inserted) reportAdminError(`Generar ${label}`, new Error(`Claude returned ${data.generated ?? 0} items, none saved (see the server log)`));
+      else showToast(`✅ ${label}: ${data.inserted} added`);
       fetchDictionary();
     } catch (err) {
-      showToast(`❌ ${(err as Error).message}`);
+      reportAdminError(`Generar ${seed.name}`, err);
     }
     setBuildingCategory(null);
   };
@@ -1006,7 +1035,7 @@ export default function AdminPage() {
     } else {
       const all = await pb.collection("dictionary")
         .getFullList<DictRow>({ sort: "-created_at", batch: 1000 })
-        .catch(() => [] as DictRow[]);
+        .catch((err) => { reportAdminError("Cargar el diccionario", err); return [] as DictRow[]; });
       setDictRows(all);
     }
     setLoading(false);
@@ -1015,7 +1044,8 @@ export default function AdminPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     if (!IS_DEMO) {
-      const data = await pb.collection("users").getFullList<UserRow>({ sort: "-created_at" }).catch(() => null);
+      const data = await pb.collection("users").getFullList<UserRow>({ sort: "-created_at" })
+        .catch((err) => { reportAdminError("Cargar usuarios", err); return null; });
       if (data) setUsers(data);
     }
     setLoading(false);
@@ -1024,12 +1054,13 @@ export default function AdminPage() {
   const fetchLists = useCallback(async () => {
     setLoading(true);
     if (!IS_DEMO) {
-      const data = await pb.collection("lists").getFullList<ListRow>({ sort: "-created_at" }).catch(() => null);
+      const data = await pb.collection("lists").getFullList<ListRow>({ sort: "-created_at" })
+        .catch((err) => { reportAdminError("Cargar listas", err); return null; });
       if (data) setLists(data);
       // Fetch member counts
       const members = await pb.collection("list_members")
         .getFullList<{ list_id: string; status: string }>({ fields: "list_id,status" })
-        .catch(() => null);
+        .catch((err) => { reportAdminError("Cargar miembros", err); return null; });
       if (members) {
         const counts: Record<string, number> = {};
         members.forEach(m => {
@@ -1040,7 +1071,7 @@ export default function AdminPage() {
       // Fetch item counts
       const items = await pb.collection("items")
         .getFullList<{ list_id: string }>({ fields: "list_id" })
-        .catch(() => null);
+        .catch((err) => { reportAdminError("Cargar productos", err); return null; });
       if (items) {
         const counts: Record<string, number> = {};
         items.forEach(i => {
@@ -1065,7 +1096,7 @@ export default function AdminPage() {
     try {
       await upsertByKey("dictionary", key.toLowerCase().trim(), { translations, category });
     } catch (err) {
-      showToast(`Error: ${(err as Error).message}`);
+      reportAdminError(`Guardar '${key}'`, err);
       return;
     }
     showToast("Saved!");
@@ -1077,7 +1108,13 @@ export default function AdminPage() {
   const deleteEntry = async (key: string) => {
     if (IS_DEMO) return;
     const row = dictRows.find(r => r.key === key);
-    if (row?.id) await pb.collection("dictionary").delete(row.id).catch(() => {});
+    if (!row?.id) { reportAdminError(`Borrar '${key}'`, new Error("Entry not found in the loaded dictionary")); return; }
+    try {
+      await pb.collection("dictionary").delete(row.id);
+    } catch (err) {
+      reportAdminError(`Borrar '${key}'`, err);
+      return;
+    }
     showToast("Deleted");
     fetchDictionary();
   };
@@ -1144,36 +1181,7 @@ export default function AdminPage() {
         >
           🛠️ Admin Panel
         </h1>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            flex: "0 0 auto",
-          }}
-        >
-          <span
-            title={IS_DEMO ? "Running in Demo Mode (no backend connection)" : "Connected to PocketBase"}
-            style={{
-              display: "inline-block",
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              background: IS_DEMO ? "#ff5c5c" : "#3dd68c",
-              animation: "admin-status-pulse 2s ease-in-out infinite",
-            }}
-          />
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: IS_DEMO ? "#ff5c5c" : "#3dd68c",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {IS_DEMO ? "Demo Mode" : "PocketBase"}
-          </span>
-        </div>
+        <ConnectionBadge />
       </header>
 
       {/* Tabs */}
@@ -1197,6 +1205,8 @@ export default function AdminPage() {
           {toast}
         </div>
       )}
+
+      <AdminErrorBanner lang={lang} />
 
       <div className="px-4 py-4">
         {loading && <div className="text-center py-8 text-text-muted animate-pulse">Loading...</div>}
@@ -1247,7 +1257,7 @@ export default function AdminPage() {
                 <StatCard label="Store types" value={storeTypesWithCats.length} icon="🏪" color="#6c8aff" />
                 <StatCard label="Categories" value={storeTypesWithCats.reduce((n, st) => n + st.categories.length, 0)} icon="🏷️" color="#f472b6" />
                 <StatCard label="Languages" value={`${enabledLangsList.length}/${ALL_LANGUAGES.length}`} icon="🌍" color="#34d6c0" />
-                <StatCard label="Countries" value={COUNTRIES.length} icon="🗺️" color="#ffb03d" />
+                <StatCard label="Countries" value={getCountries().length} icon="🗺️" color="#ffb03d" />
                 <StatCard label="Users" value={users.length} icon="👥" color="#6c8aff" />
                 <StatCard label="Lists" value={lists.length} icon="📝" color="#c76dff" />
                 <StatCard label="List items" value={totalListItems} icon="🛒" color="#e8c364" />
@@ -1349,7 +1359,7 @@ export default function AdminPage() {
                   <div className="bg-card rounded-xl p-3 border border-border">
                     <h3 className="text-xs font-bold mb-2">🗺️ Users by country</h3>
                     {usersByCountryList.slice(0, 20).map(([code, n]) => {
-                      const c = COUNTRIES.find(cc => cc.code === code);
+                      const c = getCountries().find(cc => cc.code === code);
                       return (
                         <div key={code} className="flex items-center gap-2 py-1">
                           <span className="text-sm w-5">{c?.flag || "🌍"}</span>
@@ -1911,10 +1921,10 @@ export default function AdminPage() {
                 saveUITranslations(langCode, data.translations);
                 showToast(`✅ ${langName} UI ready! (${Object.keys(data.translations).length} strings)`);
               } else {
-                showToast(`❌ Failed`);
+                reportAdminError(`Generar interfaz en ${langName}`, new Error("The server returned no translations"));
               }
             } catch (err) {
-              showToast(`❌ ${(err as Error).message}`);
+              reportAdminError(`Generar interfaz en ${langName}`, err);
             }
           };
 
@@ -2041,7 +2051,9 @@ export default function AdminPage() {
                         try {
                           const { filled } = await fillPhrasesForLang(lang.code);
                           if (filled > 0) showToast(`✅ Filled ${filled} ${lang.code} phrases`);
-                        } catch { /* ignore */ }
+                        } catch (err) {
+                          reportAdminError(`Traducir frases a ${lang.code}`, err);
+                        }
                       }
                     }}
                     className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
@@ -2066,7 +2078,7 @@ export default function AdminPage() {
                 <p className="text-text-muted text-xs mb-3">{users.length} registered users</p>
                 <div className="space-y-2">
                   {users.map(u => {
-                    const flag = COUNTRIES.find(c => c.code === u.country)?.flag || "🌍";
+                    const flag = getCountries().find(c => c.code === u.country)?.flag || "🌍";
                     const langFlag = LANGS.find(l => l.code === u.lang)?.flag || "";
                     const isConfirming = confirmDeleteUser === u.id;
                     return (
@@ -2145,7 +2157,9 @@ export default function AdminPage() {
                               setLists(prev => prev.map(x => ({ ...x, require_approval: next })));
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
-                                await Promise.all(ids.map(id => pb.collection("lists").update(id, { require_approval: next }).catch(() => {})));
+                                const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { require_approval: next })));
+                                const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+                                if (failed.length) { reportAdminError(`Aprobar antes de unirse: ${failed.length} de ${ids.length} listas`, failed[0].reason); fetchLists(); }
                               }
                             }}
                             className="cursor-pointer shrink-0"
@@ -2174,7 +2188,9 @@ export default function AdminPage() {
                               setLists(prev => prev.map(x => ({ ...x, who_can_approve: next })));
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
-                                await Promise.all(ids.map(id => pb.collection("lists").update(id, { who_can_approve: next }).catch(() => {})));
+                                const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { who_can_approve: next })));
+                                const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+                                if (failed.length) { reportAdminError(`Quién puede aprobar: ${failed.length} de ${ids.length} listas`, failed[0].reason); fetchLists(); }
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
@@ -2196,7 +2212,9 @@ export default function AdminPage() {
                               setLists(prev => prev.map(x => ({ ...x, who_can_remove: next })));
                               if (!IS_DEMO) {
                                 const ids = lists.map(l => l.id);
-                                await Promise.all(ids.map(id => pb.collection("lists").update(id, { who_can_remove: next }).catch(() => {})));
+                                const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { who_can_remove: next })));
+                                const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+                                if (failed.length) { reportAdminError(`Quién puede expulsar: ${failed.length} de ${ids.length} listas`, failed[0].reason); fetchLists(); }
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"

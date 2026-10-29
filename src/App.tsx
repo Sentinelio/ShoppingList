@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense, Fragment, useSyncExternalStore } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { IS_DEMO } from './lib/pocketbase'
 import SetupWizard from './components/setup/SetupWizard'
@@ -7,6 +7,7 @@ import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
 import SettingsPage from './pages/SettingsPage'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import { getConfigVersion, subscribeConfigVersion } from './lib/liveConfig'
 
 // AdminPage is only used via #admin hash and imports the whole admin surface
 // area (changelog, stats, seed categories). Lazy-load it so the main bundle
@@ -22,6 +23,8 @@ interface Route {
 
 function App() {
   const { user, loading, authError, retryAuth, logout } = useAuth()
+  // Bumped when the admin's configuration changes (lib/liveConfig.ts).
+  const configVersion = useSyncExternalStore(subscribeConfigVersion, getConfigVersion)
   const [route, setRoute] = useState<Route>(() => {
     if (window.location.hash === '#admin') return { page: 'admin' }
     return { page: 'lists' }
@@ -93,6 +96,9 @@ function App() {
     return <SetupWizard onComplete={() => setRoute({ page: 'lists' })} />
   }
 
+  // Remount the page when the admin config changes, so everything that reads
+  // it while rendering (languages, UI strings, themes, detail lab) refreshes.
+  const page = (() => {
   switch (route.page) {
     case 'list-detail':
       return (
@@ -119,6 +125,9 @@ function App() {
         </>
       )
   }
+  })()
+
+  return <Fragment key={configVersion}>{page}</Fragment>
 }
 
 function AdminLocked({ userId, onBack }: { userId: string | null; onBack: () => void }) {

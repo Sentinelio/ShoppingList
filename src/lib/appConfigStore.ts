@@ -1,8 +1,10 @@
 // ── Global App Configuration Store ──────────────────────────────────────
 // Syncs admin configuration to PocketBase so ALL users see the same settings.
-// Writes are admin-only on the server; for everyone else they fail silently.
+// Writes are admin-only on the server; a failed write is reported to the
+// admin panel (lib/adminErrors.ts), never swallowed.
 
 import { pb, IS_DEMO, upsertByKey } from "./pocketbase";
+import { reportAdminError } from "./adminErrors";
 
 export const CONFIG_KEYS = [
   "themes",
@@ -28,63 +30,47 @@ const LS_KEY_MAP: Record<ConfigKey, string> = {
 
 // ── Write: save to localStorage + PocketBase ───────────────────────────
 
-export async function saveConfig(key: ConfigKey, value: unknown) {
+export async function saveConfig(key: ConfigKey, value: unknown): Promise<boolean> {
   // localStorage is already written by the caller — we only sync to the server
-  if (!IS_DEMO) {
-    try {
-      await upsertByKey("app_config", key, { value });
-    } catch { /* not an admin, or offline */ }
+  if (IS_DEMO) return true;
+  try {
+    await upsertByKey("app_config", key, { value });
+    return true;
+  } catch (err) {
+    reportAdminError(`Guardar configuración '${key}'`, err);
+    return false;
   }
 }
 
 // ── Read: fetch config from PocketBase → apply to localStorage ─────────
-// SAFETY: only overwrites a localStorage key if the server has a non-null,
-// non-empty value for it. Never writes empty objects or null.
+// The server is the source of truth: any row the admin saved replaces this
+// browser's copy, also when it's an empty list (e.g. the last custom
+// category removed). Only null rows are skipped.
 
+/** Applies one app_config row to localStorage. True when it changed. */
+export function applyConfigRow(key: string, value: unknown): boolean {
+  const lsKey = LS_KEY_MAP[key as ConfigKey];
+  if (!lsKey || value == null) return false;
+  const next = JSON.stringify(value);
+  try {
+    if (localStorage.getItem(lsKey) === next) return false;
+    localStorage.setItem(lsKey, next);
+    return true;
+  } catch {
+    return false; // storage full or blocked
+  }
+}
+
+/** Fetches every app_config row and applies it. True when something changed. */
 export async function loadRemoteConfig(): Promise<boolean> {
   if (IS_DEMO) return false;
   try {
     const data = await pb.collection("app_config").getFullList<{ key: string; value: unknown }>({ fields: "key,value" });
-    if (data.length === 0) return false;
-
-    let applied = false;
-    for (const row of data) {
-      const lsKey = LS_KEY_MAP[row.key as ConfigKey];
-      if (!lsKey) continue;
-
-      // Skip null, undefined, empty objects, empty arrays
-      const v = row.value;
-      if (v == null) continue;
-      if (typeof v === "object" && Object.keys(v as object).length === 0) continue;
-      if (Array.isArray(v) && v.length === 0) continue;
-
-      try {
-        localStorage.setItem(lsKey, JSON.stringify(v));
-        applied = true;
-      } catch { /* quota */ }
-    }
-    return applied;
-  } catch { /* offline */ }
-  return false;
-}
-
-// ── Push all localStorage to PocketBase (called from admin on init) ────
-
-export async function pushAllConfigToRemote() {
-  if (IS_DEMO) return;
-  const rows: Array<{ key: string; value: unknown }> = [];
-  for (const key of CONFIG_KEYS) {
-    const lsKey = LS_KEY_MAP[key];
-    try {
-      const raw = localStorage.getItem(lsKey);
-      if (raw) {
-        const value = JSON.parse(raw);
-        rows.push({ key, value });
-      }
-    } catch { /* skip malformed */ }
+    let changed = false;
+    for (const row of data) changed = applyConfigRow(row.key, row.value) || changed;
+    return changed;
+  } catch (err) {
+    console.error("[appConfig] could not load app_config", err);
+    return false;
   }
-  if (rows.length === 0) return;
-  try {
-    await Promise.all(rows.map(r => upsertByKey("app_config", r.key, { value: r.value })));
-  } catch { /* not an admin, or offline */ }
 }

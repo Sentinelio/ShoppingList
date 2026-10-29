@@ -1,7 +1,8 @@
 import { getActiveCountries } from "../lib/langConfig";
 
-// Dynamic — derived from enabled languages
-export const COUNTRIES = getActiveCountries();
+// Countries of the enabled languages. A function, not a constant: the enabled
+// languages come from the admin (app_config) and can change while the app runs.
+export const getCountries = getActiveCountries;
 
 export type CountryCode = string;
 
