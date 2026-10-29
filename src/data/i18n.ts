@@ -180,6 +180,9 @@ export const strings = {
     "confirmLeaveList": "Tap again to leave",
     "members": "Members",
     "noMembersPending": "No requests",
+    "errNetwork": "Can't connect to the server. If this device has Tailscale turned on, allow local network access for this site in the browser settings, or turn Tailscale off.",
+    "errCreateProfile": "Your profile couldn't be created. Please try again.",
+    "errSession": "Your session couldn't be opened. Please try again.",
   },
   es: {
     "welcome": "Bienvenido",
@@ -358,6 +361,9 @@ export const strings = {
     "confirmLeaveList": "Toca otra vez para salir",
     "members": "Miembros",
     "noMembersPending": "No hay solicitudes",
+    "errNetwork": "No se puede conectar con el servidor. Si este dispositivo tiene Tailscale activado, permite el acceso a la red local para este sitio en los ajustes del navegador, o desactiva Tailscale.",
+    "errCreateProfile": "No se ha podido crear el perfil. Inténtalo de nuevo.",
+    "errSession": "No se ha podido abrir tu sesión. Inténtalo de nuevo.",
   },
   pl: {
     "welcome": "Witaj",
@@ -536,6 +542,9 @@ export const strings = {
     "confirmLeaveList": "Dotknij ponownie, aby wyjść",
     "members": "Członkowie",
     "noMembersPending": "Brak próśb",
+    "errNetwork": "Nie można połączyć się z serwerem. Jeśli na tym urządzeniu działa Tailscale, zezwól tej stronie na dostęp do sieci lokalnej w ustawieniach przeglądarki albo wyłącz Tailscale.",
+    "errCreateProfile": "Nie udało się utworzyć profilu. Spróbuj ponownie.",
+    "errSession": "Nie udało się otworzyć sesji. Spróbuj ponownie.",
   },
 } as const;
 

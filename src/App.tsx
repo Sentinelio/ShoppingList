@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { IS_DEMO } from './lib/pocketbase'
 import SetupWizard from './components/setup/SetupWizard'
+import SessionError from './components/setup/SessionError'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
 import SettingsPage from './pages/SettingsPage'
@@ -20,7 +21,7 @@ interface Route {
 }
 
 function App() {
-  const { user, loading, logout } = useAuth()
+  const { user, loading, authError, retryAuth, logout } = useAuth()
   const [route, setRoute] = useState<Route>(() => {
     if (window.location.hash === '#admin') return { page: 'admin' }
     return { page: 'lists' }
@@ -82,6 +83,10 @@ function App() {
         </div>
       </div>
     )
+  }
+
+  if (!user && authError) {
+    return <SessionError error={authError} onRetry={retryAuth} />
   }
 
   if (!user) {

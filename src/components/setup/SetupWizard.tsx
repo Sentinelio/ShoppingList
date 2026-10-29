@@ -3,6 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { t, type Lang, strings } from "../../data/i18n";
 import { LANGS } from "../../data/langs";
 import { COUNTRIES } from "../../data/countries";
+import { isNetworkError } from "../../lib/netError";
 
 interface SetupWizardProps {
   onComplete: () => void;
@@ -39,6 +40,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [lang, setLang] = useState(defaults.lang);
   const [country, setCountry] = useState(defaults.country);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<"network" | "other" | null>(null);
 
   // The form switches language live as soon as the user picks theirs
   const ui: Lang = useMemo(() => {
@@ -51,10 +53,13 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    setError(null);
     try {
       await createUser(name.trim(), lang, country);
       onComplete();
-    } catch {
+    } catch (err) {
+      console.error("[setup] could not create the profile", err);
+      setError(isNetworkError(err) ? "network" : "other");
       setSubmitting(false);
     }
   };
@@ -145,8 +150,13 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
           className="mt-auto w-full py-4 rounded-xl text-white font-semibold text-lg transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           style={{ background: "linear-gradient(135deg, #f09848, #e07028)" }}
         >
-          {submitting ? "..." : t(ui, "getStarted")}
+          {submitting ? "..." : error ? t(ui, "retry") : t(ui, "getStarted")}
         </button>
+        {error && (
+          <p role="alert" className="-mt-4 text-sm leading-snug px-1" style={{ color: "#ff9d9d" }}>
+            {t(ui, error === "network" ? "errNetwork" : "errCreateProfile")}
+          </p>
+        )}
       </form>
     </div>
   );

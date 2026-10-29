@@ -8,10 +8,10 @@ import {
   type ReactNode,
 } from "react";
 import { createElement } from "react";
-import { ClientResponseError } from "pocketbase";
 import { pb, IS_DEMO, type User } from "../lib/pocketbase";
 import { demoCreateUser, demoGetUser, demoUpdateUser } from "../lib/demoStore";
 import { getCountryLang } from "../data/countries";
+import { isNetworkError, isRejectedCredentials } from "../lib/netError";
 
 // Demo mode keeps the old local-only user id.
 const STORAGE_KEY = "polyglot_user_id";
@@ -45,9 +45,15 @@ function currentUser(): User | null {
   return (pb.authStore.isValid ? (pb.authStore.record as unknown as User) : null) ?? null;
 }
 
+/** Why opening the invisible session failed (no usable session left). */
+export type AuthError = "network" | "other" | null;
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  authError: AuthError;
+  /** Try opening the session again after an authError. */
+  retryAuth: () => void;
   shelfLang: string;
   createUser: (name: string, lang: string, country: string) => Promise<void>;
   updateUser: (updates: Partial<Pick<User, "name" | "lang" | "country" | "avatar_color">>) => Promise<void>;
@@ -59,6 +65,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<AuthError>(null);
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const retryAuth = useCallback(() => {
+    setLoading(true);
+    setAuthAttempt(n => n + 1);
+  }, []);
 
   useEffect(() => {
     if (IS_DEMO) {
@@ -79,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    setAuthError(null);
     pb.collection("users")
       .authWithPassword(creds.email, creds.password)
       .then(({ record }) => {
@@ -87,18 +100,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pb.collection("users").update(record.id, { last_seen_at: new Date().toISOString() }).catch(() => {});
       })
       .catch((err: unknown) => {
-        if (err instanceof ClientResponseError && err.status === 0) {
-          // Offline: keep going with the cached session, if any.
-          setUser(currentUser());
-        } else {
+        console.error("[auth] could not open the session", err);
+        if (isRejectedCredentials(err)) {
           // Account gone (e.g. server reset): start over with the setup wizard.
-          console.warn("[auth] stored credentials rejected", err);
           localStorage.removeItem(CREDS_KEY);
           pb.authStore.clear();
+          return;
         }
+        // Network or server trouble: keep the credentials. Go on with the
+        // cached session if there is one, otherwise ask to retry (never
+        // fall through to the setup wizard, which would create a 2nd account).
+        const cached = currentUser();
+        if (cached) setUser(cached);
+        else setAuthError(isNetworkError(err) ? "network" : "other");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [authAttempt]);
 
   const createUser = useCallback(
     async (name: string, lang: string, country: string) => {
@@ -107,6 +124,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEY, newUser.id);
         setUser(newUser);
         return;
+      }
+
+      // A previous attempt may have created the account and then failed to
+      // sign in: reuse it instead of creating another one.
+      const saved = readCreds();
+      if (saved) {
+        try {
+          const { record } = await pb.collection("users").authWithPassword(saved.email, saved.password);
+          const updated = await pb.collection("users").update(record.id, { name, lang, country });
+          setAuthError(null);
+          setUser(updated as unknown as User);
+          return;
+        } catch (err) {
+          if (!isRejectedCredentials(err)) throw err;
+          localStorage.removeItem(CREDS_KEY); // stale: create a fresh account
+        }
       }
 
       const creds: Credentials = {
@@ -124,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       localStorage.setItem(CREDS_KEY, JSON.stringify(creds));
       const { record } = await pb.collection("users").authWithPassword(creds.email, creds.password);
+      setAuthError(null);
       setUser(record as unknown as User);
     },
     [],
@@ -160,8 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, shelfLang, createUser, updateUser, logout }),
-    [user, loading, shelfLang, createUser, updateUser, logout],
+    () => ({ user, loading, authError, retryAuth, shelfLang, createUser, updateUser, logout }),
+    [user, loading, authError, retryAuth, shelfLang, createUser, updateUser, logout],
   );
 
   return createElement(AuthContext.Provider, { value }, children);
