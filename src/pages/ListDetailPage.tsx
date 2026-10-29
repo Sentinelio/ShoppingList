@@ -1,39 +1,46 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail, exitList, approveMember, rejectMember, removeMember, renameList } from "../hooks/useList";
+import { useListDetail, exitList, approveMember, rejectMember, removeMember } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
-import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase, formatPrice, productKey, getProductAvgsByKeys, type ProductAvg } from "../lib/itemData";
-import { pb, IS_DEMO, subscribe } from "../lib/pocketbase";
+import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase } from "../lib/itemData";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
-import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categories";
+import { CATEGORY_ORDER } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
 import { getLangFlag, getLangName } from "../data/langs";
 import { copyToClipboard } from "../lib/clipboard";
-import { listLangOf, categoryNames } from "../lib/names";
+import { listLangOf, categoryNames, primaryName, secondaryName } from "../lib/names";
+import { matchesSearch } from "../lib/highlight";
 import type { Item } from "../lib/pocketbase";
-import ItemCard from "../components/items/ItemCard";
-import AddItemBar from "../components/items/AddItemBar";
+import ItemRow from "../components/items/ItemRow";
+import AddItemSheet from "../components/items/AddItemSheet";
 import ItemDetail from "../components/items/ItemDetail";
 import StoreMode from "../components/store/StoreMode";
+import BottomNav, { type ListTab } from "../components/list/BottomNav";
 import Modal from "../components/ui/Modal";
 import Avatar from "../components/ui/Avatar";
 import ImportReceiptModal from "../components/receipts/ImportReceiptModal";
-import { useItemsLayoutId } from "../hooks/useTheme";
-import { getItemsLayout } from "../layouts/items/layouts";
+import { IconBack, IconCamera, IconChevronDown, IconClose, IconMore, IconSearch, IconShare } from "../components/ui/icons";
 
 interface ListDetailPageProps {
   listId: string;
   onNavigate: (page: string, params?: Record<string, string>) => void;
 }
 
+type Filter = "pending" | "bought" | "unavailable";
+
 interface CategoryGroup {
   key: string;
-  emoji: string;
   name: string;
   nameMine: string;
   items: Item[];
 }
+
+const statusOf = (i: Item): Filter => (i.unavailable ? "unavailable" : i.checked ? "bought" : "pending");
+
+// Important first; otherwise keep the order they were added in.
+const sortByImportance = (arr: Item[]) =>
+  [...arr].sort((a, b) => (!!b.important === !!a.important ? 0 : b.important ? 1 : -1));
 
 export default function ListDetailPage({ listId, onNavigate }: ListDetailPageProps) {
   const { user } = useAuth();
@@ -47,112 +54,23 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
   const [storeItem, setStoreItem] = useState<Item | null>(null);
-  const collapsedKey = `babelcart_collapsed_${listId}`;
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  const [showChecked, setShowChecked] = useState<boolean>(false);
+  const [tab, setTab] = useState<ListTab>("list");
+  const [filter, setFilter] = useState<Filter>("pending");
+  const [showAdd, setShowAdd] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Re-hydrate collapse state from localStorage whenever listId changes
+  // Collapsed categories, remembered per user and per list.
+  const collapsedKey = `babelcart_collapsed_${user?.id ?? "anon"}_${listId}`;
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(`babelcart_collapsed_${listId}`);
+      const raw = localStorage.getItem(collapsedKey);
       setCollapsedCategories(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
     } catch {
       setCollapsedCategories(new Set());
     }
-    try {
-      setShowChecked(localStorage.getItem(`babelcart_collapsed_${listId}_done`) === "1");
-    } catch {
-      setShowChecked(false);
-    }
-  }, [listId]);
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [pendingIds] = useState<Set<string>>(new Set());
-  const [failedIds] = useState<Set<string>>(new Set());
-  const [showMembers, setShowMembers] = useState(false);
-  const [confirmRemoveMember, setConfirmRemoveMember] = useState<string | null>(null);
-  const [confirmRejectPending, setConfirmRejectPending] = useState<string | null>(null);
-  const [showListSettings, setShowListSettings] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [confirmLeave, setConfirmLeave] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showImportReceipt, setShowImportReceipt] = useState(false);
-
-  // Normalize strings for accent/case-insensitive matching (so "leche" also
-  // finds "Lèche", "LECHE", etc.).
-  const normalize = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-  // When a search is active, keep only items whose name (in any language) or
-  // original text contains the normalized query as a substring. This makes
-  // searching "leche" match "leche entera", "leche desnatada", etc.
-  const matchesQuery = useCallback(
-    (item: Item) => {
-      if (!searchQuery) return true;
-      const q = normalize(searchQuery);
-      if (!q) return true;
-      if (normalize(item.original).includes(q)) return true;
-      if (item.translations) {
-        for (const value of Object.values(item.translations)) {
-          if (typeof value === "string" && normalize(value).includes(q)) return true;
-        }
-      }
-      if (item.note && normalize(item.note).includes(q)) return true;
-      return false;
-    },
-    [searchQuery],
-  );
-
-  const filteredItems = useMemo(() => items.filter(matchesQuery), [items, matchesQuery]);
-
-  const activeMembers = members.filter(m => m.status === "active");
-  const pendingMembers = members.filter(m => m.status === "pending");
-
-  // Split items into unchecked and checked
-  // Sort: important first, then by created_at (preserves order for the rest)
-  const sortByImportance = (arr: Item[]) =>
-    [...arr].sort((a, b) => {
-      if (!!b.important !== !!a.important) return b.important ? 1 : -1;
-      return 0;
-    });
-
-  const uncheckedItems = useMemo(
-    () => sortByImportance(filteredItems.filter((i) => !i.checked)),
-    [filteredItems],
-  );
-  const checkedItems = useMemo(
-    () => filteredItems.filter((i) => i.checked),
-    [filteredItems],
-  );
-
-  // Group unchecked items by category
-  const categoryGroups = useMemo<CategoryGroup[]>(() => {
-    const grouped: Record<string, Item[]> = {};
-
-    for (const item of uncheckedItems) {
-      const cat = item.category || "other";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(item);
-    }
-
-    // Sort each category: important first
-    for (const cat of Object.keys(grouped)) {
-      grouped[cat] = sortByImportance(grouped[cat]);
-    }
-
-    return CATEGORY_ORDER.filter((cat) => grouped[cat] && grouped[cat].length > 0).map((cat) => ({
-      key: cat,
-      emoji: getCategoryEmoji(cat),
-      name: categoryNames(cat, shelfLang, userLang).primary,
-      nameMine: categoryNames(cat, shelfLang, userLang).secondary,
-      items: grouped[cat],
-    }));
-  }, [uncheckedItems, userLang, shelfLang]);
-
-  // Always show category headers so every item lives under its correct
-  // category — even when there's only one category or a single item.
-  const showCategoryHeaders = categoryGroups.length > 0;
-
+  }, [collapsedKey]);
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
@@ -163,57 +81,52 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     });
   };
 
-  const toggleShowChecked = () => {
-    setShowChecked((prev) => {
-      const next = !prev;
-      try { localStorage.setItem(`${collapsedKey}_done`, next ? "1" : "0"); } catch { /* ignore */ }
-      return next;
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<string | null>(null);
+  const [confirmRejectPending, setConfirmRejectPending] = useState<string | null>(null);
+  const [showListSettings, setShowListSettings] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [showImportReceipt, setShowImportReceipt] = useState(false);
+
+  const activeMembers = members.filter(m => m.status === "active");
+  const pendingMembers = members.filter(m => m.status === "pending");
+
+  // Counts per status. "No hay" items don't count in the progress total, so
+  // the bar fills up once everything that could be bought is in the cart.
+  const counts = useMemo(() => {
+    const c = { pending: 0, bought: 0, unavailable: 0 };
+    for (const i of items) c[statusOf(i)]++;
+    return c;
+  }, [items]);
+  const progressTotal = counts.pending + counts.bought;
+  const progressPct = progressTotal ? Math.round((counts.bought / progressTotal) * 100) : 0;
+
+  const categoryGroups = useMemo<CategoryGroup[]>(() => {
+    const grouped: Record<string, Item[]> = {};
+    for (const item of items) {
+      if (statusOf(item) !== filter) continue;
+      const cat = item.category || "other";
+      (grouped[cat] ??= []).push(item);
+    }
+    const order = [...CATEGORY_ORDER, ...Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c))];
+    return order.filter(cat => grouped[cat]?.length).map(cat => {
+      const names = categoryNames(cat, shelfLang, userLang);
+      return { key: cat, name: names.primary, nameMine: names.secondary, items: sortByImportance(grouped[cat]) };
     });
-  };
+  }, [items, filter, shelfLang, userLang]);
 
-  // Fetch latest price per item for total calculation
-  const [itemPrices, setItemPrices] = useState<Record<string, { value: number; currency: string }>>({});
-  useEffect(() => {
-    if (IS_DEMO || !listId) return;
-    pb.collection("item_prices")
-      .getFullList<{ item_id: string; price_value: number; currency: string }>({
-        filter: pb.filter("item_id.list_id = {:listId} && price_value != 0", { listId }),
-        sort: "-created_at",
-        fields: "item_id,price_value,currency",
-      })
-      .catch(() => null)
-      .then((data) => {
-        if (!data) return;
-        const latest: Record<string, { value: number; currency: string }> = {};
-        for (const row of data as Array<{ item_id: string; price_value: number; currency: string }>) {
-          if (!latest[row.item_id]) latest[row.item_id] = { value: Number(row.price_value), currency: row.currency };
-        }
-        setItemPrices(latest);
-      });
-  }, [listId, items]);
-
-  // Fetch shared product-level averages (cross-list, cross-user) so each
-  // ItemCard can show a "~X.YZ €" hint without the user typing prices in.
-  // Keyed by productKey(item.original, item.brand). Subscribes to
-  // product_prices realtime so a peer (or this user) entering a price
-  // updates the card without a refresh.
-  const [productAvgs, setProductAvgs] = useState<Record<string, ProductAvg>>({});
-  useEffect(() => {
-    if (!items.length) { setProductAvgs({}); return; }
-    const keys = items.map(it => productKey(it.original, it.brand));
-    let cancelled = false;
-    const refresh = () => {
-      getProductAvgsByKeys(keys).then(map => { if (!cancelled) setProductAvgs(map); });
-    };
-    refresh();
-
-    if (IS_DEMO) return () => { cancelled = true; };
-    const unsubscribe = subscribe("product_prices", "", () => refresh());
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [items, listId]);
+  // 3.1.1 — search matches either of the two names shown (or the original).
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return [];
+    return items.filter(i =>
+      matchesSearch(primaryName(i, shelfLang), q) ||
+      matchesSearch(secondaryName(i, shelfLang, userLang), q) ||
+      matchesSearch(i.original, q),
+    );
+  }, [items, searchQuery, shelfLang, userLang]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
@@ -283,44 +196,34 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     try { await deleteItem(itemId); } catch { /* realtime will sync */ }
   }, [setItems]);
 
-  const handleCardClick = useCallback((item: Item) => {
+
+  const openItem = useCallback((item: Item) => {
     setEditingItemId(item.id);
   }, []);
 
-  const layoutId = useItemsLayoutId();
-  const isClassicLayout = layoutId === "items-classic";
-  const activeItemsLayout = getItemsLayout(layoutId);
+  const closeSearch = () => {
+    setSearching(false);
+    setSearchQuery("");
+  };
+
+  // Store and Members open their current screens until phase 4 turns them
+  // into real tabs.
+  const openTab = (next: ListTab) => {
+    if (next === "store") {
+      const first = sortByImportance(items.filter(i => statusOf(i) === "pending"))[0];
+      if (first) setStoreItem(first);
+      return;
+    }
+    if (next === "members") {
+      setShowMembers(true);
+      return;
+    }
+    setTab(next);
+  };
 
   const countryFlag = list ? getCountryFlag(list.country || user?.country || "") : "";
+  const checkedItems = items.filter(i => statusOf(i) === "bought");
 
-  // Render a grid of ItemCards
-  const renderItemGrid = (gridItems: Item[], checked?: boolean) => (
-    <div className="grid grid-cols-3 gap-2.5 px-3">
-      {gridItems.map((item) => {
-        const avg = productAvgs[productKey(item.original, item.brand)];
-        return (
-          <div
-            key={item.id}
-            style={checked ? { opacity: 0.45 } : undefined}
-          >
-            <ItemCard
-              item={item}
-              userLang={userLang}
-              shelfLang={shelfLang}
-              isPending={pendingIds.has(item.id)}
-              isFailed={failedIds.has(item.id)}
-              avgPrice={avg?.avg ?? null}
-              avgPriceCurrency={avg?.currency ?? null}
-              onToggle={handleToggle}
-              onClick={handleCardClick}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  // Store mode
   if (storeItem) {
     return (
       <StoreMode
@@ -332,351 +235,165 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     );
   }
 
+  const iconBtn = "shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-text-soft active:bg-white/5 cursor-pointer";
+  const filters: Array<{ id: Filter; label: string }> = [
+    { id: "pending", label: t(lang, "filterToBuy") },
+    { id: "bought", label: t(lang, "filterBought") },
+    { id: "unavailable", label: t(lang, "filterUnavailable") },
+  ];
+
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
-      {/* Header */}
-      <header
-        className="flex items-center gap-3 px-4 py-3 bg-bg border-b border-border-light"
-        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
-      >
-        {/* Back arrow */}
-        <button
-          onClick={() => onNavigate("lists")}
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-text-soft active:bg-card transition-colors cursor-pointer"
-          aria-label={t(lang, "back")}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-
-        {/* List name (tappable to edit) */}
-        <div className="flex-1 min-w-0">
-          {editingName ? (
-            <input
-              autoFocus
-              defaultValue={list?.name ?? ""}
-              onBlur={async (e) => {
-                const newName = e.target.value.trim();
-                if (newName && newName !== list?.name) {
-                  try { await renameList(listId, newName); refresh(); } catch { /* optimistic */ }
-                }
-                setEditingName(false);
-              }}
-              onKeyDown={async e => {
-                if (e.key === "Enter") {
-                  const newName = (e.target as HTMLInputElement).value.trim();
-                  if (newName && newName !== list?.name) {
-                    try { await renameList(listId, newName); refresh(); } catch { /* optimistic */ }
-                  }
-                  setEditingName(false);
-                }
-                if (e.key === "Escape") setEditingName(false);
-              }}
-              className="text-lg font-bold text-text bg-card border border-accent/30 rounded-lg px-2 py-1 outline-none w-full"
-            />
-          ) : (
-            <h1 onClick={() => setEditingName(true)} className="text-lg font-bold text-text truncate cursor-pointer">
-              {list?.name ?? "..."} {countryFlag}
-            </h1>
-          )}
-        </div>
-
-        {/* Members button */}
-        <button
-          onClick={() => setShowMembers(true)}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer active:brightness-90 relative"
-          style={{ background: "rgba(240,136,62,0.1)", border: "none" }}
-        >
-          <span className="text-sm">👥</span>
-          <span className="text-xs font-semibold text-accent">{activeMembers.length}</span>
-          {pendingMembers.length > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-danger flex items-center justify-center text-[10px] font-bold text-white border-2 border-bg px-1">
-              {pendingMembers.length}
-            </span>
-          )}
-        </button>
-
-        {/* Import receipt button */}
-        <button
-          onClick={() => setShowImportReceipt(true)}
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-card border border-border-light text-text-soft active:bg-accent/10 cursor-pointer"
-          aria-label={t(lang, "importReceipt")}
-          title={t(lang, "importReceipt")}
-        >
-          📸
-        </button>
-
-        {/* Settings button */}
-        <button
-          onClick={() => setShowListSettings(true)}
-          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-card border border-border-light text-text-soft active:bg-accent/10 cursor-pointer"
-        >
-          ⚙️
-        </button>
+    <div className="fixed inset-0 bg-bg flex flex-col" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      {/* Top bar — becomes a search field in search mode (3.1.1) */}
+      <header className="shrink-0 h-14 flex items-center gap-0.5 px-1.5">
+        {searching ? (
+          <>
+            <button onClick={closeSearch} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
+            <div className="flex-1 min-w-0 relative">
+              <input
+                autoFocus
+                type="text"
+                inputMode="search"
+                autoComplete="off"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Escape") closeSearch(); }}
+                placeholder={t(lang, "searchInList")}
+                aria-label={t(lang, "search")}
+                className="w-full h-10 pl-3.5 pr-11 rounded-full bg-card border border-border-light text-text text-[16px] placeholder:text-text-muted outline-none focus:border-accent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-text-soft cursor-pointer"
+                  aria-label={t(lang, "clear")}
+                >
+                  <IconClose size={18} />
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <button onClick={() => onNavigate("lists")} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
+            <h1 className="flex-1 min-w-0 truncate text-[20px] font-bold text-text px-1">{list?.name ?? "…"}</h1>
+            <button onClick={() => setSearching(true)} className={iconBtn} aria-label={t(lang, "search")}><IconSearch size={22} /></button>
+            <button onClick={() => setShowImportReceipt(true)} className={iconBtn} aria-label={t(lang, "importReceipt")}><IconCamera size={22} /></button>
+            <button onClick={() => setShowMembers(true)} className={iconBtn} aria-label={t(lang, "share")}><IconShare size={22} /></button>
+            <button onClick={() => setShowListSettings(true)} className={iconBtn} aria-label={t(lang, "more")}><IconMore size={22} /></button>
+          </>
+        )}
       </header>
 
-      {/* Search bar — only useful once the list has enough items to scan */}
-      {items.length >= 5 && (
-        <div className="px-4 pt-3 pb-1 bg-bg">
-          <div className="relative">
-            <span
-              aria-hidden="true"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none"
-            >
-              🔍
-            </span>
-            <input
-              type="text"
-              inputMode="search"
-              autoComplete="off"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t(lang, "searchInList")}
-              aria-label={t(lang, "searchInList")}
-              className="w-full bg-card border border-border-light rounded-xl pl-9 pr-9 py-2 text-sm text-text outline-none focus:border-accent placeholder:text-text-muted"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                aria-label={t(lang, "close")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-text-muted active:text-text cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <div className="text-[11px] text-text-muted mt-1.5 px-1">
-              {filteredItems.length === 0
+      {searching ? (
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
+          {searchQuery.trim() && (
+            <div className="text-[12px] text-text-muted px-1 pt-1 pb-2">
+              {searchResults.length === 0
                 ? t(lang, "noSearchResults")
-                : `${filteredItems.length} ${filteredItems.length === 1 ? t(lang, "result") : t(lang, "results")}`}
+                : `${searchResults.length} ${searchResults.length === 1 ? t(lang, "result") : t(lang, "results")}`}
+            </div>
+          )}
+          {searchResults.length > 0 && (
+            <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
+              {searchResults.map(item => (
+                <ItemRow key={item.id} item={item} listLang={shelfLang} userLang={userLang} query={searchQuery} onToggle={handleToggle} onOpen={openItem} />
+              ))}
             </div>
           )}
         </div>
-      )}
+      ) : (
+        <>
+          {/* Fixed: compact progress + filters. Only the categories scroll. */}
+          <div className="shrink-0 px-4 pb-2">
+            <div className="flex items-baseline justify-between text-[13px]">
+              <span className="text-text-soft">
+                {t(lang, "inCart").replace("{done}", String(counts.bought)).replace("{total}", String(progressTotal))}
+              </span>
+              <span className="font-semibold tabular-nums" style={{ color: "var(--color-accent-ink)" }}>{progressPct}%</span>
+            </div>
+            <div className="mt-1.5 h-[5px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progressPct}%`, background: "var(--color-accent)" }} />
+            </div>
+          </div>
+          <div className="shrink-0 flex gap-1.5 px-3 pb-2" role="tablist">
+            {filters.map(f => {
+              const active = filter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setFilter(f.id)}
+                  className="flex-1 min-w-0 h-8 rounded-full text-[12.5px] font-semibold truncate px-2 cursor-pointer transition-colors"
+                  style={{
+                    background: active ? "var(--color-accent-soft)" : "var(--color-card)",
+                    color: active ? "var(--color-accent-ink)" : "var(--color-text-soft)",
+                  }}
+                >
+                  {f.label} {counts[f.id]}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto pb-32">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-text-muted animate-pulse">{t(lang, "translating")}</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-            <div className="text-6xl mb-4 opacity-30">&#128722;</div>
-            <p className="text-text-soft font-medium text-lg mb-2">
-              {t(lang, "noLists")}
-            </p>
-          </div>
-        ) : !isClassicLayout ? (
-          // Full-redesign layouts take over the entire items area. They handle
-          // their own grouping, sections and visual styling — we just hand them
-          // the filtered items + members.
-          <div className="pt-3">
-            <activeItemsLayout.Component
-              items={filteredItems}
-              members={activeMembers}
-              userLang={userLang}
-              shelfLang={shelfLang}
-              onToggle={handleToggle}
-              onClick={handleCardClick}
-            />
-          </div>
-        ) : (
-          <>
-            {/* Category groups (unchecked items) */}
-            {showCategoryHeaders ? (
-              categoryGroups.map((group) => {
-                const isCollapsed = collapsedCategories.has(group.key);
+          <main className="flex-1 overflow-y-auto px-3 pb-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-text-muted animate-pulse">{t(lang, "translating")}</p>
+              </div>
+            ) : categoryGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                <div className="text-5xl mb-3 opacity-40">{filter === "pending" && items.length > 0 ? "🎉" : "🛒"}</div>
+                <p className="text-text-soft font-medium">
+                  {filter === "pending" && items.length > 0 ? t(lang, "allBought") : t(lang, "emptyFilter")}
+                </p>
+              </div>
+            ) : (
+              categoryGroups.map(group => {
+                const collapsed = collapsedCategories.has(group.key);
                 return (
-                  <div key={group.key} className="mb-2">
-                    {/* Category header — thin row: emoji + name on the left,
-                        count on the right, no big button shell. */}
+                  <section key={group.key} className="mb-3">
                     <button
                       onClick={() => toggleCategory(group.key)}
-                      className="w-full flex items-center gap-2 px-4 pt-3 pb-1.5 cursor-pointer active:opacity-70 transition-opacity"
+                      aria-expanded={!collapsed}
+                      className="w-full min-h-[44px] flex items-center gap-2 px-1 cursor-pointer"
                     >
-                      <span className="text-[11px]" aria-hidden="true">{group.emoji}</span>
-                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>
-                        {group.name}
-                      </span>
+                      <span className="text-[14px] font-bold truncate" style={{ color: "var(--color-accent)" }}>{group.name}</span>
                       {group.nameMine && (
-                        <span className="text-[10px]" style={{ color: "var(--color-secondary-name)" }}>
-                          {group.nameMine}
-                        </span>
+                        <span className="text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{group.nameMine}</span>
                       )}
-                      <div className="flex-1 h-px bg-border-light/50" />
-                      <span className="text-[10px] text-text-muted tabular-nums">
-                        {group.items.length}
-                      </span>
+                      <span className="flex-1" />
+                      <span className="text-[12px] text-text-muted tabular-nums">{group.items.length}</span>
+                      <IconChevronDown size={18} className={`text-text-muted transition-transform ${collapsed ? "-rotate-90" : ""}`} />
                     </button>
-
-                    {/* Items grid */}
-                    {!isCollapsed && renderItemGrid(group.items)}
-                  </div>
+                    {!collapsed && (
+                      <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
+                        {group.items.map(item => (
+                          <ItemRow key={item.id} item={item} listLang={shelfLang} userLang={userLang} onToggle={handleToggle} onOpen={openItem} />
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 );
               })
-            ) : (
-              /* No category headers -- flat grid */
-              <div className="pt-3">
-                {renderItemGrid(uncheckedItems)}
-              </div>
             )}
+          </main>
+        </>
+      )}
 
-            {/* Checked / Done section */}
-            {checkedItems.length > 0 && (
-              <div className="mt-3">
-                <div className="flex items-center sticky top-0 z-10 bg-bg">
-                <button
-                  onClick={toggleShowChecked}
-                  className="flex-1 flex items-center gap-2 px-4 py-2.5 cursor-pointer active:bg-card transition-colors"
-                >
-                  <span className="text-base">&#9989;</span>
-                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-                    {t(lang, "done")}
-                  </span>
-                  <span
-                    className="text-text-muted rounded-full flex items-center justify-center"
-                    style={{
-                      fontSize: 10,
-                      width: 20,
-                      height: 20,
-                      backgroundColor: "rgba(74, 222, 128, 0.15)",
-                    }}
-                  >
-                    {checkedItems.length}
-                  </span>
-                  <div className="flex-1 h-px bg-border-light ml-2" />
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`text-text-muted transition-transform duration-200 ${
-                      !showChecked ? "-rotate-90" : ""
-                    }`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                </div>
+      <BottomNav tab={tab} onTab={openTab} onAdd={() => setShowAdd(true)} lang={lang} pendingCount={pendingMembers.length} />
 
-                {showChecked && (
-                  <div className="mt-1">
-                    {/* Group checked items by date (checked_at) → category */}
-                    {(() => {
-                      // Group by date string
-                      const byDate: Record<string, Item[]> = {};
-                      const today = new Date().toLocaleDateString();
-                      const yesterdayDate = new Date();
-                      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                      const yesterday = yesterdayDate.toLocaleDateString();
-                      for (const item of checkedItems) {
-                        const dateStr = item.checked_at
-                          ? new Date(item.checked_at).toLocaleDateString()
-                          : t(lang, "done");
-                        const label = dateStr === today ? "Hoy" : dateStr === yesterday ? "Ayer" : dateStr;
-                        if (!byDate[label]) byDate[label] = [];
-                        byDate[label].push(item);
-                      }
-                      return Object.entries(byDate).map(([dateLabel, dateItems]) => {
-                        // Within each date, group by category
-                        const byCat: Record<string, Item[]> = {};
-                        for (const item of dateItems) {
-                          const cat = item.category || "other";
-                          if (!byCat[cat]) byCat[cat] = [];
-                          byCat[cat].push(item);
-                        }
-                        const dateTotal = dateItems.reduce((sum, item) => {
-                          const p = itemPrices[item.id];
-                          return p ? sum + p.value : sum;
-                        }, 0);
-                        const dateCurrency = dateItems.find(item => itemPrices[item.id])
-                          ? itemPrices[dateItems.find(item => itemPrices[item.id])!.id].currency
-                          : "EUR";
-                        return (
-                          <div key={dateLabel} className="mb-3">
-                            <div className="flex items-center gap-2 px-4 py-1.5">
-                              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">{dateLabel}</span>
-                              <div className="flex-1 h-px bg-border-light" />
-                              <span className="text-[10px] text-text-muted">{dateItems.length}</span>
-                              {dateTotal > 0 && (
-                                <span className="text-[10px] font-bold text-accent">{formatPrice(dateTotal, dateCurrency)}</span>
-                              )}
-                            </div>
-                            {Object.entries(byCat).map(([cat, catItems]) => (
-                              <div key={cat}>
-                                <div className="flex items-center gap-1.5 px-4 py-1">
-                                  <span className="text-xs">{getCategoryEmoji(cat)}</span>
-                                  <span className="text-[9px] font-semibold text-text-muted uppercase">{getCategoryName(cat, lang)}</span>
-                                </div>
-                                {renderItemGrid(catItems, true)}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      });
-                    })()}
-                    {/* Delete all checked — placed BELOW the list for safety */}
-                    <div className="flex justify-center py-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirmClear) {
-                            checkedItems.forEach(i => handleDelete(i.id));
-                            setConfirmClear(false);
-                            setShowChecked(false);
-                          } else {
-                            setConfirmClear(true);
-                            setTimeout(() => setConfirmClear(false), 3000);
-                          }
-                        }}
-                        className="px-4 py-2 rounded-lg text-[11px] font-semibold cursor-pointer transition-all"
-                        style={{
-                          background: confirmClear ? "#b71c1c" : "rgba(255,92,92,0.08)",
-                          color: confirmClear ? "#fff" : "#ff5c5c",
-                          border: confirmClear ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
-                        }}
-                      >
-                        {confirmClear ? "⚠️ Borrar todos?" : `🗑️ Borrar ${checkedItems.length} hechos`}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Spacer so content doesn't hide behind fixed AddItemBar */}
-      <div style={{ height: 80 }} />
-
-      {/* Add item bar */}
       {user && (
-        <AddItemBar
+        <AddItemSheet
+          open={showAdd}
+          onClose={() => setShowAdd(false)}
           listId={listId}
           userLang={userLang}
           shelfLang={shelfLang}
           userId={user.id}
           userName={user.name}
           onItemAdded={(newItem) => {
-            // Log creation event in history
             if (newItem && user) {
               logItemHistory({
                 itemId: newItem.id,
@@ -857,6 +574,27 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         >
           {copied ? `✓ ${t(lang, "copied")}` : `📋 ${t(lang, "copyCode")}`}
         </button>
+        {checkedItems.length > 0 && (
+          <button
+            onClick={() => {
+              if (confirmClear) {
+                checkedItems.forEach(i => handleDelete(i.id));
+                setConfirmClear(false);
+              } else {
+                setConfirmClear(true);
+                setTimeout(() => setConfirmClear(false), 3000);
+              }
+            }}
+            className="w-full mt-3 py-3 rounded-xl font-semibold text-sm cursor-pointer"
+            style={{
+              background: confirmClear ? "#b71c1c" : "rgba(255,92,92,0.08)",
+              color: confirmClear ? "#fff" : "#ff5c5c",
+              border: confirmClear ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
+            }}
+          >
+            {confirmClear ? "⚠️ Borrar todos?" : `🗑️ Borrar ${checkedItems.length} comprados`}
+          </button>
+        )}
         <button
           onClick={async () => {
             if (confirmLeave) {

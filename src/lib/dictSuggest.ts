@@ -71,14 +71,17 @@ async function ensureLoaded(): Promise<DictSuggestion[]> {
   loadingPromise = (async () => {
     const remote = await fetchRemoteDict();
     // Seed with LOCAL_DICTIONARY so autocomplete works even before the
-    // remote load completes on slow networks. Deduplicate by lowercased key.
+    // remote load completes on slow networks. Deduplicate by the English
+    // name (remote keys are often in another language: "puerro" = "leek");
+    // remote entries win.
     const byKey = new Map<string, DictSuggestion>();
+    const dedupeKey = (s: DictSuggestion) => normalize(s.translations.en || s.key).trim();
     for (const entry of LOCAL_DICTIONARY) {
       const s = localEntryToSuggestion(entry);
-      if (s.key) byKey.set(s.key.toLowerCase(), s);
+      if (s.key) byKey.set(dedupeKey(s), s);
     }
     for (const s of remote) {
-      if (s.key) byKey.set(s.key.toLowerCase(), s);
+      if (s.key) byKey.set(dedupeKey(s), s);
     }
     CACHE = Array.from(byKey.values());
     return CACHE;

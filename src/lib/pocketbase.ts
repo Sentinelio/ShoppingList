@@ -217,6 +217,9 @@ export interface Item {
   important: boolean;
   checked: boolean;
   checked_at: string | null;
+  // "No hay": out of stock at the shop. Independent of `checked`.
+  unavailable?: boolean;
+  unavailable_at?: string | null;
   added_by: string;
   added_by_name: string;
   created_at: string;
