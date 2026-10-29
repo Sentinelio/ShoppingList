@@ -91,6 +91,15 @@ export const LOCAL_DICTIONARY: DictEntry[] = [
   { en: "ginger",         es: "jengibre",         pl: "imbir",           de: "Ingwer",           fr: "gingembre",        it: "zenzero",          pt: "gengibre",         cat: "vegetables" },
   { en: "parsley",        es: "perejil",          pl: "pietruszka",      de: "Petersilie",       fr: "persil",           it: "prezzemolo",       pt: "salsa",            cat: "vegetables" },
   { en: "basil",          es: "albahaca",         pl: "bazylia",         de: "Basilikum",        fr: "basilic",          it: "basilico",         pt: "manjericão",       cat: "vegetables" },
+  { en: "leek",         es: "puerro",         pl: "por",           de: "Lauch",          fr: "poireau",        it: "porro",          pt: "alho-francês",   cat: "vegetables" },
+  { en: "cauliflower",  es: "coliflor",       pl: "kalafior",      de: "Blumenkohl",     fr: "chou-fleur",     it: "cavolfiore",     pt: "couve-flor",     cat: "vegetables" },
+  { en: "beetroot",     es: "remolacha",      pl: "burak",         de: "Rote Bete",      fr: "betterave",      it: "barbabietola",   pt: "beterraba",      cat: "vegetables" },
+  { en: "radish",       es: "rábano",         pl: "rzodkiewka",    de: "Radieschen",     fr: "radis",          it: "ravanello",      pt: "rabanete",       cat: "vegetables" },
+  { en: "dill",         es: "eneldo",         pl: "koperek",       de: "Dill",           fr: "aneth",          it: "aneto",          pt: "endro",          cat: "vegetables" },
+  { en: "chives",       es: "cebollino",      pl: "szczypiorek",   de: "Schnittlauch",   fr: "ciboulette",     it: "erba cipollina", pt: "cebolinho",      cat: "vegetables" },
+  { en: "green beans",  es: "judías verdes",  pl: "fasolka szparagowa", de: "grüne Bohnen",   fr: "haricots verts", it: "fagiolini",      pt: "feijão-verde",   cat: "vegetables" },
+  { en: "peas",         es: "guisantes",      pl: "groszek",       de: "Erbsen",         fr: "petits pois",    it: "piselli",        pt: "ervilhas",       cat: "vegetables" },
+  { en: "sweet potato", es: "boniato",        pl: "batat",         de: "Süßkartoffel",   fr: "patate douce",   it: "patata dolce",   pt: "batata-doce",    cat: "vegetables" },
 
   // ── Drinks ─────────────────────────────────────────────
   { en: "coffee",         es: "café",             pl: "kawa",            de: "Kaffee",           fr: "café",             it: "caffè",            pt: "café",             cat: "drinks" },

@@ -48,6 +48,14 @@ input, textarea, select {
   font-family: inherit;
 }
 
+/* iOS Safari zooms into any field under 16px when it gets focus, which
+   shifts the page and leaves the bottom bar out of place. */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 /* Thin scrollbar: 4px thumb, no track */
 * {
   scrollbar-width: thin;

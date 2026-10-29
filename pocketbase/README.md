@@ -36,6 +36,8 @@ Only `/api` is public. The dashboard is not reachable from the internet.
 ```
 https://server-pc.tail3b4002.ts.net (Funnel on)
 |-- /api           proxy http://127.0.0.1:8090/api      ← PocketBase API (public)
+|-- /api/collections/_superusers
+|                  proxy http://127.0.0.1:9             ← 502: no superuser login from outside
 |-- /webhook       proxy http://127.0.0.1:8801/webhook  ← other app
 |-- /health/public proxy http://127.0.0.1:8801/health/public
 
@@ -56,6 +58,7 @@ Set up (elevated PowerShell):
 ```powershell
 tailscale serve status --json > C:\pocketbase\tailscale-serve-backup.json
 tailscale funnel --bg --https=443 --set-path=/api http://127.0.0.1:8090/api
+tailscale funnel --bg --https=443 --set-path=/api/collections/_superusers http://127.0.0.1:9
 tailscale serve --bg --https=8445 http://127.0.0.1:8090
 tailscale funnel --https=443 --set-path=/ off   # only if a "/" → 8090 handler exists
 tailscale funnel status
@@ -69,6 +72,41 @@ curl.exe -sN --max-time 5 https://server-pc.tail3b4002.ts.net/api/realtime  # sh
 curl.exe -s -o NUL -w "%{http_code}`n" https://server-pc.tail3b4002.ts.net/_/       # 404 (not public)
 curl.exe -s -o NUL -w "%{http_code}`n" https://server-pc.tail3b4002.ts.net:8445/_/  # 200 (from the tailnet)
 ```
+
+### Superuser login blocked on the Funnel
+
+The public Funnel answers **502** for everything under
+`/api/collections/_superusers` (login, auth-methods, password reset…), so
+superuser credentials can't be tried from the internet. The path points at a
+port where nothing listens; Tailscale picks the most specific path, so the
+rest of `/api` (users, records, files, realtime, custom routes) is not
+affected:
+
+```powershell
+tailscale funnel --bg --https=443 --set-path=/api/collections/_superusers http://127.0.0.1:9
+```
+
+Superusers log in only through the dashboard on the tailnet
+(`https://server-pc.tail3b4002.ts.net:8445/_/`) or on the server itself
+(`http://127.0.0.1:8090/_/`).
+
+Check (from outside the server):
+
+```powershell
+curl.exe -s -o NUL -w "%{http_code}`n" https://server-pc.tail3b4002.ts.net/api/collections/_superusers/auth-methods  # 502
+curl.exe -s -o NUL -w "%{http_code}`n" https://server-pc.tail3b4002.ts.net/api/collections/users/auth-methods        # 200
+```
+
+Undo:
+
+```powershell
+tailscale funnel --https=443 --set-path=/api/collections/_superusers off
+```
+
+> The `is_admin` backend tests need a superuser login (`--admin-email`), so
+> they only work against `http://127.0.0.1:8090` (or `:8445` over the
+> tailnet), never against the public URL. Without `--admin-email` the rest
+> of the suite runs fine against the Funnel.
 
 Roll back to the previous setup (whole PocketBase on `/`, dashboard public):
 
@@ -115,8 +153,11 @@ serve --http=127.0.0.1:8090 --origins=https://sentinelio.github.io,http://localh
    tailnet only (see [Tailscale](#tailscale-funnel--dashboard)):
    ```powershell
    tailscale funnel --bg --https=443 --set-path=/api http://127.0.0.1:8090/api
+   tailscale funnel --bg --https=443 --set-path=/api/collections/_superusers http://127.0.0.1:9
    tailscale serve --bg --https=8445 http://127.0.0.1:8090
    ```
+   The second line blocks superuser login from the internet (502, see
+   [Superuser login blocked on the Funnel](#superuser-login-blocked-on-the-funnel)).
    The dashboard is then at `https://server-pc.tail3b4002.ts.net:8445/_/` over
    Tailscale, or `http://127.0.0.1:8090/_/` on the server itself.
 4. Deploy this folder with `-Reset` (below), then create the superuser.

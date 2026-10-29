@@ -100,33 +100,45 @@ export function invalidateDictionaryCache(): void {
   CACHE = null;
 }
 
-/** Return up to `limit` suggestions matching `query`.
- *  Matches are prioritized:
- *    1. Items whose localized name in `userLang` starts with the query
- *    2. Items whose localized name in `userLang` contains the query
- *    3. Items whose any translation contains the query
- */
+/** Tier of `entry` for the normalized query `q` (lower is better), or -1
+ *  when it doesn't match at all:
+ *    0. exact match in any language
+ *    1. the name in `userLang` starts with the query
+ *    2. a name in any language, or one of its words, starts with the query
+ *    3. the name in `userLang` contains the query
+ *    4. any translation contains the query
+ *  e.g. "por" → leek (pl "por", exact) before pork (fr "porc", prefix). */
+function matchTier(entry: DictSuggestion, q: string, userLang: string): number {
+  if (!entry.haystack.includes(q)) return -1;
+  const names = Object.values(entry.translations).map(normalize);
+  if (names.some(n => n === q)) return 0;
+  const mine = entry.translations[userLang] ? normalize(entry.translations[userLang]) : "";
+  if (mine.startsWith(q)) return 1;
+  if (names.some(n => n.startsWith(q) || n.split(/[^\p{L}\p{N}]+/u).some(w => w.startsWith(q)))) return 2;
+  if (mine.includes(q)) return 3;
+  return 4;
+}
+
+function rank(entries: DictSuggestion[], query: string, userLang: string, limit: number): DictSuggestion[] {
+  const q = normalize(query).trim();
+  if (q.length < 2) return [];
+  const tiers: DictSuggestion[][] = [[], [], [], [], []];
+  for (const entry of entries) {
+    const tier = matchTier(entry, q, userLang);
+    if (tier >= 0) tiers[tier].push(entry);
+  }
+  return tiers.flat().slice(0, limit);
+}
+
+/** Return up to `limit` suggestions matching `query`, best tier first
+ *  (see matchTier). */
 export async function suggest(
   query: string,
   userLang: string,
   limit = 8,
 ): Promise<DictSuggestion[]> {
-  const q = normalize(query).trim();
-  if (q.length < 2) return [];
-  const entries = await ensureLoaded();
-  const starts: DictSuggestion[] = [];
-  const contains: DictSuggestion[] = [];
-  const others: DictSuggestion[] = [];
-  for (const entry of entries) {
-    const localized = entry.translations[userLang];
-    if (localized) {
-      const n = normalize(localized);
-      if (n.startsWith(q)) { starts.push(entry); continue; }
-      if (n.includes(q)) { contains.push(entry); continue; }
-    }
-    if (entry.haystack.includes(q)) others.push(entry);
-  }
-  return [...starts, ...contains, ...others].slice(0, limit);
+  if (normalize(query).trim().length < 2) return [];
+  return rank(await ensureLoaded(), query, userLang, limit);
 }
 
 /** Synchronous variant for when the dictionary is already preloaded.
@@ -137,19 +149,5 @@ export function suggestSync(
   limit = 8,
 ): DictSuggestion[] {
   if (!CACHE) return [];
-  const q = normalize(query).trim();
-  if (q.length < 2) return [];
-  const starts: DictSuggestion[] = [];
-  const contains: DictSuggestion[] = [];
-  const others: DictSuggestion[] = [];
-  for (const entry of CACHE) {
-    const localized = entry.translations[userLang];
-    if (localized) {
-      const n = normalize(localized);
-      if (n.startsWith(q)) { starts.push(entry); continue; }
-      if (n.includes(q)) { contains.push(entry); continue; }
-    }
-    if (entry.haystack.includes(q)) others.push(entry);
-  }
-  return [...starts, ...contains, ...others].slice(0, limit);
+  return rank(CACHE, query, userLang, limit);
 }
