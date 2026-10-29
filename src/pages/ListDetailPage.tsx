@@ -494,7 +494,6 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         onUpdate={handleUpdate}
         onDelete={handleDelete}
         onShowStore={showInStore}
-        onToggle={handleToggle}
         onSetUnavailable={handleSetUnavailable}
       />
 

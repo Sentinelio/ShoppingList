@@ -118,12 +118,13 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
                   onClick={() => { setPhraseKey(p.key); setShowPhrases(false); void incrementPhraseUsage(p.key); }}
                   className="w-full min-h-[48px] flex items-center gap-3 px-4 py-1.5 text-left cursor-pointer active:bg-white/5">
                   <span className="text-lg" aria-hidden="true">{p.emoji}</span>
+                  {/* Picked in my language; the country's one small below. */}
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[14px] font-semibold truncate" style={{ color: "var(--color-primary-name)" }}>
-                      {capitalize(p.translations[listLang] || p.translations.en || p.key)}
+                    <span className="block text-[14px] font-semibold text-text truncate">
+                      {capitalize(p.translations[userLang] || p.translations[listLang] || p.translations.en || p.key)}
                     </span>
-                    {listLang !== userLang && p.translations[userLang] && (
-                      <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{p.translations[userLang]}</span>
+                    {listLang !== userLang && p.translations[listLang] && p.translations[listLang] !== p.translations[userLang] && (
+                      <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{p.translations[listLang]}</span>
                     )}
                   </span>
                 </button>
