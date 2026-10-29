@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useListDetail, exitList, approveMember, rejectMember, removeMember, updateList } from "../hooks/useList";
+import { useListDetail, exitList, approveMember, rejectMember, removeMember, updateList, archiveList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
 import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase } from "../lib/itemData";
 import { setLocallyImportant } from "../lib/importantStore";
@@ -505,6 +505,11 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         onToggleSort={toggleSort}
         boughtCount={counts.bought}
         onClearBought={clearBought}
+        onArchive={async () => {
+          // Personal: hides the list from my home only.
+          try { await archiveList(listId, true); } catch (err) { console.error("[archiveList]", err); }
+          onNavigate("lists");
+        }}
         onSettings={() => setShowSettings(true)}
       />
 

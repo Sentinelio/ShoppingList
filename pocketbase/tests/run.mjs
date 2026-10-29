@@ -648,6 +648,37 @@ if (DRY) {
   }
 }
 
+section("Archive (personal)");
+const archive = (u, body) => u.pb.send("/api/babelcart/archive", { method: "POST", body });
+await test("B archives the list → only B's membership row is archived", async () => {
+  const r = await archive(B, { list_id: list.id, archived: true });
+  eq(r.archived, true, "response");
+  eq((await memberRow(B.pb, list.id, B.id)).archived, true, "B's row");
+  eq((await memberRow(A.pb, list.id, A.id)).archived, false, "A's row untouched");
+});
+await test("an archived list stays visible to everyone, B included", async () => {
+  await A.pb.collection("lists").getOne(list.id);
+  await B.pb.collection("lists").getOne(list.id);
+});
+await test("archived can't be written through list_members updates (own or others')", async () => {
+  const bRow = await memberRow(A.pb, list.id, B.id);
+  await rejects(A.pb.collection("list_members").update(bRow.id, { archived: false }), [400, 403, 404], "owner unarchives B");
+  const aRow = await memberRow(A.pb, list.id, A.id);
+  await rejects(A.pb.collection("list_members").update(aRow.id, { archived: true }), [400, 403, 404], "owner sets own via update");
+  eq((await memberRow(B.pb, list.id, B.id)).archived, true, "B still archived");
+});
+await test("archive route: non-member 404, bad input 400, requires auth", async () => {
+  await rejects(archive(C, { list_id: list.id, archived: true }), [404], "outsider");
+  await rejects(archive(B, { list_id: list.id, archived: "yes" }), [400], "non-bool");
+  await rejects(archive(B, { archived: true }), [400], "missing list_id");
+  await rejects(new PocketBase(URL_).send("/api/babelcart/archive", { method: "POST", body: { list_id: list.id, archived: true } }), [401], "anonymous");
+});
+await test("B unarchives the list", async () => {
+  const r = await archive(B, { list_id: list.id, archived: false });
+  eq(r.archived, false, "response");
+  eq((await memberRow(B.pb, list.id, B.id)).archived, false, "B's row");
+});
+
 section("No hay (unavailable)");
 const hoursAgo = (h) => new Date(Date.now() - h * 3600e3).toISOString().replace("T", " ");
 let nhList, nhX, nhY;

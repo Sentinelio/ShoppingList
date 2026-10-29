@@ -10,7 +10,7 @@ interface ListMenuProps {
   onToggleSort: () => void;
   boughtCount: number;
   onClearBought: () => void;
-  /** Hidden until archiving exists (phase 5). */
+  /** Personal archive (only hides the list for me). */
   onArchive?: () => void;
   onSettings: () => void;
 }

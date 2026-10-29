@@ -310,6 +310,13 @@ export async function renameList(listId: string, name: string): Promise<void> {
   await pb.collection("lists").update(listId, { name });
 }
 
+/** Archive / unarchive a list for me only (the server sets it on my own
+ *  membership row; the other members keep seeing the list). */
+export async function archiveList(listId: string, archived: boolean): Promise<void> {
+  if (IS_DEMO) return;
+  await pb.send("/api/babelcart/archive", { method: "POST", body: { list_id: listId, archived } });
+}
+
 /** Settings from the list screen (3.6 / 3.8). The server decides who may
  *  change what (owner-only for approval/removal settings). */
 export async function updateList(

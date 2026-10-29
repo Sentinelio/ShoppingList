@@ -57,6 +57,20 @@ onRecordUpdateRequest((e) => {
   e.next()
 }, "users")
 
+// list_members.archived is personal: only POST /api/babelcart/archive sets
+// it, for the caller's own row. Approvers can update other rows (status),
+// so block the field there.
+onRecordUpdateRequest((e) => {
+  if (!e.hasSuperuserAuth()) {
+    for (const key of Object.keys(e.requestInfo().body || {})) {
+      if (key.replace(/[+-]$/, "").replace(/^[+-]/, "") === "archived") {
+        throw new ForbiddenError("'archived' is set with /api/babelcart/archive")
+      }
+    }
+  }
+  e.next()
+}, "list_members")
+
 // ── A new list gets its creator as active owner ────────────────────────────
 
 onRecordAfterCreateSuccess((e) => {

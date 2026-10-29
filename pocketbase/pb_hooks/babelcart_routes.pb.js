@@ -56,12 +56,13 @@ routerAdd("POST", "/api/babelcart/join", (e) => {
 
 // ─────────────────────────────────────────────────────────────────────────
 // GET /api/babelcart/my-requests  →  [{ list_id, list_name, list_code, status, joined_at }]
-// The user's pending join requests (they can't read those lists yet).
+// The user's join requests that aren't active yet — pending or rejected
+// (they can't read those lists).
 // ─────────────────────────────────────────────────────────────────────────
 routerAdd("GET", "/api/babelcart/my-requests", (e) => {
   const rows = $app.findRecordsByFilter(
     "list_members",
-    "user_id = {:user} && status = 'pending'",
+    "user_id = {:user} && status != 'active'",
     "-joined_at",
     0,
     0,
@@ -80,6 +81,32 @@ routerAdd("GET", "/api/babelcart/my-requests", (e) => {
     })
   }
   return e.json(200, out)
+}, $apis.requireAuth())
+
+// ─────────────────────────────────────────────────────────────────────────
+// POST /api/babelcart/archive  { list_id, archived }  →  { list_id, archived }
+// Archive / unarchive a list for the caller only (their own active
+// membership row). The other members keep seeing it as before.
+// ─────────────────────────────────────────────────────────────────────────
+routerAdd("POST", "/api/babelcart/archive", (e) => {
+  const body = e.requestInfo().body || {}
+  const listId = String(body.list_id || "")
+  if (!listId) throw new BadRequestError("Missing 'list_id'")
+  if (typeof body.archived !== "boolean") throw new BadRequestError("'archived' must be true or false")
+
+  let row
+  try {
+    row = $app.findFirstRecordByFilter(
+      "list_members",
+      "list_id = {:list} && user_id = {:user} && status = 'active'",
+      { list: listId, user: e.auth.id },
+    )
+  } catch (_) {
+    throw new NotFoundError("Not a member of this list")
+  }
+  row.set("archived", body.archived)
+  $app.save(row)
+  return e.json(200, { list_id: listId, archived: row.getBool("archived") })
 }, $apis.requireAuth())
 
 // ─────────────────────────────────────────────────────────────────────────
