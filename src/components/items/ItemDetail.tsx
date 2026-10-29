@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import { Fragment, useState, useEffect, useRef, type ChangeEvent } from "react";
 import type { Item } from "../../lib/pocketbase";
 import { getLangFlag } from "../../data/langs";
 import { t, formatQtyUnit } from "../../data/i18n";
@@ -12,7 +12,7 @@ import { getEnabledLangs } from "../../lib/langConfig";
 import { uploadItemPhoto } from "../../lib/photoUpload";
 import { primaryName, secondaryName, categoryNames } from "../../lib/names";
 import ItemIcon from "./ItemIcon";
-import { IconBack, IconBan, IconCheck, IconChevronRight, IconClose, IconMinus, IconPlus, IconStore, IconTrash } from "../ui/icons";
+import { IconBack, IconBan, IconCheck, IconChevronRight, IconClose, IconExternal, IconMinus, IconPlus, IconStore, IconTrash } from "../ui/icons";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -1172,11 +1172,24 @@ export default function ItemDetail({
 
       <div className="rounded-[14px] bg-bg divide-y divide-border overflow-hidden">
         {subRows.map(r => (
-          <button key={r.tab} type="button" onClick={() => setActiveTab(r.tab)} className={rowBtn}>
-            <span className="flex-1 text-[15px] text-text">{r.label}</span>
-            {r.hint && <span className="text-[13px] text-text-muted truncate max-w-[45%]">{r.hint}</span>}
-            <IconChevronRight size={18} className="text-text-muted shrink-0" />
-          </button>
+          <Fragment key={r.tab}>
+            <button type="button" onClick={() => setActiveTab(r.tab)} className={rowBtn}>
+              <span className="flex-1 text-[15px] text-text">{r.label}</span>
+              {r.hint && <span className="text-[13px] text-text-muted truncate max-w-[45%]">{r.hint}</span>}
+              <IconChevronRight size={18} className="text-text-muted shrink-0" />
+            </button>
+            {r.tab === "edit" && (
+              <a
+                href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent((shelfName || displayName) + (item.brand ? " " + item.brand : ""))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={rowBtn}
+              >
+                <span className="flex-1 text-[15px] text-text">{t(lang, "googleImages")}</span>
+                <IconExternal size={18} className="text-text-muted shrink-0" />
+              </a>
+            )}
+          </Fragment>
         ))}
       </div>
 

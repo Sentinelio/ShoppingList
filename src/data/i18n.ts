@@ -147,6 +147,7 @@ export const strings = {
     "moreQty": "More",
     "markedUnavailable": "marked it as out of stock",
     "unmarkedUnavailable": "put it back to buy",
+    "googleImages": "See on Google Images",
   },
   es: {
     "welcome": "Bienvenido",
@@ -292,6 +293,7 @@ export const strings = {
     "moreQty": "Más",
     "markedUnavailable": "marcó que no hay",
     "unmarkedUnavailable": "lo devolvió a por comprar",
+    "googleImages": "Ver en Google Imágenes",
   },
   pl: {
     "welcome": "Witaj",
@@ -437,6 +439,7 @@ export const strings = {
     "moreQty": "Więcej",
     "markedUnavailable": "oznaczył(a) brak",
     "unmarkedUnavailable": "przywrócił(a) do kupienia",
+    "googleImages": "Zobacz w Google Grafika",
   },
 } as const;
 
