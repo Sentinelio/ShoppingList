@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
 import { useAuth } from "../../hooks/useAuth";
 import { joinList } from "../../hooks/useList";
@@ -11,12 +11,15 @@ interface JoinListModalProps {
   open: boolean;
   onClose: () => void;
   onJoined: () => void;
+  /** Code from an invite link (#join=CODE). */
+  initialCode?: string;
 }
 
 export default function JoinListModal({
   open,
   onClose,
   onJoined,
+  initialCode,
 }: JoinListModalProps) {
   const { user } = useAuth();
   const lang = (user?.lang ?? "en") as Lang;
@@ -24,6 +27,10 @@ export default function JoinListModal({
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<JoinState>("default");
+
+  useEffect(() => {
+    if (open && initialCode) setCode(initialCode.slice(0, 6));
+  }, [open, initialCode]);
 
   const reset = () => {
     setCode("");

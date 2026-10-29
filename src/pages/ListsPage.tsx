@@ -12,6 +12,7 @@ import SwipeRow from "../components/ui/SwipeRow";
 import Modal from "../components/ui/Modal";
 import CreateListModal from "../components/lists/CreateListModal";
 import JoinListModal from "../components/lists/JoinListModal";
+import { readJoinHash } from "../lib/joinLink";
 import { LANGS } from "../data/langs";
 import { COUNTRIES } from "../data/countries";
 
@@ -35,6 +36,13 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  // Invite links (#join=CODE, from the share QR) open the join dialog.
+  const [joinCode] = useState(() => readJoinHash());
+  useEffect(() => {
+    if (!joinCode) return;
+    setShowJoin(true);
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, [joinCode]);
   const [showSettings, setShowSettings] = useState(false);
   const [editListId, setEditListId] = useState<string | null>(null);
   const [profileName, setProfileName] = useState(user?.name ?? "");
@@ -302,6 +310,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
         onCreated={handleCreated}
       />
       <JoinListModal
+        initialCode={joinCode ?? undefined}
         open={showJoin}
         onClose={() => setShowJoin(false)}
         onJoined={handleJoined}

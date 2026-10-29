@@ -267,7 +267,7 @@ export function useListDetail(listId: string | undefined) {
     );
   }, [listId]);
 
-  return { list, members, setMembers, items, setItems, loading, refresh };
+  return { list, setList, members, setMembers, items, setItems, loading, refresh };
 }
 
 // ── mutations ───────────────────────────────────────────
@@ -308,6 +308,16 @@ export async function renameList(listId: string, name: string): Promise<void> {
     return;
   }
   await pb.collection("lists").update(listId, { name });
+}
+
+/** Settings from the list screen (3.6 / 3.8). The server decides who may
+ *  change what (owner-only for approval/removal settings). */
+export async function updateList(
+  listId: string,
+  updates: Partial<Pick<List, "name" | "country" | "unavailable_policy" | "who_can_approve" | "who_can_remove" | "require_approval">>,
+): Promise<void> {
+  if (IS_DEMO) return;
+  await pb.collection("lists").update(listId, updates);
 }
 
 export async function deleteList(listId: string): Promise<void> {
