@@ -13,6 +13,8 @@ import { translateProduct } from "../../lib/translate";
 import { getEnabledLangs } from "../../lib/langConfig";
 import { uploadItemPhoto } from "../../lib/photoUpload";
 import { primaryName, secondaryName } from "../../lib/names";
+import ItemIcon from "./ItemIcon";
+import EmojiImage from "../ui/EmojiImage";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -341,7 +343,9 @@ export default function ItemDetail({
         {item.photo ? (
           <img src={item.photo} style={{ maxWidth: "70%", maxHeight: "30vh", borderRadius: 16, objectFit: "contain" }} alt={shelfName} />
         ) : (
-          <span style={{ fontSize: sv.emojiFontSize, lineHeight: 1, filter: sv.emojiFilter, opacity: sv.emojiOpacity }} aria-hidden="true">{emojiChar}</span>
+          <span style={{ filter: sv.emojiFilter, opacity: sv.emojiOpacity }}>
+            <ItemIcon name={item.original} category={item.category} size={150} />
+          </span>
         )}
       </div>
       {/* Qty + note */}
@@ -454,7 +458,7 @@ export default function ItemDetail({
   const editHeader = (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-        <span style={{ fontSize: 28 }}>{emojiChar}</span>
+        <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={32} /></span>
         <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") handleSave(); }}
           style={{ ...labInput, flex: 1, fontSize: 16, fontWeight: 700, padding: "6px 10px" }} />
@@ -552,7 +556,7 @@ export default function ItemDetail({
     // v2: Stepper Buttons — Botones +/- grandes (1:1 with lab)
     <div key="e1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, flex: 1, textAlign: "center" }}>
       {editHeader}
-      <span style={{ fontSize: 36 }}>{emojiChar}</span>
+      <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={41} /></span>
       <div style={{ fontSize: 18, fontWeight: 800 }}>{displayName}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "12px 0" }}>
         <button type="button" onClick={() => { const n = Math.max(0, Number(qty) - 1); setQty(String(n)); onUpdate(item.id, { qty: String(n), unit, note }); }}
@@ -572,7 +576,7 @@ export default function ItemDetail({
     <div key="e2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
       {editHeader}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--color-card, #161b26)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)" }}>
-        <span style={{ fontSize: 28 }}>{emojiChar}</span>
+        <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={32} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700 }} className="truncate">{displayName}</div>
           {showShelf && <div style={{ fontSize: 11, color: "var(--color-shelf, #e8c364)", fontWeight: 600 }}>{shelfName}</div>}
@@ -601,7 +605,7 @@ export default function ItemDetail({
     // v4: Minimal Fields — Sin labels, solo placeholders (1:1 with lab)
     <div key="e3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
       {editHeader}
-      <span style={{ fontSize: 40 }}>{emojiChar}</span>
+      <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={46} /></span>
       {showShelf && <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>}
       <div style={{ display: "flex", gap: 6, width: "100%", marginTop: 8 }}>
         <input type="number" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)}placeholder="Qty" className="input" style={{ width: 60, textAlign: "center" }} />
@@ -625,7 +629,7 @@ export default function ItemDetail({
     <div key="e4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
       {editHeader}
       <div style={{ textAlign: "center" }}>
-        <span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}
+        <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={32} /></span>{" "}
         <span style={{ fontSize: 18, fontWeight: 800, verticalAlign: "middle" }}>{displayName}</span>
       </div>
       <div style={{ fontSize: 9, fontWeight: 700, color: "#555d74", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t(lang, "quickQty")}</div>
@@ -660,7 +664,7 @@ export default function ItemDetail({
   const transVariants: React.ReactNode[] = [
     // v1: Flag List — yours + shelf highlighted, others below divider
     <div key="t0" style={{ padding: "12px 16px", flex: 1 }}>
-      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ fontSize: 28 }}>{emojiChar}</span>{" "}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{formatQtyUnit(qty, unit, lang)}</span></div>
+      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={32} /></span>{" "}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{formatQtyUnit(qty, unit, lang)}</span></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
         {[{ flag: getLangFlag(userLang), word: displayName, label: "Tu idioma", bg: "rgba(108,138,255,0.08)", border: "rgba(108,138,255,0.2)", color: "var(--color-text)" },
           ...(showShelf ? [{ flag: getLangFlag(shelfLang) || countryFlag, word: shelfName, label: "Estante", bg: "rgba(232,195,100,0.08)", border: "rgba(232,195,100,0.2)", color: "var(--color-shelf, #e8c364)" }] : []),
@@ -680,7 +684,7 @@ export default function ItemDetail({
     <div key="t1" style={{ padding: "12px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 8 }}>
       <div style={{ fontSize: 9, fontWeight: 700, color: "#6c8aff", textTransform: "uppercase", letterSpacing: "0.1em" }}>🇵🇱 Tu idioma</div>
       <div style={{ fontSize: 24, fontWeight: 800 }}>{displayName}</div>
-      <div style={{ fontSize: 28, margin: "8px 0", color: "var(--color-accent)" }}>↓ {emojiChar} ↓</div>
+      <div style={{ fontSize: 28, margin: "8px 0", color: "var(--color-accent)" }}>↓ <EmojiImage emoji={emojiChar} size={30} /> ↓</div>
       <div style={{ fontSize: 9, fontWeight: 700, color: "var(--color-shelf, #e8c364)", textTransform: "uppercase", letterSpacing: "0.1em" }}>🇪🇸 En la tienda</div>
       <div style={{ fontSize: 28, fontWeight: 800, color: "var(--color-shelf, #e8c364)" }}>{shelfName}</div>
       <div style={{ height: 1, width: "80%", background: "rgba(255,255,255,0.06)", margin: "12px auto" }} />
@@ -694,7 +698,7 @@ export default function ItemDetail({
 
     // v3: Tag Cloud — all translations as colored chips
     <div key="t2" style={{ padding: "12px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-      <span style={{ fontSize: 48 }}>{emojiChar}</span>
+      <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={55} /></span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
         {Object.entries(item.translations || {}).map(([code, word]) => {
           const isYours = code === userLang;
@@ -710,7 +714,7 @@ export default function ItemDetail({
 
     // v4: Card Grid — 2-column cards with flags
     <div key="t3" style={{ padding: "12px 16px", flex: 1 }}>
-      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ fontSize: 24 }}>{emojiChar}</span></div>
+      <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={28} /></span></div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {Object.entries(item.translations || {}).map(([code, word]) => {
           const isYours = code === userLang;
@@ -731,10 +735,10 @@ export default function ItemDetail({
         <div style={{ padding: "8px 12px", background: "rgba(108,138,255,0.06)", fontSize: 10, fontWeight: 700, color: "#6c8aff", textAlign: "center", borderBottom: "1px solid var(--color-border)" }}>Tu idioma</div>
         <div style={{ padding: "8px 12px", background: "rgba(232,195,100,0.06)", fontSize: 10, fontWeight: 700, color: "var(--color-shelf, #e8c364)", textAlign: "center", borderBottom: "1px solid var(--color-border)" }}>Estante</div>
         <div style={{ padding: 14, textAlign: "center", borderRight: "1px solid var(--color-border)" }}>
-          <div style={{ fontSize: 32 }}>{emojiChar}</div><div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{displayName}</div>
+          <div style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={37} /></div><div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{displayName}</div>
         </div>
         <div style={{ padding: 14, textAlign: "center" }}>
-          <div style={{ fontSize: 32 }}>{emojiChar}</div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--color-shelf, #e8c364)", marginTop: 4 }}>{shelfName}</div>
+          <div style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={37} /></div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--color-shelf, #e8c364)", marginTop: 4 }}>{shelfName}</div>
         </div>
       </div>
       <div style={{ marginTop: 10 }}>
@@ -830,7 +834,7 @@ export default function ItemDetail({
   const priceVariants: React.ReactNode[] = [
     // v1: Simple List
     <div key="p0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 4, flex: 1, overflow: "auto" }}>
-      <div style={{ textAlign: "center", marginBottom: 8 }}><span style={{ fontSize: 24 }}>{emojiChar}</span> <span style={{ fontSize: 15, fontWeight: 700 }}>{displayName}</span></div>
+      <div style={{ textAlign: "center", marginBottom: 8 }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={28} /></span> <span style={{ fontSize: 15, fontWeight: 700 }}>{displayName}</span></div>
       {displayPrices.length === 0 ? emptyPriceMessage : displayPrices.map(p => (
         <div key={p.id} onDoubleClick={() => handleDeletePrice(p.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: p.best ? "rgba(61,214,140,0.04)" : "var(--color-card, #161b26)", borderRadius: 10, border: `1px solid ${p.best ? "rgba(61,214,140,0.15)" : "var(--color-border, rgba(255,255,255,0.10))"}` }}>
           <span style={{ fontSize: 14 }}>{p.best ? "🏷" : "🏪"}</span>
@@ -891,7 +895,7 @@ export default function ItemDetail({
 
     // v4: Savings Badge
     <div key="p3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center", overflow: "auto" }}>
-      <div style={{ fontSize: 32 }}>{emojiChar}</div>
+      <div style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={37} /></div>
       <div style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</div>
       {stats.totalPurchases >= 2 && stats.bestPrice !== null && stats.worstPrice !== null && stats.bestStore && stats.worstStore ? (
         <>
@@ -952,7 +956,7 @@ export default function ItemDetail({
   const statsVariants: React.ReactNode[] = [
     // v1: Dashboard Grid
     <div key="s0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-      <div style={{ textAlign: "center", marginBottom: 4 }}><span style={{ fontSize: 20 }}>{emojiChar}</span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
+      <div style={{ textAlign: "center", marginBottom: 4 }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={23} /></span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
       {stats.totalPurchases === 0 ? emptyStatsMessage : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           {[
@@ -972,7 +976,7 @@ export default function ItemDetail({
 
     // v2: Spend Tracker
     <div key="s1" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
-      <div style={{ fontSize: 32 }}>{emojiChar}</div>
+      <div style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={37} /></div>
       <div style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</div>
       {stats.totalPurchases === 0 ? emptyStatsMessage : (
         <>
@@ -1002,7 +1006,7 @@ export default function ItemDetail({
     // v3: Compact Numbers
     <div key="s2" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", flex: 1 }}>
       <div style={{ textAlign: "center", padding: "8px 0 12px" }}>
-        <span style={{ fontSize: 28 }}>{emojiChar}</span>
+        <span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={32} /></span>
         <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{displayName}</div>
       </div>
       {stats.totalPurchases === 0 ? emptyStatsMessage : (() => {
@@ -1026,7 +1030,7 @@ export default function ItemDetail({
 
     // v4: By Store
     <div key="s3" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flex: 1, textAlign: "center" }}>
-      <div style={{ fontSize: 32 }}>{emojiChar}</div>
+      <div style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={37} /></div>
       <div style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</div>
       {stats.totalPurchases === 0 ? emptyStatsMessage : (
         <>
@@ -1056,7 +1060,7 @@ export default function ItemDetail({
 
     // v5: Who Buys
     <div key="s4" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-      <div style={{ textAlign: "center" }}><span style={{ fontSize: 20 }}>{emojiChar}</span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
+      <div style={{ textAlign: "center" }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={23} /></span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
       {stats.byUser.length === 0 ? emptyStatsMessage : stats.byUser.map((m, i) => {
         const c = userColors[i % userColors.length];
         return (

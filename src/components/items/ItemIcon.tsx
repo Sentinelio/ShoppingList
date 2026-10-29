@@ -1,5 +1,6 @@
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { getCategoryColor } from "../../data/categories";
+import EmojiImage from "../ui/EmojiImage";
 
 interface ItemIconProps {
   /** Text used to pick the product emoji (usually item.original). */
@@ -9,8 +10,8 @@ interface ItemIconProps {
   size?: number;
 }
 
-// Product icon on a rounded tile tinted with its category colour. The item's
-// own photo wins over the emoji.
+// Product icon (Fluent Emoji 3D) on a rounded tile tinted with its category
+// colour. The item's own photo wins over the emoji.
 export default function ItemIcon({ name, category, photo, size = 40 }: ItemIconProps) {
   const color = getCategoryColor(category || "other");
   const radius = Math.round(size * 0.28);
@@ -31,7 +32,7 @@ export default function ItemIcon({ name, category, photo, size = 40 }: ItemIconP
       style={{ width: size, height: size, borderRadius: radius, background: `${color}26` }}
       aria-hidden="true"
     >
-      <span style={{ fontSize: Math.round(size * 0.55), lineHeight: 1 }}>{matchProductEmoji(name).emoji}</span>
+      <EmojiImage emoji={matchProductEmoji(name).emoji} size={Math.round(size * 0.68)} />
     </span>
   );
 }
