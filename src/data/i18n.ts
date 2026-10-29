@@ -198,6 +198,11 @@ export const strings = {
     "createFirstList": "Tap + to create your first list",
     "deleteArchived": "Delete",
     "noItems": "No products",
+    "installTitle": "Add BabelCart to your Home Screen",
+    "installWhy": "It opens full screen, like an app.",
+    "installStep1": "Tap Share in Safari's bar",
+    "installStep2": "Choose “Add to Home Screen”",
+    "installStep3": "Tap “Add”",
   },
   es: {
     "welcome": "Bienvenido",
@@ -394,6 +399,11 @@ export const strings = {
     "createFirstList": "Pulsa + para crear tu primera lista",
     "deleteArchived": "Borrar",
     "noItems": "Sin productos",
+    "installTitle": "Añade BabelCart a tu pantalla de inicio",
+    "installWhy": "Se abre a pantalla completa, como una app.",
+    "installStep1": "Toca Compartir en la barra de Safari",
+    "installStep2": "Elige «Añadir a pantalla de inicio»",
+    "installStep3": "Pulsa «Añadir»",
   },
   pl: {
     "welcome": "Witaj",
@@ -590,6 +600,11 @@ export const strings = {
     "createFirstList": "Dotknij +, aby utworzyć pierwszą listę",
     "deleteArchived": "Usuń",
     "noItems": "Brak produktów",
+    "installTitle": "Dodaj BabelCart do ekranu początkowego",
+    "installWhy": "Otwiera się na pełnym ekranie, jak aplikacja.",
+    "installStep1": "Dotknij Udostępnij na pasku Safari",
+    "installStep2": "Wybierz „Do ekranu początkowego”",
+    "installStep3": "Dotknij „Dodaj”",
   },
 } as const;
 

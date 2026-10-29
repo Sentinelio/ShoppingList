@@ -230,6 +230,29 @@ After `-Reset`, recreate the superuser:
 C:\pocketbase\pocketbase.exe superuser upsert you@example.com "a-long-password" --dir C:\pocketbase\pb_data
 ```
 
+### Deploying without risking the data
+
+The server holds real lists: **never** use `-Reset` on it, and migrations
+only **add** (new fields with defaults, new collections). For every backend
+change:
+
+1. Test on a **copy** first: copy `C:\pocketbase\pb_data` to a temp folder and
+   run a second `pocketbase.exe` on `:8092` with this folder's migrations and
+   hooks (`--dir`, `--migrationsDir`, `--hooksDir`, `BABELCART_DRY_RUN=1`).
+   Compare record counts with the service and run
+   `npm run test:pb -- --url http://127.0.0.1:8092 --dry-run --admin-email <a superuser of the copy>`.
+2. `nssm stop PocketBase`, copy `pb_data` to
+   `C:\BabelCart-backups\pb_data-YYYYMMDD-HHMM`, `nssm start PocketBase`,
+   check `/api/health`.
+3. `.\pocketbase\deploy-server.ps1` (no `-Reset`), check `/api/health` and
+   compare the counts of `users`, `lists`, `list_members`, `items` with step 2.
+4. Only then push the frontend (GitHub Actions publishes it to Pages).
+
+Restore a backup: stop the service, replace `C:\pocketbase\pb_data` with the
+backup folder, start it. Backups taken so far:
+`pb_data-20261029-2202` (before 1792540002), `-2217` (before 1792540003),
+`-2305` (before 1792540004).
+
 ## Adding a migration
 
 1. Create `pb_migrations/<unix-timestamp>_<what>.js`, with a timestamp larger
@@ -313,9 +336,9 @@ Collections and fields keep the old Postgres names (`list_id`, `added_by_name`,
 | Collection | Notes |
 |---|---|
 | `users` (auth) | The Supabase `users` table merged into PocketBase auth: `name`, `lang`, `country`, `avatar_color`, `last_seen_at`, **`is_admin`**, `created_at` |
-| `lists` | + **`active_members`**, **`owners`** (hook-maintained) |
-| `list_members` | unique `(list_id, user_id)`; created only by the server |
-| `items` | + **`photo`** (URL), **`important`** |
+| `lists` | + **`active_members`**, **`owners`**, **`last_checked_at`** (hook-maintained), **`country`**, **`unavailable_policy`** |
+| `list_members` | unique `(list_id, user_id)`; created only by the server; + **`archived`** (server-only) |
+| `items` | + **`photo`** (URL), **`important`**, **`unavailable`**, **`unavailable_at`** |
 | `item_photos` | **new**: replaces the `item-photos` bucket |
 | `item_prices`, `item_comments`, `item_history` | as in 011–016 |
 | `receipts` | `photo` file field replaces `photo_url` + `receipt-photos` bucket |
@@ -337,6 +360,20 @@ Collections and fields keep the old Postgres names (`list_id`, `added_by_name`,
   migrations.
 - `item_photos` collection (`file`, `uploaded_by`) — storage for item photos.
 - `created_at` on `users` (PocketBase's own is `created`).
+
+### Added by the 2026-10 mobile redesign (all additive)
+
+| Migration | Field | Meaning |
+|---|---|---|
+| `1792540002_lists_country` | `lists.country` | Country the list is used in; its language is the primary one for every name. New lists copy the creator's country (hook); empty on older lists → the app uses the viewer's country. Any member can change it. |
+| `1792540003_items_unavailable` | `items.unavailable`, `items.unavailable_at` | "No hay": out of stock. Excludes `checked` (marking it unchecks the item; checking it clears it). `unavailable_at` is stamped by the hook. |
+| | `lists.unavailable_policy` | `""`/`keep` stay until moved by hand · `next_trip` back on the next shopping trip (first check after > 3 h without checks, or "Borrar comprados") · `next_day` back the next day (hourly cron `babelcart_unavailable_next_day`). Any member can change it. |
+| | `lists.last_checked_at` | Last check in the list, to tell trips apart. Server-only. |
+| `1792540004_list_members_archived` | `list_members.archived` | Personal archive: hides the list from MY home only. Set with `POST /api/babelcart/archive`; a hook rejects it in normal `list_members` updates. |
+
+Hooks: `pb_hooks/babelcart_unavailable.pb.js` (+ `lib/unavailable.js`) for
+"No hay"; the archive route and its guard are in `babelcart_routes.pb.js` and
+`babelcart_members.pb.js`.
 
 ### Nulls
 
@@ -363,7 +400,9 @@ such rows are not mirrored into `product_prices`.
 | Route | Replaces |
 |---|---|
 | `POST join` `{ code }` → `{ list, status, already }` | client-side insert into `list_members` |
-| `GET my-requests` → pending join requests with list name/code | join `list_members → lists` |
+| `GET my-requests` → join requests not active yet (pending or rejected) with list name/code | join `list_members → lists` |
+| `POST archive` `{ list_id, archived }` → `{ list_id, archived }` (own active row only) | new |
+| `POST release-unavailable` (superusers) → `{ released }` — runs the `next_day` release now | new (tests, manual fixes) |
 | `POST translate` `{ text, langs }` → `{ t, c, b }` (+ saves to `dictionary`) | Edge Function `translate` |
 | `POST translate-ui` `{ strings, targetLang, targetLangName }` → `{ translations }` | `translate-ui` |
 | `POST parse-receipt` `{ imageBase64 \| imageUrl, mediaType?, targetLangs? }` | `parse-receipt` (422 `not_a_receipt`) |

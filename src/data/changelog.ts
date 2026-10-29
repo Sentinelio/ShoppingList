@@ -14,8 +14,29 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v1.02",
+    version: "v1.03",
     hash: "HEAD",
+    date: "2026-10-29",
+    time: "22:45",
+    type: "feat",
+    title: "Mobile redesign, \"No hay\", personal archive and live admin config",
+    details: [
+      "Language rule everywhere: the primary name (big, gold) is in the language of the LIST's country (new lists.country, editable in list settings), the secondary (small, grey) in yours",
+      "List screen: fixed progress (\"No hay\" items don't count) and three filters (Por comprar / Comprados / No hay), collapsible categories in both languages, Material rows, search with highlight, icon-only bottom bar (Lista, Tienda, Miembros, +)",
+      "Add sheet: «as typed» row first, tiered dictionary suggestions (\"por\" → leek before pork), quick qty and units, follows the iOS keyboard; iOS no longer zooms into fields",
+      "\"No hay\" (out of stock) status with a per-list policy: stay until moved, back on the next shopping trip, or back the next day",
+      "Store tab: one product at a time, huge name in the country's language, staff phrases picked in your language and shown in the country's",
+      "Members tab, share sheet with invite code + real QR (#join=CODE link) and \"approve before joining\", ⋮ menu (sort by category, delete bought, archive, settings), list settings (name, country, No hay policy, who can approve and remove, delete/leave)",
+      "Mis listas: flag tile, items to buy, last used, member avatars, sent requests with status, personal archive (hidden only for you) with restore / delete",
+      "Product icons are Fluent Emoji 3D images bundled in public/fluent (MIT)",
+      "Safari on iPhone shows once how to add the app to the Home Screen",
+      "Setup and session start report errors (with a Tailscale hint for network failures) instead of failing silently; saved credentials are only dropped when the server rejects them",
+      "Admin: every failure shows a banner and goes to console.error, the status dot really pings the server, and admin changes reach open apps at once (realtime) — see pocketbase/README.md",
+    ],
+  },
+  {
+    version: "v1.02",
+    hash: "0ffdfa9",
     date: "2026-10-20",
     time: "20:00",
     type: "feat",

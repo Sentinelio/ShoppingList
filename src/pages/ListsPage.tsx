@@ -9,6 +9,7 @@ import Modal from "../components/ui/Modal";
 import Avatar from "../components/ui/Avatar";
 import CreateListModal from "../components/lists/CreateListModal";
 import JoinListModal from "../components/lists/JoinListModal";
+import IosInstallHint from "../components/ui/IosInstallHint";
 import { readJoinHash } from "../lib/joinLink";
 import { LANGS } from "../data/langs";
 import { getCountries, getCountryFlag } from "../data/countries";
@@ -274,6 +275,9 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
       >
         {CHANGELOG[0]?.version ?? "v?"}
       </div>
+
+      {/* Safari on iPhone, not installed: once, how to add it to the Home Screen */}
+      <IosInstallHint lang={lang} />
 
       {/* FAB: new list */}
       <button
