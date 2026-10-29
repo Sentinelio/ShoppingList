@@ -272,15 +272,16 @@ export function useListDetail(listId: string | undefined) {
 
 // ── mutations ───────────────────────────────────────────
 
-export async function createList(name: string, userId: string): Promise<List> {
+export async function createList(name: string, userId: string, country = ""): Promise<List> {
   if (IS_DEMO) {
-    return demoCreateList(name, userId);
+    return { ...demoCreateList(name, userId), country };
   }
 
   const code = generateCode();
 
-  // The server adds the creator as active owner (pb_hooks).
-  return pb.collection("lists").create<List>({ name, code, created_by: userId });
+  // The server adds the creator as active owner and, when `country` is
+  // empty, copies the creator's country (pb_hooks).
+  return pb.collection("lists").create<List>({ name, code, created_by: userId, country });
 }
 
 export async function joinList(code: string, userId: string): Promise<List> {

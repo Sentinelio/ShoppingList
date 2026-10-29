@@ -5,6 +5,14 @@
   --color-card: #161b24;
   --color-accent: #f0883e;
   --color-shelf: #e8c364;
+  /* Language rule: primary = list country's language, secondary = mine */
+  --color-primary-name: #e8c364;
+  --color-secondary-name: #a3aac0;
+  --color-accent-soft: #3a2a1c;
+  --color-accent-ink: #ffb27a;
+  --color-scroll: #3a4255;
+  --color-important: #ff6b6b;
+  --radius-block: 14px;
   --color-text: #e6e8ee;
   --color-text-soft: #8b92a8;
   --color-text-muted: #555d74;
@@ -40,14 +48,20 @@ input, textarea, select {
   font-family: inherit;
 }
 
+/* Thin scrollbar: 4px thumb, no track */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scroll) transparent;
+}
 ::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-light);
+  background: var(--color-scroll);
   border-radius: 2px;
 }
 

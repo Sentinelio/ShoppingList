@@ -8,6 +8,8 @@ import { preloadDictionary, suggest, type DictSuggestion } from "../../lib/dictS
 import { getCategoryEmoji, getCategoryColor } from "../../data/categories";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { uploadItemPhoto } from "../../lib/photoUpload";
+import { primaryName, secondaryName } from "../../lib/names";
+import { useKeyboardInset } from "../../hooks/useKeyboardInset";
 
 interface AddItemBarProps {
   listId: string;
@@ -58,6 +60,8 @@ export default function AddItemBar({
   const barRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  // Keep the bar on top of the iOS keyboard while it's open.
+  const keyboardInset = useKeyboardInset(expanded);
 
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -269,24 +273,40 @@ export default function AddItemBar({
     <>
     <div
       ref={barRef}
-      className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border-light"
-      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+      className="fixed left-0 right-0 z-30 bg-card border-t border-border-light"
+      style={{
+        bottom: keyboardInset,
+        paddingBottom: keyboardInset ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))",
+      }}
     >
-      {/* Autocomplete suggestions — anchored above the input */}
-      {suggestions.length > 0 && (
+      {/* Autocomplete — anchored above the input. The first row always adds
+          the text exactly as typed; dictionary hits follow, primary name in
+          the list country's language, mine below. */}
+      {expanded && input.trim().length >= 2 && (
         <div
           className="absolute left-0 right-0 bottom-full mb-1 px-3"
           role="listbox"
           aria-label={t(lang, "addProduct")}
         >
-          <div className="bg-card rounded-2xl border border-border-light shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+          <div className="bg-card rounded-[14px] border border-border-light shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+            <button
+              type="button"
+              role="option"
+              aria-selected={highlightedIdx === -1}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => handleSubmit(e as unknown as FormEvent)}
+              className="w-full flex items-center gap-2.5 px-3 min-h-[44px] text-left cursor-pointer border-b border-border"
+            >
+              <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 bg-bg" aria-hidden="true">✍️</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-text truncate">«{input.trim()}»</div>
+                <div className="text-[11px] truncate" style={{ color: "var(--color-secondary-name)" }}>{t(lang, "asTyped")}</div>
+              </div>
+            </button>
             {suggestions.map((s, i) => {
-              const display = s.translations[userLang] || s.key;
-              const other = Object.entries(s.translations)
-                .filter(([code]) => code !== userLang)
-                .slice(0, 3)
-                .map(([, v]) => v)
-                .join(" · ");
+              const named = { original: s.key, translations: s.translations };
+              const primary = primaryName(named, shelfLang);
+              const mine = secondaryName(named, shelfLang, userLang);
               const emoji = matchProductEmoji(s.key).emoji || getCategoryEmoji(s.category);
               const color = getCategoryColor(s.category);
               const active = i === highlightedIdx;
@@ -297,8 +317,9 @@ export default function AddItemBar({
                   role="option"
                   aria-selected={active}
                   onMouseEnter={() => setHighlightedIdx(i)}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applySuggestion(s)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer border-b border-border last:border-b-0"
+                  className="w-full flex items-center gap-2.5 px-3 min-h-[44px] py-1.5 text-left cursor-pointer border-b border-border last:border-b-0"
                   style={{ background: active ? `${color}1a` : "transparent" }}
                 >
                   <span
@@ -309,9 +330,9 @@ export default function AddItemBar({
                     {emoji}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-text truncate">{display}</div>
-                    {other && (
-                      <div className="text-[10px] text-text-muted truncate">{other}</div>
+                    <div className="text-sm font-semibold truncate" style={{ color: "var(--color-primary-name)" }}>{primary}</div>
+                    {mine && (
+                      <div className="text-[11px] truncate" style={{ color: "var(--color-secondary-name)" }}>{mine}</div>
                     )}
                   </div>
                 </button>

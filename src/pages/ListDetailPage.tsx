@@ -10,6 +10,7 @@ import { CATEGORY_ORDER, getCategoryName, getCategoryEmoji } from "../data/categ
 import { getCountryFlag } from "../data/countries";
 import { getLangFlag, getLangName } from "../data/langs";
 import { copyToClipboard } from "../lib/clipboard";
+import { listLangOf, categoryNames } from "../lib/names";
 import type { Item } from "../lib/pocketbase";
 import ItemCard from "../components/items/ItemCard";
 import AddItemBar from "../components/items/AddItemBar";
@@ -30,15 +31,18 @@ interface CategoryGroup {
   key: string;
   emoji: string;
   name: string;
+  nameMine: string;
   items: Item[];
 }
 
 export default function ListDetailPage({ listId, onNavigate }: ListDetailPageProps) {
-  const { user, shelfLang } = useAuth();
+  const { user } = useAuth();
   const userLang = user?.lang ?? "en";
   const lang = userLang;
 
   const { list, members, setMembers, items, setItems, loading, refresh } = useListDetail(listId);
+  // Primary language of every name in this list: the list country's.
+  const shelfLang = listLangOf(list, user?.country);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
@@ -139,10 +143,11 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     return CATEGORY_ORDER.filter((cat) => grouped[cat] && grouped[cat].length > 0).map((cat) => ({
       key: cat,
       emoji: getCategoryEmoji(cat),
-      name: getCategoryName(cat, userLang),
+      name: categoryNames(cat, shelfLang, userLang).primary,
+      nameMine: categoryNames(cat, shelfLang, userLang).secondary,
       items: grouped[cat],
     }));
-  }, [uncheckedItems, userLang]);
+  }, [uncheckedItems, userLang, shelfLang]);
 
   // Always show category headers so every item lives under its correct
   // category — even when there's only one category or a single item.
@@ -286,7 +291,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   const isClassicLayout = layoutId === "items-classic";
   const activeItemsLayout = getItemsLayout(layoutId);
 
-  const countryFlag = list ? getCountryFlag(user?.country ?? "") : "";
+  const countryFlag = list ? getCountryFlag(list.country || user?.country || "") : "";
 
   // Render a grid of ItemCards
   const renderItemGrid = (gridItems: Item[], checked?: boolean) => (
@@ -503,9 +508,14 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
                       className="w-full flex items-center gap-2 px-4 pt-3 pb-1.5 cursor-pointer active:opacity-70 transition-opacity"
                     >
                       <span className="text-[11px]" aria-hidden="true">{group.emoji}</span>
-                      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>
                         {group.name}
                       </span>
+                      {group.nameMine && (
+                        <span className="text-[10px]" style={{ color: "var(--color-secondary-name)" }}>
+                          {group.nameMine}
+                        </span>
+                      )}
                       <div className="flex-1 h-px bg-border-light/50" />
                       <span className="text-[10px] text-text-muted tabular-nums">
                         {group.items.length}

@@ -39,7 +39,7 @@ export default function CreateListModal({
     setLoading(true);
 
     try {
-      const list = await createList(name.trim(), user.id);
+      const list = await createList(name.trim(), user.id, user.country);
       reset();
       onClose();
       onCreated(list.id);

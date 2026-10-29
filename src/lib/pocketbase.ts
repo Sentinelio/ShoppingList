@@ -181,6 +181,9 @@ export interface List {
   require_approval: boolean;
   who_can_approve: 'owner' | 'any_member';
   who_can_remove: 'owner' | 'any_member';
+  // Country the list is used in (its language is the primary one). Empty on
+  // lists created before the field existed: use the viewer's country.
+  country?: string;
   // Maintained by the server (pb_hooks), read-only for clients
   active_members?: string[];
   owners?: string[];

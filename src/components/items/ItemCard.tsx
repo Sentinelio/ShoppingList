@@ -4,6 +4,7 @@ import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { getCategoryColor } from "../../data/categories";
 import { t, formatQtyUnit, type Lang } from "../../data/i18n";
 import { formatPrice } from "../../lib/itemData";
+import { primaryName, secondaryName } from "../../lib/names";
 
 interface ItemCardProps {
   item: Item;
@@ -32,9 +33,10 @@ function ItemCard({
 }: ItemCardProps) {
   const lang = (userLang === "en" || userLang === "es" || userLang === "pl" ? userLang : "en") as Lang;
   const catColor = getCategoryColor(item.category || "other");
-  const displayName = item.translations[userLang] || item.original;
-  const shelfName = item.translations[shelfLang] || item.original;
-  const showShelf = shelfLang !== userLang && shelfName.toLowerCase() !== displayName.toLowerCase();
+  // Language rule: primary (gold) in the list country's language, secondary
+  // (grey) in mine.
+  const displayName = primaryName(item, shelfLang);
+  const mineName = secondaryName(item, shelfLang, userLang);
   const { emoji } = matchProductEmoji(item.original);
 
   const qtyDisplay = formatQtyUnit(item.qty, item.unit, lang);
@@ -176,19 +178,19 @@ function ItemCard({
         style={{
           fontSize: 12,
           fontWeight: "var(--item-name-weight, 700)" as unknown as number,
-          color: "var(--item-name-color, var(--color-text, #e6e8ee))",
+          color: item.important ? "var(--color-important)" : "var(--color-primary-name)",
         }}
       >
         {displayName}
       </p>
 
-      {/* Shelf translation */}
-      {showShelf && !isPending && !isFailed && (
+      {/* My language */}
+      {mineName && !isPending && !isFailed && (
         <p
           className="text-center leading-tight truncate w-full px-1"
-          style={{ fontSize: 10, color: "var(--item-shelf-color, #e8c364)" }}
+          style={{ fontSize: 10, color: "var(--color-secondary-name)" }}
         >
-          {shelfName}
+          {mineName}
         </p>
       )}
 

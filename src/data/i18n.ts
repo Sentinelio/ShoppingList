@@ -119,6 +119,7 @@ export const strings = {
     "noReceipts": "No receipts imported yet",
     "receiptPartialFail": "failed",
     "receiptRollback": "Undo import",
+    "asTyped": "as typed",
   },
   es: {
     "welcome": "Bienvenido",
@@ -236,6 +237,7 @@ export const strings = {
     "noReceipts": "Aún no has importado tickets",
     "receiptPartialFail": "con errores",
     "receiptRollback": "Deshacer importación",
+    "asTyped": "tal cual",
   },
   pl: {
     "welcome": "Witaj",
@@ -353,6 +355,7 @@ export const strings = {
     "noReceipts": "Brak zaimportowanych paragonów",
     "receiptPartialFail": "błędów",
     "receiptRollback": "Cofnij import",
+    "asTyped": "tak jak wpisano",
   },
 } as const;
 

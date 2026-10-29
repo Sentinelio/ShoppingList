@@ -227,8 +227,19 @@ await test("create list → creator becomes active owner (hook)", async () => {
   eq(fresh.owners, [A.id], "owners");
   eq(fresh.require_approval, true, "require_approval default");
   eq(fresh.who_can_approve, "owner", "who_can_approve default");
+  eq(fresh.country, "ES", "country defaults to the creator's");
   const row = await memberRow(A.pb, list.id, A.id);
   eq([row.role, row.status], ["owner", "active"], "owner row");
+});
+await test("list country can be set on create and changed by a member", async () => {
+  const l = await A.pb.collection("lists").create({ name: "PL list", code: "PL" + randomBytes(2).toString("hex").toUpperCase(), created_by: A.id, country: "PL" });
+  try {
+    eq(l.country, "PL", "explicit country");
+    const r = await A.pb.collection("lists").update(l.id, { country: "DE" });
+    eq(r.country, "DE", "updated country");
+  } finally {
+    await A.pb.collection("lists").delete(l.id); // keep created.lists indexes stable
+  }
 });
 await test("create list with active_members in body is rejected", async () => {
   await rejects(

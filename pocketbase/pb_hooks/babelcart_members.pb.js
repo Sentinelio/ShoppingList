@@ -21,6 +21,13 @@ onRecordCreateRequest((e) => {
   if (!("require_approval" in body)) e.record.set("require_approval", true)
   if (!e.record.getString("who_can_approve")) e.record.set("who_can_approve", "owner")
   if (!e.record.getString("who_can_remove")) e.record.set("who_can_remove", "owner")
+  // The list's country defaults to the creator's.
+  if (!e.record.getString("country")) {
+    try {
+      const creator = e.app.findRecordById("users", e.record.getString("created_by"))
+      e.record.set("country", creator.getString("country"))
+    } catch (_) { /* no creator: leave empty */ }
+  }
   e.next()
 }, "lists")
 
