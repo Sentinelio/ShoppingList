@@ -2,9 +2,7 @@ import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import type { Item } from "../../lib/pocketbase";
 import { getLangFlag } from "../../data/langs";
 import { t, formatQtyUnit } from "../../data/i18n";
-import { getLabSelection, SHOW_VARIANTS } from "../../lib/itemDetailLab";
-import { useStorePhrases } from "../../hooks/useStorePhrases";
-import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
+import { getLabSelection } from "../../lib/itemDetailLab";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
 import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
@@ -12,6 +10,9 @@ import { useAuth } from "../../hooks/useAuth";
 import { translateProduct } from "../../lib/translate";
 import { getEnabledLangs } from "../../lib/langConfig";
 import { uploadItemPhoto } from "../../lib/photoUpload";
+import { primaryName, secondaryName, categoryNames } from "../../lib/names";
+import ItemIcon from "./ItemIcon";
+import { IconBack, IconBan, IconCheck, IconChevronRight, IconClose, IconMinus, IconPlus, IconStore, IconTrash } from "../ui/icons";
 
 interface ItemDetailProps {
   item: Item | null;
@@ -23,6 +24,10 @@ interface ItemDetailProps {
   onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand" | "checked_at">>) => void;
   onDelete: (itemId: string) => void;
   onShowStore: (item: Item) => void;
+  /** Bought ↔ to buy. */
+  onToggle: (itemId: string, checked: boolean) => void;
+  /** "No hay" ↔ to buy. */
+  onSetUnavailable: (itemId: string, unavailable: boolean) => void;
   lang?: string;
 }
 
@@ -41,45 +46,6 @@ function getUnits(lang: string) {
 
 type DetailTab = "show" | "edit" | "price" | "trans" | "stats" | "comm" | "hist" | "del";
 
-const TABS: { key: DetailTab; icon: string }[] = [
-  { key: "show", icon: "📱" },
-  { key: "edit", icon: "✏️" },
-  { key: "price", icon: "💰" },
-  { key: "trans", icon: "🌍" },
-  { key: "stats", icon: "📊" },
-  { key: "comm", icon: "💬" },
-  { key: "hist", icon: "📋" },
-];
-
-// ── Side-tab styles (matching the lab phone preview) ─────────────────────
-const tabBarStyle: React.CSSProperties = {
-  width: 46,
-  background: "#10121a",
-  display: "flex",
-  flexDirection: "column",
-  gap: 2,
-  padding: "12px 3px 10px",
-  borderRight: "1px solid rgba(255,255,255,0.06)",
-  flexShrink: 0,
-  overflowY: "auto",
-};
-
-const tabBtnBase: React.CSSProperties = {
-  width: 40,
-  height: 40,
-  borderRadius: 10,
-  border: "none",
-  background: "transparent",
-  cursor: "pointer",
-  fontSize: 16,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  position: "relative",
-  transition: "background 0.15s",
-  flexShrink: 0,
-};
-
 export default function ItemDetail({
   item,
   open,
@@ -89,6 +55,9 @@ export default function ItemDetail({
   countryFlag,
   onUpdate,
   onDelete,
+  onShowStore,
+  onToggle,
+  onSetUnavailable,
 }: ItemDetailProps) {
   const lang = userLang;
   const UNITS = getUnits(lang);
@@ -119,11 +88,7 @@ export default function ItemDetail({
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
-  const [activePhrase, setActivePhrase] = useState<string | null>(null);
-  const [showPhraseList, setShowPhraseList] = useState(false);
-  const phrases = useStorePhrases();
   const labSel = getLabSelection();
-  const sv = SHOW_VARIANTS[labSel.show] ?? SHOW_VARIANTS[0];
 
   // ── Real per-item data (prices, comments, history) ───────────────────
   const { user } = useAuth();
@@ -212,15 +177,6 @@ export default function ItemDetail({
     try { await deleteItemComment(commentId); } catch (err) { console.error("[deleteItemComment]", err); }
   };
 
-  // Debug: log what we read so we can diagnose sync issues
-  useEffect(() => {
-    if (open && item) {
-      const raw = localStorage.getItem("babelcart_item_detail_lab_v1");
-      console.log("[ItemDetail] Lab selection from localStorage:", raw);
-      console.log("[ItemDetail] Parsed labSel:", labSel);
-    }
-  }, [open, item, labSel]);
-
   useEffect(() => {
     if (item) {
       setQty(item.qty || "");
@@ -233,8 +189,6 @@ export default function ItemDetail({
       setSaved(false);
       setDeleteStep(0);
       setActiveTab("show");
-      setActivePhrase(null);
-      setShowPhraseList(false);
       setEditingPhoto(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -246,10 +200,6 @@ export default function ItemDetail({
   const shelfName = item.translations[shelfLang] || item.original;
   const showShelf = shelfLang !== userLang && shelfName.toLowerCase() !== displayName.toLowerCase();
   const emojiChar = matchProductEmoji(item.original).emoji || "🛒";
-  const activePhraseObj = activePhrase ? phrases.find(p => p.key === activePhrase) : null;
-  const activePhraseShelf = activePhraseObj
-    ? (activePhraseObj.translations[shelfLang] || activePhraseObj.translations.en)
-    : null;
 
   // Check if any edit field has changed
   const nameChanged = editName.trim() !== "" && editName.trim() !== item.original;
@@ -298,98 +248,6 @@ export default function ItemDetail({
     setEditingPhoto(false);
   };
 
-
-  // ── SHOW PANE ──────────────────────────────────────────────────────────
-  const showPane = (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0, background: sv.bodyBg }}>
-      {/* Active phrase banner */}
-      {activePhraseShelf && (
-        <div onClick={() => setActivePhrase(null)}
-          style={{ textAlign: "center", padding: "16px 16px 12px", background: "linear-gradient(135deg, #f09848, #e07028)", cursor: "pointer", flexShrink: 0 }}>
-          <span style={{ fontSize: 24, display: "block", marginBottom: 4 }}>{activePhraseObj?.emoji}</span>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{activePhraseShelf}</div>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>tap para ocultar</div>
-        </div>
-      )}
-      {/* Shelf name */}
-      <div style={{ textAlign: "center", padding: "2px 16px 0", flexShrink: 0 }}>
-        <div style={{ fontSize: sv.shelfFontSize, fontWeight: sv.shelfFontWeight, color: "var(--color-shelf, #e8c364)", marginTop: 10, letterSpacing: sv.shelfLetterSpacing, textShadow: sv.shelfTextShadow }}>
-          {shelfName}
-        </div>
-        {showShelf && (
-          <div style={{ fontSize: sv.mineFontSize, color: sv.mineColor, marginTop: 4, ...(sv.mineBg ? { padding: "4px 12px", background: sv.mineBg, borderRadius: sv.mineBorderRadius || "8px", display: "inline-block" } : {}) }}>
-            ({displayName})
-          </div>
-        )}
-        {item.brand && (
-          <div style={{ fontSize: 11, color: "#8b92a8", marginTop: 4, fontStyle: "italic" }}>
-            {item.brand}
-          </div>
-        )}
-      </div>
-      {/* Emoji centered */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {item.photo ? (
-          <img src={item.photo} style={{ maxWidth: "70%", maxHeight: "30vh", borderRadius: 16, objectFit: "contain" }} alt={shelfName} />
-        ) : (
-          <span style={{ fontSize: sv.emojiFontSize, lineHeight: 1, filter: sv.emojiFilter, opacity: sv.emojiOpacity }} aria-hidden="true">{emojiChar}</span>
-        )}
-      </div>
-      {/* Qty + note */}
-      {(qty || item.note) && (
-        <div style={{ textAlign: "center", flexShrink: 0, padding: "0 16px 4px" }}>
-          {qty && <p style={{ fontSize: 20, fontWeight: 800, color: "var(--color-accent, #f0883e)" }}>{formatQtyUnit(qty, unit, lang)}</p>}
-          {item.note && <p style={{ fontSize: 13, color: "#8b92a8", fontStyle: "italic", marginTop: 4 }}>{item.note}</p>}
-        </div>
-      )}
-      {/* Collapsible phrases */}
-      <div style={{ flexShrink: 0, paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
-        <div onClick={() => setShowPhraseList(v => !v)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, cursor: "pointer", borderTop: sv.toggleBorderTop, background: sv.toggleBg, borderRadius: sv.toggleBorderRadius, border: !sv.toggleBorderTop ? sv.toggleBorder : undefined, ...(sv.toggleBorderRadius ? { margin: "0 12px" } : {}) }}>
-          <span style={{ fontSize: sv.toggleLabelSize, fontWeight: sv.toggleLabelWeight, color: sv.toggleLabelColor }}>Preguntas para el dependiente</span>
-          <span style={{ fontSize: sv.toggleLabelSize - 1, color: sv.toggleLabelColor }}>{showPhraseList ? "▲" : "▼"}</span>
-        </div>
-        {showPhraseList && (
-          <div style={{ maxHeight: 220, overflowY: "auto", borderRadius: sv.listBorderRadius, border: sv.listBorder, margin: sv.listMargin }}>
-            {phrases.map(phrase => {
-              const phraseShelf = phrase.translations[shelfLang] || phrase.translations.en || phrase.key;
-              return (
-                <div key={phrase.key} onClick={() => { setActivePhrase(phrase.key); setShowPhraseList(false); void incrementPhraseUsage(phrase.key); }}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  <span style={{ fontSize: 18 }}>{phrase.emoji}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#8b92a8" }}>{phraseShelf}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {/* Google Images button */}
-        <a
-          href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent((shelfName || displayName) + (item.brand ? " " + item.brand : ""))}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            margin: "8px 12px 0",
-            padding: "10px 14px",
-            borderRadius: 10,
-            background: "rgba(66,133,244,0.08)",
-            border: "1px solid rgba(66,133,244,0.25)",
-            color: "#6c9dff",
-            fontSize: 12,
-            fontWeight: 700,
-            textDecoration: "none",
-            cursor: "pointer",
-          }}
-        >
-          🔍 Ver en Google Images
-        </a>
-      </div>
-    </div>
-  );
 
   // ── EDIT PANE (5 variants synced from lab) ───────────────────────────────
   // Shared lab-style CSS values for edit variants
@@ -1240,8 +1098,99 @@ export default function ItemDetail({
 
   const histPane = histVariants[labSel.hist] ?? histVariants[0];
 
+  // ── MAIN VIEW (4) ──────────────────────────────────────────────────────
+  const primary = primaryName(item, shelfLang);
+  const mine = secondaryName(item, shelfLang, userLang);
+  const catName = categoryNames(item.category || "other", shelfLang, userLang);
+  const isBought = item.checked && !item.unavailable;
+  const isUnavailable = !!item.unavailable;
+  const qtyNum = parseFloat((item.qty || "").replace(",", "."));
+  const stepQty = (delta: number) => {
+    const next = Math.max(0, (isNaN(qtyNum) ? 0 : qtyNum) + delta);
+    onUpdate(item.id, { qty: next ? String(Math.round(next * 100) / 100) : "", ...(next && !item.unit ? { unit: "x" } : {}) });
+  };
+  const rowBtn = "w-full min-h-[52px] flex items-center gap-3 px-4 text-left cursor-pointer active:bg-white/5";
+  const subRows: Array<{ tab: DetailTab; label: string; hint?: string }> = [
+    { tab: "edit", label: t(lang, "brandAndNote"), hint: [item.brand, item.note].filter(Boolean).join(" · ") },
+    { tab: "price", label: t(lang, "price"), hint: pricedEntries[0] ? formatPrice(Number(pricedEntries[0].price_value), pricedEntries[0].currency || userCurrency) : undefined },
+    { tab: "trans", label: t(lang, "translations"), hint: String(Object.keys(item.translations || {}).length) },
+    { tab: "comm", label: t(lang, "comments"), hint: comments.length ? String(comments.length) : undefined },
+    { tab: "hist", label: t(lang, "history") },
+  ];
+
+  const mainPane = (
+    <div className="flex flex-col gap-3 px-4 pt-1 pb-2">
+      <div className="flex flex-col items-center text-center">
+        <ItemIcon name={item.original} category={item.category} photo={item.photo} size={120} />
+        <h2 className="mt-3 text-[26px] font-bold leading-tight" style={{ color: item.important ? "var(--color-important)" : "var(--color-primary-name)" }}>
+          {primary}
+        </h2>
+        {mine && <div className="text-[15px] mt-0.5" style={{ color: "var(--color-secondary-name)" }}>{mine}</div>}
+        <div className="text-[12px] text-text-muted mt-1.5">
+          {catName.primary}
+          {item.added_by_name && <> · {t(lang, "addedBy")} {item.added_by_name}</>}
+        </div>
+      </div>
+
+      {/* Quantity − / + */}
+      <div className="rounded-[14px] bg-bg flex items-center h-14 px-1.5">
+        <button type="button" onClick={() => stepQty(-1)} disabled={!qtyNum} aria-label={t(lang, "less")}
+          className="w-11 h-11 rounded-full flex items-center justify-center text-text cursor-pointer disabled:opacity-30 active:bg-white/5">
+          <IconMinus size={22} />
+        </button>
+        <div className="flex-1 text-center">
+          <div className="text-[18px] font-bold text-text tabular-nums">{formatQtyUnit(item.qty, item.unit, lang) || "—"}</div>
+          <div className="text-[11px] text-text-muted">{t(lang, "quantity")}</div>
+        </div>
+        <button type="button" onClick={() => stepQty(1)} aria-label={t(lang, "moreQty")}
+          className="w-11 h-11 rounded-full flex items-center justify-center text-text cursor-pointer active:bg-white/5">
+          <IconPlus size={22} />
+        </button>
+      </div>
+
+      {/* Bought / No hay */}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" aria-pressed={isBought}
+          onClick={() => { onToggle(item.id, !isBought); onClose(); }}
+          className="h-14 rounded-[14px] flex items-center justify-center gap-2 text-[16px] font-bold cursor-pointer active:brightness-90"
+          style={{ background: "var(--color-accent)", color: "#0d1017", boxShadow: isBought ? "inset 0 0 0 2px #ffd3ae" : undefined }}>
+          <IconCheck size={20} strokeWidth={3} /> {t(lang, "markBought")}
+        </button>
+        <button type="button" aria-pressed={isUnavailable}
+          onClick={() => { onSetUnavailable(item.id, !isUnavailable); onClose(); }}
+          className="h-14 rounded-[14px] flex items-center justify-center gap-2 text-[16px] font-bold cursor-pointer active:brightness-110"
+          style={{ background: "#2b1f24", color: "#ff9d9d", boxShadow: isUnavailable ? "inset 0 0 0 2px #ff9d9d" : undefined }}>
+          <IconBan size={20} /> {t(lang, "markUnavailable")}
+        </button>
+      </div>
+
+      <button type="button" onClick={() => { onShowStore(item); onClose(); }}
+        className="h-12 rounded-[14px] bg-bg flex items-center justify-center gap-2 text-[15px] font-semibold cursor-pointer active:bg-white/5"
+        style={{ color: "var(--color-accent-ink)" }}>
+        <IconStore size={20} /> {t(lang, "showInStoreFull")}
+      </button>
+
+      <div className="rounded-[14px] bg-bg divide-y divide-border overflow-hidden">
+        {subRows.map(r => (
+          <button key={r.tab} type="button" onClick={() => setActiveTab(r.tab)} className={rowBtn}>
+            <span className="flex-1 text-[15px] text-text">{r.label}</span>
+            {r.hint && <span className="text-[13px] text-text-muted truncate max-w-[45%]">{r.hint}</span>}
+            <IconChevronRight size={18} className="text-text-muted shrink-0" />
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-[14px] bg-bg overflow-hidden">
+        <button type="button" onClick={() => setActiveTab("del")} className={rowBtn} style={{ color: "#ff6b6b" }}>
+          <IconTrash size={20} />
+          <span className="flex-1 text-[15px] font-semibold">{t(lang, "delete")}</span>
+        </button>
+      </div>
+    </div>
+  );
+
   const paneContent: Record<DetailTab, React.ReactNode> = {
-    show: showPane,
+    show: mainPane,
     edit: editPane,
     trans: transPane,
     del: delPane,
@@ -1250,88 +1199,45 @@ export default function ItemDetail({
     comm: commPane,
     hist: histPane,
   };
+  const paneTitle: Partial<Record<DetailTab, string>> = {
+    edit: t(lang, "brandAndNote"),
+    price: t(lang, "price"),
+    stats: t(lang, "price"),
+    trans: t(lang, "translations"),
+    comm: t(lang, "comments"),
+    hist: t(lang, "history"),
+    del: t(lang, "delete"),
+  };
+  const inSub = activeTab !== "show";
 
-  // ── RENDER: full-screen overlay with side tabs ─────────────────────────
+  // ── RENDER: bottom sheet. Sub-views (the former tabs) open in place with
+  // a back button.
   return (
-    <div
-      className="fixed inset-0 z-50"
-      style={{ display: "flex", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
-    >
-      {/* Backdrop tap to close */}
-      <div className="absolute inset-0" onClick={onClose} />
-
-      {/* Panel — phone-like container */}
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={primary}>
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div
-        style={{
-          position: "relative",
-          display: "flex",
-          width: "calc(100% - 80px)",
-          maxWidth: 460,
-          height: "calc(100% - 96px)",
-          maxHeight: "calc(100vh - 96px)",
-          margin: "48px auto",
-          background: "var(--color-bg, #0d1017)",
-          overflow: "hidden",
-          zIndex: 1,
-          borderRadius: 20,
-          border: "1px solid rgba(255,255,255,0.10)",
-        }}
+        className="absolute left-0 right-0 bottom-0 mx-auto max-w-[520px] bg-card rounded-t-[20px] border-t border-border-light flex flex-col"
+        style={{ maxHeight: "92dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        {/* Side tab bar */}
-        <div style={tabBarStyle}>
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                ...tabBtnBase,
-                background: activeTab === tab.key ? "#161b26" : "transparent",
-                border: activeTab === tab.key ? "1px solid rgba(255,255,255,0.10)" : "none",
-              }}
-            >
-              {tab.icon}
-              {activeTab === tab.key && (
-                <span style={{ position: "absolute", right: -2, top: "50%", transform: "translateY(-50%)", width: 3, height: 12, background: "#f0883e", borderRadius: 2 }} />
-              )}
+        <div className="shrink-0 h-12 flex items-center px-1.5">
+          {inSub ? (
+            <button type="button" onClick={() => setActiveTab("show")} aria-label={t(lang, "back")}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-text-soft cursor-pointer active:bg-white/5">
+              <IconBack />
             </button>
-          ))}
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            onClick={() => setActiveTab("del")}
-            style={{
-              ...tabBtnBase,
-              color: "#ff5c5c",
-              background: activeTab === "del" ? "#161b26" : "transparent",
-              border: activeTab === "del" ? "1px solid rgba(255,92,92,0.2)" : "none",
-            }}
-          >
-            🗑
+          ) : (
+            <span className="w-11" />
+          )}
+          <div className="flex-1 text-center text-[15px] font-semibold text-text truncate">
+            {inSub ? paneTitle[activeTab] : <span className="inline-block w-10 h-1 rounded-full bg-white/15 align-middle" aria-hidden="true" />}
+          </div>
+          <button type="button" onClick={onClose} aria-label={t(lang, "close")}
+            className="w-11 h-11 rounded-full flex items-center justify-center text-text-soft cursor-pointer active:bg-white/5">
+            <IconClose size={20} />
           </button>
         </div>
-
-        {/* Content area */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              position: "absolute", top: 8, right: 10, zIndex: 10,
-              width: 28, height: 28, borderRadius: 9,
-              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, color: "#8b92a8", cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
-
-          {/* Scrollable pane */}
-          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
-            {paneContent[activeTab]}
-          </div>
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+          {paneContent[activeTab]}
         </div>
       </div>
     </div>

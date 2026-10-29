@@ -648,6 +648,67 @@ if (DRY) {
   }
 }
 
+section("No hay (unavailable)");
+const hoursAgo = (h) => new Date(Date.now() - h * 3600e3).toISOString().replace("T", " ");
+let nhList, nhX, nhY;
+await test("items start as not unavailable; lists default to keep", async () => {
+  nhList = await A.pb.collection("lists").create({ name: "No hay", code: "NH" + randomBytes(2).toString("hex").toUpperCase(), created_by: A.id });
+  created.lists.push(nhList.id);
+  eq(nhList.unavailable_policy, "", "policy default (empty = keep)");
+  nhX = await A.pb.collection("items").create({ list_id: nhList.id, original: "por", added_by: A.id });
+  nhY = await A.pb.collection("items").create({ list_id: nhList.id, original: "pan", added_by: A.id });
+  eq([nhX.unavailable, nhX.unavailable_at], [false, ""], "new item");
+});
+await test("marking No hay unchecks the item and stamps unavailable_at (hook)", async () => {
+  await A.pb.collection("items").update(nhX.id, { checked: true, checked_at: new Date().toISOString() });
+  const r = await A.pb.collection("items").update(nhX.id, { unavailable: true });
+  eq([r.unavailable, r.checked, r.checked_at], [true, false, ""], "status after No hay");
+  assert(r.unavailable_at, "unavailable_at set");
+});
+await test("checking a No hay item takes it out of No hay", async () => {
+  const r = await A.pb.collection("items").update(nhX.id, { checked: true, checked_at: new Date().toISOString() });
+  eq([r.checked, r.unavailable, r.unavailable_at], [true, false, ""], "bought after all");
+});
+await test("checks maintain lists.last_checked_at; clients can't write it", async () => {
+  const l = await A.pb.collection("lists").getOne(nhList.id);
+  assert(l.last_checked_at, "last_checked_at set by the check");
+  await rejects(A.pb.collection("lists").update(nhList.id, { last_checked_at: hoursAgo(10) }), [400, 403], "client writes last_checked_at");
+});
+await test("policy keep: a new trip doesn't bring No hay items back", async () => {
+  await A.pb.collection("items").update(nhX.id, { unavailable: true });
+  await A.pb.collection("items").update(nhY.id, { checked: true, checked_at: new Date().toISOString() });
+  eq((await A.pb.collection("items").getOne(nhX.id)).unavailable, true, "still No hay");
+});
+await test("policy next_trip: a check within 3 h keeps them", async () => {
+  await A.pb.collection("lists").update(nhList.id, { unavailable_policy: "next_trip" });
+  await A.pb.collection("items").update(nhY.id, { checked: false, checked_at: "" });
+  await A.pb.collection("items").update(nhY.id, { checked: true, checked_at: new Date().toISOString() });
+  eq((await A.pb.collection("items").getOne(nhX.id)).unavailable, true, "still No hay in the same trip");
+});
+if (ADMIN_EMAIL) {
+  await test("policy next_trip: the first check after > 3 h brings them back", async () => {
+    await su.collection("lists").update(nhList.id, { last_checked_at: hoursAgo(4) });
+    await A.pb.collection("items").update(nhY.id, { checked: false, checked_at: "" });
+    await A.pb.collection("items").update(nhY.id, { checked: true, checked_at: new Date().toISOString() });
+    const x = await A.pb.collection("items").getOne(nhX.id);
+    eq([x.unavailable, x.checked], [false, false], "back to to-buy");
+  });
+  await test("policy next_day: items marked before today come back (release route)", async () => {
+    await A.pb.collection("lists").update(nhList.id, { unavailable_policy: "next_day" });
+    await A.pb.collection("items").update(nhX.id, { unavailable: true });
+    await su.collection("items").update(nhX.id, { unavailable_at: hoursAgo(30) });
+    const fresh = await A.pb.collection("items").create({ list_id: nhList.id, original: "sal", added_by: A.id });
+    await A.pb.collection("items").update(fresh.id, { unavailable: true });
+    const res = await su.send("/api/babelcart/release-unavailable", { method: "POST" });
+    assert(res.released >= 1, "released count");
+    eq((await A.pb.collection("items").getOne(nhX.id)).unavailable, false, "yesterday's item back");
+    eq((await A.pb.collection("items").getOne(fresh.id)).unavailable, true, "today's item stays");
+  });
+}
+await test("the release route is superuser-only", async () => {
+  await rejects(A.pb.send("/api/babelcart/release-unavailable", { method: "POST" }), [403], "user calls release");
+});
+
 section("Deleting");
 await test("non-owner can't delete the list", async () => {
   await rejects(B.pb.collection("lists").delete(list.id), [400, 403, 404], "member deletes list");

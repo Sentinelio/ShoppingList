@@ -11,7 +11,7 @@ onRecordCreateRequest((e) => {
   if (!e.hasSuperuserAuth()) {
     for (const key of Object.keys(e.requestInfo().body || {})) {
       const field = key.replace(/[+-]$/, "").replace(/^[+-]/, "")
-      if (field === "active_members" || field === "owners") {
+      if (field === "active_members" || field === "owners" || field === "last_checked_at") {
         throw new ForbiddenError(`'${field}' is managed by the server`)
       }
     }
@@ -35,7 +35,7 @@ onRecordUpdateRequest((e) => {
   if (!e.hasSuperuserAuth()) {
     for (const key of Object.keys(e.requestInfo().body || {})) {
       const field = key.replace(/[+-]$/, "").replace(/^[+-]/, "")
-      if (field === "active_members" || field === "owners") {
+      if (field === "active_members" || field === "owners" || field === "last_checked_at") {
         throw new ForbiddenError(`'${field}' is managed by the server`)
       }
     }

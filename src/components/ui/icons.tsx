@@ -53,3 +53,9 @@ export const IconAlert = (p: IconProps) => (
 export const IconNote = (p: IconProps) => (
   <Svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></Svg>
 );
+export const IconMinus = (p: IconProps) => <Svg {...p}><line x1="5" y1="12" x2="19" y2="12" /></Svg>;
+export const IconChevronRight = (p: IconProps) => <Svg {...p}><polyline points="9 18 15 12 9 6" /></Svg>;
+export const IconBan = (p: IconProps) => <Svg {...p}><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></Svg>;
+export const IconTrash = (p: IconProps) => (
+  <Svg {...p}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></Svg>
+);

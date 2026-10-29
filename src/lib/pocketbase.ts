@@ -26,7 +26,8 @@ if (!IS_DEMO) {
 
 const NULLABLE: Record<string, string[]> = {
   users: ['last_seen_at'],
-  items: ['checked_at', 'photo'],
+  items: ['checked_at', 'photo', 'unavailable_at'],
+  lists: ['last_checked_at'],
   item_prices: ['store', 'added_by', 'added_by_name'],
   product_prices: ['brand', 'store', 'added_by', 'added_by_name', 'source_item_price_id'],
   item_comments: ['added_by', 'added_by_name', 'added_by_lang'],
@@ -184,6 +185,9 @@ export interface List {
   // Country the list is used in (its language is the primary one). Empty on
   // lists created before the field existed: use the viewer's country.
   country?: string;
+  // What happens to "No hay" items: "" / "keep" (default), "next_trip", "next_day"
+  unavailable_policy?: '' | 'keep' | 'next_trip' | 'next_day';
+  last_checked_at?: string | null;
   // Maintained by the server (pb_hooks), read-only for clients
   active_members?: string[];
   owners?: string[];

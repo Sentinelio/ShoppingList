@@ -41,7 +41,7 @@ export async function addItem(params: AddItemParams): Promise<Item> {
 
 export async function updateItem(
   itemId: string,
-  updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "photo" | "important" | "checked" | "brand" | "checked_at">>,
+  updates: Partial<Pick<Item, "original" | "translations" | "category" | "qty" | "unit" | "note" | "photo" | "important" | "checked" | "brand" | "checked_at" | "unavailable">>,
 ): Promise<Item> {
   if (IS_DEMO) {
     const result = demoUpdateItem(itemId, updates);

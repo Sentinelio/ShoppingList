@@ -129,7 +129,10 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   }, [items, searchQuery, shelfLang, userLang]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null } : i));
+    // Buying a "No hay" item takes it out of "No hay" (the server does the same).
+    setItems(prev => prev.map(i => i.id === itemId
+      ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null, ...(checked ? { unavailable: false, unavailable_at: null } : {}) }
+      : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
     if (user) {
       // Log history event
@@ -196,6 +199,39 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     try { await deleteItem(itemId); } catch { /* realtime will sync */ }
   }, [setItems]);
 
+
+  // "No hay": out of stock. Marking it takes the item out of the cart; the
+  // server stamps unavailable_at and applies the list's policy later.
+  const handleSetUnavailable = useCallback(async (itemId: string, unavailable: boolean) => {
+    const prevItem = items.find(i => i.id === itemId);
+    const cartUpdates = unavailable ? { checked: false, checked_at: null } : {};
+    setItems(prev => prev.map(i => i.id === itemId
+      ? { ...i, unavailable, unavailable_at: unavailable ? new Date().toISOString() : null, ...cartUpdates }
+      : i));
+    try { await updateItem(itemId, { unavailable, ...cartUpdates }); } catch { /* realtime will sync */ }
+    if (user) {
+      logItemHistory({
+        itemId,
+        eventType: unavailable ? "unavailable" : "available",
+        icon: unavailable ? "🚫" : "↩️",
+        description: `${user.name} ${t(lang, unavailable ? "markedUnavailable" : "unmarkedUnavailable")}`,
+        byUserId: user.id,
+        byUserName: user.name,
+      }).catch(err => console.error("[logItemHistory:unavailable]", err));
+      if (unavailable && prevItem?.checked) {
+        removeRecentAutoPurchase({ itemId, byUserId: user.id }).catch(err => console.error("[removeRecentAutoPurchase]", err));
+      }
+    }
+  }, [items, setItems, user, lang]);
+
+  // "Borrar comprados". With the "next_trip" policy it also closes the
+  // shopping trip: "No hay" items go back to "to buy".
+  const clearBought = () => {
+    items.filter(i => statusOf(i) === "bought").forEach(i => handleDelete(i.id));
+    if (list?.unavailable_policy === "next_trip") {
+      items.filter(i => i.unavailable).forEach(i => handleSetUnavailable(i.id, false));
+    }
+  };
 
   const openItem = useCallback((item: Item) => {
     setEditingItemId(item.id);
@@ -419,6 +455,8 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         onUpdate={handleUpdate}
         onDelete={handleDelete}
         onShowStore={setStoreItem}
+        onToggle={handleToggle}
+        onSetUnavailable={handleSetUnavailable}
       />
 
       {/* Members modal */}
@@ -578,7 +616,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           <button
             onClick={() => {
               if (confirmClear) {
-                checkedItems.forEach(i => handleDelete(i.id));
+                clearBought();
                 setConfirmClear(false);
               } else {
                 setConfirmClear(true);
