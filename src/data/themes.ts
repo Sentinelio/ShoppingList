@@ -1,182 +1,171 @@
-// Theme system — 20 dark themes per view.
+// Themes: one palette per SCREEN (Mis listas, Lista, Tienda, Detalle).
 //
-// Each theme is a set of CSS variables applied to document root. Components
-// consume the vars directly (e.g. `style={{ background: "var(--item-card-bg)" }}`).
-// All four views have independent themes that can be mixed and matched.
+// A palette sets the same design tokens the screens already use through
+// Tailwind (`bg-card`, `text-text-soft`, `var(--color-accent)`…), so picking
+// one really changes that screen. themeStore scopes each palette to its
+// screen with a [data-theme-view] rule.
 
-export type ThemeView = "lists" | "items" | "details" | "store";
+export type ThemeView = "lists" | "list" | "store" | "details";
 
-export interface Theme {
-  id: string;
-  name: string;
-  vars: Record<string, string>;
-}
-
-// ── Palette used to generate variants ──────────────────────────────────────
-// Each palette entry: [name, accent, cardTint, borderTint]
-const PALETTES: Array<[string, string, string, string]> = [
-  ["Classic Orange",  "#f0883e", "rgba(240,136,62,0.14)", "rgba(240,136,62,0.35)"],
-  ["Neon Green",      "#3dd68c", "rgba(61,214,140,0.14)", "rgba(61,214,140,0.35)"],
-  ["Electric Blue",   "#4ac3d9", "rgba(74,195,217,0.14)", "rgba(74,195,217,0.35)"],
-  ["Royal Purple",    "#a78bfa", "rgba(167,139,250,0.14)", "rgba(167,139,250,0.35)"],
-  ["Hot Pink",        "#ec4899", "rgba(236,72,153,0.14)",  "rgba(236,72,153,0.35)"],
-  ["Gold",            "#e8c364", "rgba(232,195,100,0.14)", "rgba(232,195,100,0.35)"],
-  ["Crimson",         "#ef4444", "rgba(239,68,68,0.14)",   "rgba(239,68,68,0.35)"],
-  ["Teal",            "#14b8a6", "rgba(20,184,166,0.14)",  "rgba(20,184,166,0.35)"],
-  ["Indigo",          "#6366f1", "rgba(99,102,241,0.14)",  "rgba(99,102,241,0.35)"],
-  ["Emerald",         "#10b981", "rgba(16,185,129,0.14)",  "rgba(16,185,129,0.35)"],
-  ["Rose Gold",       "#fb7185", "rgba(251,113,133,0.14)", "rgba(251,113,133,0.35)"],
-  ["Arctic",          "#7dd3fc", "rgba(125,211,252,0.14)", "rgba(125,211,252,0.35)"],
-  ["Volcano",         "#f97316", "rgba(249,115,22,0.14)",  "rgba(249,115,22,0.35)"],
-  ["Forest",          "#65a30d", "rgba(101,163,13,0.14)",  "rgba(101,163,13,0.35)"],
-  ["Ocean",           "#0ea5e9", "rgba(14,165,233,0.14)",  "rgba(14,165,233,0.35)"],
-  ["Sunset",          "#fb923c", "rgba(251,146,60,0.14)",  "rgba(251,146,60,0.35)"],
-  ["Midnight",        "#818cf8", "rgba(129,140,248,0.14)", "rgba(129,140,248,0.35)"],
-  ["Slate",           "#94a3b8", "rgba(148,163,184,0.14)", "rgba(148,163,184,0.35)"],
-  ["Plum",            "#c084fc", "rgba(192,132,252,0.14)", "rgba(192,132,252,0.35)"],
-  ["Copper",          "#d97706", "rgba(217,119,6,0.14)",   "rgba(217,119,6,0.35)"],
-];
-
-// ── ITEMS (grid card): 20 themes ───────────────────────────────────────────
-// Vary: card bg tone, border style, radius, emoji treatment, qty badge shape
-export const ITEMS_THEMES: Theme[] = PALETTES.map(([name, accent, tint, border], i) => {
-  // Cycle through 5 card style groups so adjacent themes don't look identical
-  const group = i % 5;
-  const radius = [20, 12, 28, 8, 16][group];
-  const borderWidth = [1, 2, 0, 1, 1][group];
-  const borderStyle = [`${borderWidth}px solid ${border}`, `${borderWidth}px solid ${border}`, "none", `${borderWidth}px dashed ${border}`, `${borderWidth}px solid ${border}`][group];
-  const cardBg = [tint, tint, `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.02))`, "rgba(255,255,255,0.025)", tint][group];
-  const shadow = ["none", `0 0 0 1px ${border}, 0 4px 12px rgba(0,0,0,0.3)`, "0 4px 20px rgba(0,0,0,0.4)", "none", `0 0 24px ${border}`][group];
-  return {
-    id: `items-${i + 1}`,
-    name: `${name}`,
-    vars: {
-      "--item-card-bg": cardBg,
-      "--item-card-border": borderStyle,
-      "--item-card-radius": `${radius}px`,
-      "--item-card-shadow": shadow,
-      "--item-accent": accent,
-      "--item-qty-bg": `${accent}4D`,
-      "--item-qty-color": "#ffffff",
-      "--item-shelf-color": accent,
-      "--item-name-color": "#e6e8ee",
-      "--item-name-weight": group === 2 ? "800" : "700",
-      "--item-emoji-size": group === 3 ? "40px" : "48px",
-    },
-  };
-});
-
-// ── LISTS (homepage card): 20 themes ──────────────────────────────────────
-export const LISTS_THEMES: Theme[] = PALETTES.map(([name, accent, tint, border], i) => {
-  const group = i % 5;
-  const radius = [16, 24, 8, 32, 12][group];
-  const bgStyle = [
-    `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.03))`,
-    tint,
-    "rgba(255,255,255,0.04)",
-    `linear-gradient(180deg, ${tint}, transparent)`,
-    tint,
-  ][group];
-  const borderStyle = [`1px solid ${border}`, "none", `1px solid rgba(255,255,255,0.08)`, `2px solid ${border}`, `1px solid ${border}`][group];
-  const shadow = ["none", `0 8px 24px rgba(0,0,0,0.4)`, "none", `0 0 32px ${border}`, "0 2px 12px rgba(0,0,0,0.3)"][group];
-  return {
-    id: `lists-${i + 1}`,
-    name: `${name}`,
-    vars: {
-      "--list-card-bg": bgStyle,
-      "--list-card-border": borderStyle,
-      "--list-card-radius": `${radius}px`,
-      "--list-card-shadow": shadow,
-      "--list-accent": accent,
-      "--list-badge-bg": `${accent}26`,
-      "--list-badge-color": accent,
-    },
-  };
-});
-
-// ── DETAILS (item modal): 20 themes ───────────────────────────────────────
-export const DETAILS_THEMES: Theme[] = PALETTES.map(([name, accent, tint, border], i) => {
-  const group = i % 5;
-  const radius = [24, 16, 32, 8, 20][group];
-  const headerBg = [
-    `linear-gradient(180deg, ${tint}, transparent)`,
-    tint,
-    "rgba(255,255,255,0.04)",
-    tint,
-    `linear-gradient(135deg, ${tint}, rgba(0,0,0,0.2))`,
-  ][group];
-  return {
-    id: `details-${i + 1}`,
-    name: `${name}`,
-    vars: {
-      "--details-modal-bg": "#151922",
-      "--details-modal-radius": `${radius}px`,
-      "--details-header-bg": headerBg,
-      "--details-border": `1px solid ${border}`,
-      "--details-accent": accent,
-      "--details-field-bg": "rgba(255,255,255,0.04)",
-      "--details-field-focus": border,
-      "--details-button-bg": `linear-gradient(135deg, ${accent}, ${accent}dd)`,
-    },
-  };
-});
-
-// ── STORE MODE (show in shop): 20 themes ──────────────────────────────────
-export const STORE_THEMES: Theme[] = PALETTES.map(([name, accent, tint, border], i) => {
-  const group = i % 5;
-  // Big centered card — vary background intensity and text emphasis
-  const bgStyle = [
-    `radial-gradient(circle at center, ${tint}, #0d1017)`,
-    `linear-gradient(180deg, ${tint}, #0d1017)`,
-    "#0d1017",
-    `linear-gradient(135deg, ${tint}, rgba(0,0,0,0.6))`,
-    `radial-gradient(ellipse at top, ${tint}, #0d1017)`,
-  ][group];
-  const cardBg = [
-    "rgba(255,255,255,0.04)",
-    tint,
-    `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.02))`,
-    "rgba(0,0,0,0.35)",
-    tint,
-  ][group];
-  return {
-    id: `store-${i + 1}`,
-    name: `${name}`,
-    vars: {
-      "--store-bg": bgStyle,
-      "--store-card-bg": cardBg,
-      "--store-card-border": `2px solid ${border}`,
-      "--store-card-radius": `${[24, 16, 32, 12, 28][group]}px`,
-      "--store-title-color": accent,
-      "--store-title-weight": group === 2 ? "900" : "800",
-      "--store-subtitle-color": "#e6e8ee",
-      "--store-accent": accent,
-    },
-  };
-});
-
-export const ALL_THEMES: Record<ThemeView, Theme[]> = {
-  items: ITEMS_THEMES,
-  lists: LISTS_THEMES,
-  details: DETAILS_THEMES,
-  store: STORE_THEMES,
-};
-
-export const DEFAULT_THEME_IDS: Record<ThemeView, string> = {
-  items: "items-1",
-  lists: "lists-1",
-  details: "details-1",
-  store: "store-1",
-};
-
-export function getThemeById(view: ThemeView, id: string): Theme {
-  const themes = ALL_THEMES[view];
-  return themes.find(t => t.id === id) ?? themes[0];
-}
+export const THEME_VIEWS: ThemeView[] = ["lists", "list", "store", "details"];
 
 export const VIEW_LABELS: Record<ThemeView, string> = {
-  lists: "Lists",
-  items: "Items",
-  details: "Details",
-  store: "Show in store",
+  lists: "Mis listas",
+  list: "Lista",
+  store: "Tienda",
+  details: "Detalle",
 };
+
+export interface Palette {
+  id: string;
+  name: string;
+  mode: "dark" | "light";
+  colors: {
+    bg: string;
+    card: string;
+    text: string;
+    textSoft: string;
+    textMuted: string;
+    accent: string;
+    onAccent: string;       // text/icons on an accent background
+    accentSoft: string;
+    accentInk: string;      // accent-coloured text on dark/light surfaces
+    primaryName: string;    // name in the list country's language (big)
+    secondaryName: string;  // name in my language (small)
+    success: string;
+    danger: string;
+    dangerStrong: string;   // "confirm delete" button
+    dangerSoft: string;     // quiet delete button background
+    dangerInk: string;      // text on dangerSoft
+    important: string;
+    info: string;
+    scroll: string;
+  };
+}
+
+export const PALETTES: Palette[] = [
+  {
+    id: "babelcart", name: "BabelCart", mode: "dark",
+    colors: {
+      bg: "#0d1017", card: "#161b24", text: "#e6e8ee", textSoft: "#8b92a8", textMuted: "#555d74",
+      accent: "#f0883e", onAccent: "#0d1017", accentSoft: "#3a2a1c", accentInk: "#ffb27a",
+      primaryName: "#e8c364", secondaryName: "#a3aac0",
+      success: "#3dd68c", danger: "#ff5c5c", dangerStrong: "#b71c1c", dangerSoft: "#2b1f24", dangerInk: "#ff9d9d",
+      important: "#ff6b6b", info: "#6c8aff", scroll: "#3a4255",
+    },
+  },
+  {
+    id: "midnight", name: "Medianoche", mode: "dark",
+    colors: {
+      bg: "#0a0f1e", card: "#131b31", text: "#e7ecfa", textSoft: "#93a0c4", textMuted: "#5b6788",
+      accent: "#5b9cff", onAccent: "#07101f", accentSoft: "#1a2a4d", accentInk: "#a9c8ff",
+      primaryName: "#ffd27a", secondaryName: "#a9b4d6",
+      success: "#3dd68c", danger: "#ff6470", dangerStrong: "#b3202f", dangerSoft: "#2a1a26", dangerInk: "#ffa3ab",
+      important: "#ff7a85", info: "#9b8cff", scroll: "#2c3a5e",
+    },
+  },
+  {
+    id: "forest", name: "Bosque", mode: "dark",
+    colors: {
+      bg: "#0b130f", card: "#14201a", text: "#e4efe8", textSoft: "#8fa89a", textMuted: "#587063",
+      accent: "#4fc98a", onAccent: "#06140d", accentSoft: "#173325", accentInk: "#9fe6c0",
+      primaryName: "#f0d27a", secondaryName: "#a6bcb0",
+      success: "#6fdc9a", danger: "#ff6b5e", dangerStrong: "#a8291d", dangerSoft: "#2a1d19", dangerInk: "#ffa79e",
+      important: "#ff7b6b", info: "#6cb8ff", scroll: "#2a3d33",
+    },
+  },
+  {
+    id: "plum", name: "Ciruela", mode: "dark",
+    colors: {
+      bg: "#120d17", card: "#1d1625", text: "#efe7f5", textSoft: "#a796b8", textMuted: "#6c5c7c",
+      accent: "#c77dff", onAccent: "#14081f", accentSoft: "#33204a", accentInk: "#e2bcff",
+      primaryName: "#ffcf70", secondaryName: "#b9abc8",
+      success: "#4fd99a", danger: "#ff5c7a", dangerStrong: "#a3193a", dangerSoft: "#2b1822", dangerInk: "#ff9fb3",
+      important: "#ff6b8a", info: "#7aa7ff", scroll: "#3b2d4a",
+    },
+  },
+  {
+    id: "graphite", name: "Grafito", mode: "dark",
+    colors: {
+      bg: "#111214", card: "#1b1c1f", text: "#ececec", textSoft: "#9a9a9f", textMuted: "#616167",
+      accent: "#2dd4bf", onAccent: "#04110f", accentSoft: "#133733", accentInk: "#8ff0e2",
+      primaryName: "#f5c451", secondaryName: "#b0b0b5",
+      success: "#4ade80", danger: "#f87171", dangerStrong: "#b91c1c", dangerSoft: "#2a1d1d", dangerInk: "#fca5a5",
+      important: "#fb7185", info: "#60a5fa", scroll: "#38383d",
+    },
+  },
+  {
+    id: "contrast", name: "Alto contraste", mode: "dark",
+    colors: {
+      bg: "#000000", card: "#121212", text: "#ffffff", textSoft: "#d4d4d4", textMuted: "#9e9e9e",
+      accent: "#ffd400", onAccent: "#000000", accentSoft: "#3a3200", accentInk: "#ffe766",
+      primaryName: "#ffd400", secondaryName: "#ffffff",
+      success: "#3cff8f", danger: "#ff4d4d", dangerStrong: "#c40000", dangerSoft: "#330000", dangerInk: "#ff9e9e",
+      important: "#ff4d4d", info: "#66b3ff", scroll: "#4d4d4d",
+    },
+  },
+  {
+    id: "paper", name: "Papel", mode: "light",
+    colors: {
+      bg: "#f6f1e7", card: "#fffdf8", text: "#2a2420", textSoft: "#6f655c", textMuted: "#9d9286",
+      accent: "#d9622b", onAccent: "#ffffff", accentSoft: "#f8dcc8", accentInk: "#a6451a",
+      primaryName: "#8a5a00", secondaryName: "#6f655c",
+      success: "#1f9d5c", danger: "#d93a3a", dangerStrong: "#b71c1c", dangerSoft: "#fbe1dd", dangerInk: "#b42318",
+      important: "#d93a3a", info: "#3d5fd9", scroll: "#d6cbbb",
+    },
+  },
+  {
+    id: "daylight", name: "Día", mode: "light",
+    colors: {
+      bg: "#eef2f8", card: "#ffffff", text: "#18202e", textSoft: "#556179", textMuted: "#929cb0",
+      accent: "#e8742a", onAccent: "#ffffff", accentSoft: "#fde3d0", accentInk: "#b4510f",
+      primaryName: "#9a6400", secondaryName: "#556179",
+      success: "#16a34a", danger: "#dc2626", dangerStrong: "#b91c1c", dangerSoft: "#fde2e2", dangerInk: "#b91c1c",
+      important: "#dc2626", info: "#2563eb", scroll: "#c9d1de",
+    },
+  },
+];
+
+export const DEFAULT_PALETTE_ID = "babelcart";
+
+export const DEFAULT_THEME_IDS: Record<ThemeView, string> = {
+  lists: DEFAULT_PALETTE_ID,
+  list: DEFAULT_PALETTE_ID,
+  store: DEFAULT_PALETTE_ID,
+  details: DEFAULT_PALETTE_ID,
+};
+
+export function getPalette(id: string | undefined): Palette {
+  return PALETTES.find(p => p.id === id) ?? PALETTES[0];
+}
+
+// The CSS custom properties a palette sets (same names as index.css @theme).
+export function paletteVars(p: Palette): Record<string, string> {
+  const c = p.colors;
+  return {
+    "--color-bg": c.bg,
+    "--color-card": c.card,
+    "--color-text": c.text,
+    "--color-text-soft": c.textSoft,
+    "--color-text-muted": c.textMuted,
+    "--color-accent": c.accent,
+    "--color-on-accent": c.onAccent,
+    "--color-accent-soft": c.accentSoft,
+    "--color-accent-ink": c.accentInk,
+    "--color-shelf": c.primaryName,
+    "--color-primary-name": c.primaryName,
+    "--color-secondary-name": c.secondaryName,
+    "--color-success": c.success,
+    "--color-danger": c.danger,
+    "--color-danger-strong": c.dangerStrong,
+    "--color-danger-soft": c.dangerSoft,
+    "--color-danger-ink": c.dangerInk,
+    "--color-important": c.important,
+    "--color-info": c.info,
+    "--color-scroll": c.scroll,
+    // Borders and overlays follow the text colour, so they work on light too.
+    "--color-border": `color-mix(in srgb, ${c.text} 7%, transparent)`,
+    "--color-border-light": `color-mix(in srgb, ${c.text} 11%, transparent)`,
+    "color-scheme": p.mode,
+  };
+}

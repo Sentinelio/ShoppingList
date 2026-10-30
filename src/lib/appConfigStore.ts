@@ -8,7 +8,6 @@ import { reportAdminError } from "./adminErrors";
 
 export const CONFIG_KEYS = [
   "themes",
-  "lab_selection",
   "custom_store_types",
   "custom_categories",
   "cat_mapping",
@@ -20,7 +19,6 @@ export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 const LS_KEY_MAP: Record<ConfigKey, string> = {
   themes: "babelcart_themes_v1",
-  lab_selection: "babelcart_item_detail_lab_v1",
   custom_store_types: "babelcart_custom_store_types",
   custom_categories: "babelcart_custom_categories",
   cat_mapping: "babelcart_custom_cat_mapping",

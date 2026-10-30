@@ -259,13 +259,13 @@ export default function AddItemSheet({
   const showSuggestions = input.trim().length >= 2;
   const chip = (active: boolean) =>
     `h-9 min-w-[44px] px-3 rounded-full text-[13px] font-semibold cursor-pointer transition-colors ${
-      active ? "text-[#0d1017]" : "text-text"
+      active ? "text-on-accent" : "text-text"
     }`;
   const chipStyle = (active: boolean) => ({
-    background: active ? "var(--color-accent)" : "rgba(255,255,255,0.06)",
+    background: active ? "var(--color-accent)" : "color-mix(in srgb, var(--color-text) 6%, transparent)",
   });
   const toggleStyle = (active: boolean, color: string) => ({
-    background: active ? `${color}26` : "rgba(255,255,255,0.06)",
+    background: active ? `color-mix(in srgb, ${color} 15%, transparent)` : "color-mix(in srgb, var(--color-text) 6%, transparent)",
     color: active ? color : "var(--color-text-soft)",
   });
 
@@ -323,7 +323,7 @@ export default function AddItemSheet({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applySuggestion(s)}
                   className="w-full flex items-center gap-3 px-3 min-h-[48px] py-1 text-left cursor-pointer border-b border-border last:border-b-0"
-                  style={{ background: i === highlightedIdx ? "rgba(240,136,62,0.10)" : "transparent" }}
+                  style={{ background: i === highlightedIdx ? "color-mix(in srgb, var(--color-accent) 10%, transparent)" : "transparent" }}
                 >
                   <ItemIcon name={s.translations.en || s.key} category={s.category} size={32} />
                   <span className="flex-1 min-w-0">
@@ -341,7 +341,7 @@ export default function AddItemSheet({
         )}
 
         {submitError && (
-          <div className="px-3 py-2 rounded-xl text-[12px] font-semibold" style={{ background: "rgba(255,92,92,0.1)", color: "#ff6b6b" }}>
+          <div className="px-3 py-2 rounded-xl text-[12px] font-semibold" style={{ background: "color-mix(in srgb, var(--color-danger) 10%, transparent)", color: "var(--color-important)" }}>
             {submitError}
           </div>
         )}
@@ -377,24 +377,24 @@ export default function AddItemSheet({
         <div className="flex items-center gap-1.5 shrink-0">
           <button type="button" onClick={() => setImportant(v => !v)} aria-pressed={important}
             className="h-11 px-3 rounded-xl flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer"
-            style={toggleStyle(important, "#ff6b6b")}>
+            style={toggleStyle(important, "var(--color-important)")}>
             <IconAlert size={18} /> {t(lang, "important")}
           </button>
           <button type="button" onClick={() => setShowExtra(v => !v)} aria-pressed={showExtra || !!brand || !!note}
             className="h-11 px-3 rounded-xl flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer min-w-0"
-            style={toggleStyle(showExtra || !!brand || !!note, "#ffb27a")}>
+            style={toggleStyle(showExtra || !!brand || !!note, "var(--color-accent-ink)")}>
             <IconNote size={18} /> <span className="truncate">{t(lang, "brandAndNote")}</span>
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
           <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
             aria-label={t(lang, "addPhoto")}
             className="w-11 h-11 rounded-xl flex items-center justify-center cursor-pointer disabled:opacity-40 shrink-0 overflow-hidden"
-            style={toggleStyle(!!photo, "#ffb27a")}>
+            style={toggleStyle(!!photo, "var(--color-accent-ink)")}>
             {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : uploading ? "…" : <IconCamera size={20} />}
           </button>
           <span className="flex-1" />
           <button type="submit" disabled={!input.trim() || translating} aria-label={t(lang, "add")}
-            className="w-11 h-11 rounded-full flex items-center justify-center text-[#0d1017] cursor-pointer disabled:opacity-40 shrink-0"
+            className="w-11 h-11 rounded-full flex items-center justify-center text-on-accent cursor-pointer disabled:opacity-40 shrink-0"
             style={{ background: "var(--color-accent)" }}>
             {translating ? <span className="text-xs font-bold animate-pulse">…</span> : <IconPlus size={22} strokeWidth={2.6} />}
           </button>

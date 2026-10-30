@@ -1,193 +1,180 @@
-// Scoped theme previews used by the Admin Themes tab. Each preview renders a
-// miniature representative sample with the theme's CSS variables applied to
-// its own wrapping <div> (not the document root), so we can show 20 variants
-// side-by-side without polluting the live app state.
+import type { CSSProperties, ReactNode } from "react";
+import { paletteVars, type Palette, type ThemeView } from "../../data/themes";
+import type { Item } from "../../lib/pocketbase";
+import ItemRow from "../items/ItemRow";
+import StoreTab from "../list/StoreTab";
+import BottomNav from "../list/BottomNav";
+import { IconBack, IconMore } from "../ui/icons";
 
-import type { Theme, ThemeView } from "../../data/themes";
+// A small phone (390 × 600, shown at `scale`) rendering one screen of the
+// app with `palette`. Lista and Tienda use the real components, so the
+// preview is exactly what users get.
 
-interface Props {
-  theme: Theme;
-  view: ThemeView;
-}
+const W = 390;
+const H = 600;
 
-// Build an inline style object from the theme's CSS variables so it only
-// scopes inside the preview wrapper.
-function varsAsStyle(vars: Record<string, string>): React.CSSProperties {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(vars)) out[k] = v;
-  return out as React.CSSProperties;
-}
+const item = (id: string, es: string, pl: string, en: string, category: string, extra: Partial<Item> = {}): Item => ({
+  id, list_id: "preview", original: es, translations: { es, pl, en }, category,
+  qty: "", unit: "", note: "", brand: "", photo: null, important: false,
+  checked: false, checked_at: null, added_by: "u1", added_by_name: "Manu", created_at: "2026-10-01T10:00:00Z",
+  ...extra,
+});
 
-export default function ThemePreview({ theme, view }: Props) {
-  const style = varsAsStyle(theme.vars);
+const ITEMS: Item[] = [
+  item("p1", "leche", "mleko", "milk", "dairy", { qty: "2", unit: "L", important: true }),
+  item("p2", "huevos", "jajka", "eggs", "dairy", { qty: "12", unit: "x" }),
+  item("p3", "mantequilla", "masło", "butter", "dairy", { checked: true }),
+  item("p4", "tomates", "pomidory", "tomatoes", "vegetables", { qty: "6", unit: "x" }),
+];
+
+const noop = () => {};
+
+function Frame({ palette, view, scale, children }: { palette: Palette; view: ThemeView; scale: number; children: ReactNode }) {
+  const vars = paletteVars(palette);
+  const { "color-scheme": scheme, ...custom } = vars;
   return (
-    <div style={style} className="w-full">
-      {view === "items" && <ItemsPreview />}
-      {view === "lists" && <ListsPreview />}
-      {view === "details" && <DetailsPreview />}
-      {view === "store" && <StorePreview />}
-    </div>
-  );
-}
-
-// ── Items: tiny 2-card grid showing the key visual language ───────────────
-function ItemsPreview() {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {[
-        { emoji: "🥛", name: "Milk", qty: "2L" },
-        { emoji: "🍎", name: "Apples", qty: "6×" },
-      ].map((it, i) => (
-        <div
-          key={i}
-          className="relative flex flex-col items-center justify-center"
-          style={{
-            padding: "14px 6px 10px",
-            background: "var(--item-card-bg, rgba(240,136,62,0.14))",
-            border: "var(--item-card-border, 1px solid rgba(240,136,62,0.35))",
-            borderRadius: "var(--item-card-radius, 16px)",
-            boxShadow: "var(--item-card-shadow, none)",
-          }}
-        >
-          <div
-            className="absolute rounded-md"
-            style={{
-              top: 6,
-              right: 6,
-              fontSize: 9,
-              fontWeight: 700,
-              padding: "1px 5px",
-              background: "var(--item-qty-bg, rgba(240,136,62,0.3))",
-              color: "var(--item-qty-color, #fff)",
-            }}
-          >
-            {it.qty}
-          </div>
-          <span
-            aria-hidden="true"
-            style={{ fontSize: "var(--item-emoji-size, 40px)", lineHeight: 1 }}
-          >
-            {it.emoji}
-          </span>
-          <p
-            className="text-center leading-tight mt-1 truncate w-full"
-            style={{
-              fontSize: 11,
-              fontWeight: "var(--item-name-weight, 700)" as unknown as number,
-              color: "var(--item-name-color, #e6e8ee)",
-            }}
-          >
-            {it.name}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Lists: single list card with badge ─────────────────────────────────────
-function ListsPreview() {
-  return (
-    <div
-      className="p-3 w-full"
-      style={{
-        background: "var(--list-card-bg, #151922)",
-        border: "var(--list-card-border, 1px solid rgba(255,255,255,0.08))",
-        borderRadius: "var(--list-card-radius, 12px)",
-        boxShadow: "var(--list-card-shadow, none)",
-      }}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-text text-[13px] font-bold truncate">Groceries</div>
-          <div className="text-text-muted text-[9px]">24/10/2026</div>
-        </div>
-        <span
-          className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold"
-          style={{
-            background: "var(--list-badge-bg, rgba(240,136,62,0.15))",
-            color: "var(--list-badge-color, #f0883e)",
-          }}
-        >
-          8
-        </span>
-        <span className="text-text-muted text-sm">›</span>
-      </div>
-    </div>
-  );
-}
-
-// ── Details: modal-like card ──────────────────────────────────────────────
-function DetailsPreview() {
-  return (
-    <div
-      style={{
-        background: "var(--details-modal-bg, #151922)",
-        borderRadius: "var(--details-modal-radius, 16px)",
-        border: "var(--details-border, 1px solid rgba(255,255,255,0.1))",
-        overflow: "hidden",
-      }}
-    >
+    <div style={{ width: W * scale, height: H * scale, overflow: "hidden", borderRadius: 14 * scale + 4 }}>
       <div
-        className="px-3 py-2"
-        style={{ background: "var(--details-header-bg, rgba(240,136,62,0.1))" }}
-      >
-        <div className="text-[11px] font-bold text-text">Milk</div>
-      </div>
-      <div className="p-3 flex gap-1.5">
-        <div
-          className="flex-1 rounded-md text-[10px] text-text-muted px-2 py-1.5"
-          style={{ background: "var(--details-field-bg, rgba(255,255,255,0.04))" }}
-        >
-          Qty
-        </div>
-        <div
-          className="rounded-md text-[10px] text-white px-3 py-1.5 font-semibold"
-          style={{ background: "var(--details-button-bg, linear-gradient(135deg, #f0883e, #e07028))" }}
-        >
-          Save
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Store mode: mini fullscreen card ─────────────────────────────────────
-function StorePreview() {
-  return (
-    <div
-      className="p-2 flex flex-col items-center justify-center rounded-lg"
-      style={{
-        background: "var(--store-bg, #0d1017)",
-        minHeight: 100,
-      }}
-    >
-      <div
-        className="flex flex-col items-center justify-center w-full px-3 py-3"
+        data-theme-preview={view}
         style={{
-          background: "var(--store-card-bg, rgba(255,255,255,0.04))",
-          border: "var(--store-card-border, 2px solid rgba(240,136,62,0.35))",
-          borderRadius: "var(--store-card-radius, 16px)",
+          ...(custom as CSSProperties),
+          colorScheme: scheme,
+          width: W, height: H, zoom: scale,
+          background: "var(--color-bg)", color: "var(--color-text)",
+          display: "flex", flexDirection: "column", overflow: "hidden", pointerEvents: "none",
         }}
       >
-        <span aria-hidden="true" style={{ fontSize: 24, lineHeight: 1 }}>🥛</span>
-        <div
-          className="text-center leading-tight mt-1"
-          style={{
-            fontSize: 15,
-            fontWeight: "var(--store-title-weight, 800)" as unknown as number,
-            color: "var(--store-title-color, #f0883e)",
-          }}
-        >
-          Milk
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ListHeader({ title }: { title: string }) {
+  return (
+    <header className="shrink-0 h-14 flex items-center gap-1 px-1.5">
+      <span className="w-11 h-11 flex items-center justify-center text-text-soft"><IconBack /></span>
+      <div className="flex-1 min-w-0">
+        <div className="truncate text-[18px] font-bold text-text">{title}</div>
+        <div className="mt-1.5 h-[5px] rounded-full overflow-hidden" style={{ background: "color-mix(in srgb, var(--color-text) 8%, transparent)" }}>
+          <div className="h-full rounded-full" style={{ width: "40%", background: "var(--color-accent)" }} />
         </div>
-        <div
-          className="text-[9px] mt-0.5"
-          style={{ color: "var(--store-subtitle-color, #e6e8ee)" }}
-        >
-          (leche)
+      </div>
+      <span className="w-11 h-11 flex items-center justify-center text-text-soft"><IconMore /></span>
+    </header>
+  );
+}
+
+function ListsScreen() {
+  const rows = [
+    { flag: "🇵🇱", name: "Compra semanal", sub: "7 por comprar · hoy" },
+    { flag: "🇪🇸", name: "Casa de la playa", sub: "3 por comprar · ayer" },
+    { flag: "🇩🇪", name: "Viaje a Berlín", sub: "Todo comprado" },
+  ];
+  return (
+    <>
+      <header className="shrink-0 h-14 flex items-center gap-2 pl-4 pr-2">
+        <h1 className="flex-1 text-[22px] font-bold text-text">Mis listas</h1>
+        <span className="h-10 px-4 rounded-full text-[14px] font-semibold flex items-center" style={{ background: "var(--color-accent-soft)", color: "var(--color-accent-ink)" }}>Unirme</span>
+        <span className="w-10 h-10 rounded-full flex items-center justify-center font-bold" style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>M</span>
+      </header>
+      <main className="flex-1 px-3">
+        <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden mt-1">
+          {rows.map(r => (
+            <div key={r.name} className="flex items-center gap-3 px-3 min-h-[72px] py-2">
+              <span className="w-12 h-12 rounded-[14px] bg-bg flex items-center justify-center text-[26px]">{r.flag}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block truncate text-[16px] font-semibold text-text">{r.name}</span>
+                <span className="block truncate text-[13px] text-text-muted">{r.sub}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 px-1 text-[13px] font-semibold text-text-soft">Solicitudes enviadas</div>
+        <div className="mt-2 rounded-[14px] bg-card px-3 py-3 flex items-center gap-3">
+          <span className="flex-1 text-[14px] text-text">Lista de Ola</span>
+          <span className="h-9 px-3 rounded-xl text-[13px] font-semibold flex items-center" style={{ background: "var(--color-danger-soft)", color: "var(--color-danger-ink)" }}>Cancelar</span>
+        </div>
+      </main>
+      <span className="absolute bottom-6 right-5 h-14 w-14 rounded-2xl flex items-center justify-center text-[28px] font-bold"
+        style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>+</span>
+    </>
+  );
+}
+
+function ListScreen() {
+  const pending = ITEMS.filter(i => !i.checked);
+  return (
+    <>
+      <ListHeader title="Compra semanal" />
+      <div className="shrink-0 flex gap-1.5 px-3 pb-2">
+        {["Por comprar 3", "Comprados 1", "No hay 0"].map((f, i) => (
+          <span key={f} className="flex-1 h-8 rounded-full text-[12.5px] font-semibold flex items-center justify-center"
+            style={{ background: i === 0 ? "var(--color-accent-soft)" : "var(--color-card)", color: i === 0 ? "var(--color-accent-ink)" : "var(--color-text-soft)" }}>{f}</span>
+        ))}
+      </div>
+      <main className="flex-1 overflow-hidden px-3">
+        {[["Lácteos · Nabiał", pending.filter(i => i.category === "dairy")], ["Verduras · Warzywa", pending.filter(i => i.category === "vegetables")]].map(([name, rows]) => (
+          <section key={name as string} className="mb-3">
+            <div className="min-h-[44px] flex items-center px-1 text-[14px] font-bold" style={{ color: "var(--color-accent)" }}>{name as string}</div>
+            <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
+              {(rows as Item[]).map(i => <ItemRow key={i.id} item={i} listLang="pl" userLang="es" onToggle={noop} onOpen={noop} />)}
+            </div>
+          </section>
+        ))}
+      </main>
+      <BottomNav tab="list" onTab={noop} onAdd={noop} lang="es" />
+    </>
+  );
+}
+
+function StoreScreen() {
+  return (
+    <>
+      <ListHeader title="Compra semanal" />
+      <StoreTab items={ITEMS.filter(i => !i.checked)} startItemId="p1" listLang="pl" userLang="es" />
+      <BottomNav tab="store" onTab={noop} onAdd={noop} lang="es" />
+    </>
+  );
+}
+
+// Mirrors ItemDetail's "Mostrar" pane: side tab bar, name to show, icon,
+// quantity and the action buttons.
+function DetailsScreen() {
+  const tabs = ["🏪", "✏️", "💰", "🌍", "📊", "💬", "📋"];
+  return (
+    <div className="flex-1 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="flex overflow-hidden" style={{ width: W - 70, height: H - 60, borderRadius: 20, background: "var(--color-bg)", border: "1px solid var(--color-border-light)" }}>
+        <div className="flex flex-col gap-1 p-1.5" style={{ width: 46, borderRight: "1px solid var(--color-border)" }}>
+          {tabs.map((e, i) => (
+            <span key={e} className="h-10 rounded-xl flex items-center justify-center text-[17px]"
+              style={{ background: i === 0 ? "var(--color-card)" : "transparent" }}>{e}</span>
+          ))}
+        </div>
+        <div className="flex-1 flex flex-col items-center px-3 pt-5 pb-3 text-center">
+          <div className="text-[30px] font-black" style={{ color: "var(--color-primary-name)" }}>Mleko</div>
+          <div className="text-[13px]" style={{ color: "var(--color-secondary-name)" }}>(Leche)</div>
+          <div className="mt-6 w-[120px] h-[120px] rounded-[28px] flex items-center justify-center text-[64px]"
+            style={{ background: "color-mix(in srgb, var(--color-info) 18%, transparent)" }}>🥛</div>
+          <div className="mt-auto text-[18px] font-extrabold" style={{ color: "var(--color-accent)" }}>2 L</div>
+          <div className="mt-2 w-full py-2.5 rounded-xl font-bold text-[13px]" style={{ background: "color-mix(in srgb, var(--color-danger) 15%, transparent)", color: "var(--color-danger)" }}>🚫 No hay</div>
+          <div className="mt-2 w-full py-2.5 rounded-xl font-bold text-[13px]" style={{ background: "color-mix(in srgb, var(--color-accent) 15%, transparent)", color: "var(--color-accent)" }}>🛍️ Mostrar en la tienda</div>
+          <div className="mt-2 text-[10px] font-bold" style={{ color: "var(--color-text-muted)" }}>Preguntas para el dependiente ▼</div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ThemePreview({ palette, view, scale = 0.38 }: { palette: Palette; view: ThemeView; scale?: number }) {
+  return (
+    <Frame palette={palette} view={view} scale={scale}>
+      <div className="relative flex-1 flex flex-col min-h-0">
+        {view === "lists" && <ListsScreen />}
+        {view === "list" && <ListScreen />}
+        {view === "store" && <StoreScreen />}
+        {view === "details" && <DetailsScreen />}
+      </div>
+    </Frame>
   );
 }

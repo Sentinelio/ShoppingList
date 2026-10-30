@@ -47,7 +47,7 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
     <div className="flex-1 min-h-0 flex flex-col">
       {phrase && (
         <button type="button" onClick={() => setPhraseKey(null)} aria-label={t(lang, "tapToClose")}
-          className="shrink-0 w-full px-4 py-4 text-center cursor-pointer" style={{ background: "var(--color-accent)", color: "#0d1017" }}>
+          className="shrink-0 w-full px-4 py-4 text-center cursor-pointer" style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
           <div className="text-[26px] font-extrabold leading-tight">
             {phrase.emoji} {phrase.translations[listLang] || phrase.translations.en || phrase.key}
           </div>
@@ -71,7 +71,7 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
               </div>
             )}
             {item.qty && (
-              <div className="mt-4 rounded-full px-5 py-1.5 text-[22px] font-bold text-text" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <div className="mt-4 rounded-full px-5 py-1.5 text-[22px] font-bold text-text" style={{ background: "color-mix(in srgb, var(--color-text) 8%, transparent)" }}>
                 {formatQtyUnit(item.qty, item.unit, lang)}
               </div>
             )}
@@ -90,14 +90,14 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
       {items.length > 0 && (
         <div className="shrink-0 flex items-center justify-between px-3 pb-2">
           <button type="button" onClick={() => go(-1)} aria-label={t(lang, "previous")}
-            className="w-14 h-14 rounded-full bg-card flex items-center justify-center text-text cursor-pointer active:bg-white/10">
+            className="w-14 h-14 rounded-full bg-card flex items-center justify-center text-text cursor-pointer active:bg-text/10">
             <IconBack size={26} />
           </button>
           <span className="text-[15px] font-semibold text-text-soft tabular-nums">
             {t(lang, "storeOf").replace("{n}", String(index + 1)).replace("{total}", String(items.length))}
           </span>
           <button type="button" onClick={() => go(1)} aria-label={t(lang, "next")}
-            className="w-14 h-14 rounded-full bg-card flex items-center justify-center text-text cursor-pointer active:bg-white/10">
+            className="w-14 h-14 rounded-full bg-card flex items-center justify-center text-text cursor-pointer active:bg-text/10">
             <IconChevronRight size={26} />
           </button>
         </div>
@@ -116,7 +116,7 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
               {phrases.map(p => (
                 <button key={p.key} type="button"
                   onClick={() => { setPhraseKey(p.key); setShowPhrases(false); void incrementPhraseUsage(p.key); }}
-                  className="w-full min-h-[48px] flex items-center gap-3 px-4 py-1.5 text-left cursor-pointer active:bg-white/5">
+                  className="w-full min-h-[48px] flex items-center gap-3 px-4 py-1.5 text-left cursor-pointer active:bg-text/5">
                   <span className="text-lg" aria-hidden="true">{p.emoji}</span>
                   {/* Picked in my language; the country's one small below. */}
                   <span className="flex-1 min-w-0">

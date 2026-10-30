@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useThemeView } from "../lib/themeStore";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, exitList, approveMember, rejectMember, removeMember, updateList, archiveList } from "../hooks/useList";
 import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
@@ -56,6 +57,8 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   // Product the Store tab opens on ("Mostrar en la tienda").
   const [storeStartId, setStoreStartId] = useState<string | null>(null);
   const [tab, setTab] = useState<ListTab>("list");
+  // The Tienda tab has its own theme; Lista and Miembros share the list's.
+  useThemeView(tab === "store" ? "store" : "list");
   const [filter, setFilter] = useState<Filter>("pending");
   const [showAdd, setShowAdd] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -287,7 +290,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
 
   const countryFlag = list ? getCountryFlag(list.country || user?.country || "") : "";
 
-  const iconBtn = "shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-text-soft active:bg-white/5 cursor-pointer";
+  const iconBtn = "shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-text-soft active:bg-text/5 cursor-pointer";
   const filters: Array<{ id: Filter; label: string }> = [
     { id: "pending", label: t(lang, "filterToBuy") },
     { id: "bought", label: t(lang, "filterBought") },
@@ -387,7 +390,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
               </span>
               <span className="font-semibold tabular-nums" style={{ color: "var(--color-accent-ink)" }}>{progressPct}%</span>
             </div>
-            <div className="mt-1.5 h-[5px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <div className="mt-1.5 h-[5px] rounded-full overflow-hidden" style={{ background: "color-mix(in srgb, var(--color-text) 8%, transparent)" }}>
               <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progressPct}%`, background: "var(--color-accent)" }} />
             </div>
           </div>

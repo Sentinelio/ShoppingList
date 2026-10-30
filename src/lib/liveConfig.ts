@@ -1,5 +1,5 @@
 // Keeps admin-edited data fresh in every open app:
-//   · app_config (themes, enabled languages, UI translations, detail lab,
+//   · app_config (themes, enabled languages, UI translations,
 //     custom store types/categories) → realtime + re-read when the tab
 //     comes back. Changes bump `configVersion`, which re-renders the app.
 //   · dictionary → realtime: the suggestion cache is dropped and reloaded.

@@ -1,138 +1,122 @@
-// Per-view theme + items-layout persistence and live CSS variable injection.
+// Per-screen theme selection: persistence and CSS injection.
 //
-// State we track:
-//   - One `themeId` per view (items/lists/details/store) → CSS var palette
-//   - One `itemsLayout` id → which React layout component renders the items
-//     view (20 completely different designs, see src/layouts/items/layouts.tsx)
+// One palette id per screen (src/data/themes.ts). The selection lives in
+// localStorage (babelcart_themes_v1, mirrored from app_config "themes") and
+// is turned into one <style> rule per screen:
 //
-// Persisted in localStorage, pushed onto document.documentElement on init,
-// and announced through a subscriber list so hooks can re-render.
+//   [data-theme-view="store"] { --color-bg: …; --color-accent: …; }
+//
+// Screens mark themselves with useThemeView() (on <html>, so the page
+// background, sheets and the iOS overscroll area follow) or with a
+// data-theme-view attribute on a container (the product detail).
 
+import { useEffect, useSyncExternalStore } from "react";
 import {
-  ALL_THEMES,
   DEFAULT_THEME_IDS,
-  getThemeById,
-  type Theme,
+  THEME_VIEWS,
+  getPalette,
+  paletteVars,
   type ThemeView,
 } from "../data/themes";
-import { DEFAULT_ITEMS_LAYOUT_ID } from "../layouts/items/layouts";
 import { saveConfig } from "./appConfigStore";
 
 const STORAGE_KEY = "babelcart_themes_v1";
+const STYLE_ID = "babelcart-themes";
 
-interface Selection {
+export interface Selection {
+  version: 2;
   themes: Record<ThemeView, string>;
-  itemsLayout: string;
 }
 
-const DEFAULT_SELECTION: Selection = {
-  themes: { ...DEFAULT_THEME_IDS },
-  itemsLayout: DEFAULT_ITEMS_LAYOUT_ID,
-};
+const DEFAULT_SELECTION: Selection = { version: 2, themes: { ...DEFAULT_THEME_IDS } };
 
+// Older selections (the per-view themes of the old screens) are ignored:
+// their ids don't exist any more.
 function readSelection(): Selection {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<Selection> & Partial<Record<ThemeView, string>>;
-      // Back-compat with v0.34 shape where the root object WAS the themes map.
-      if (parsed.themes || parsed.itemsLayout) {
-        return {
-          themes: { ...DEFAULT_THEME_IDS, ...(parsed.themes ?? {}) },
-          itemsLayout: parsed.itemsLayout ?? DEFAULT_ITEMS_LAYOUT_ID,
-        };
+      const parsed = JSON.parse(raw) as Partial<Selection>;
+      if (parsed.version === 2 && parsed.themes) {
+        return { version: 2, themes: { ...DEFAULT_THEME_IDS, ...parsed.themes } };
       }
-      return {
-        themes: { ...DEFAULT_THEME_IDS, ...(parsed as Record<ThemeView, string>) },
-        itemsLayout: DEFAULT_ITEMS_LAYOUT_ID,
-      };
     }
   } catch { /* ignore */ }
-  return {
-    themes: { ...DEFAULT_THEME_IDS },
-    itemsLayout: DEFAULT_ITEMS_LAYOUT_ID,
-  };
+  return { ...DEFAULT_SELECTION, themes: { ...DEFAULT_THEME_IDS } };
 }
 
 let current: Selection = readSelection();
-const listeners = new Set<(s: Selection) => void>();
+const listeners = new Set<() => void>();
 
-function applyCssVars(selection: Selection) {
-  const root = document.documentElement;
-  for (const view of Object.keys(ALL_THEMES) as ThemeView[]) {
-    // The items view is 100% owned by its layout component (see
-    // src/layouts/items/layouts.tsx). Applying palette vars here would
-    // force every item to the same background, breaking per-category
-    // color coding in the Classic layout.
-    if (view === "items") continue;
-    const theme = getThemeById(view, selection.themes[view]);
-    for (const [key, value] of Object.entries(theme.vars)) {
-      root.style.setProperty(key, value);
-    }
+export function themeCss(view: ThemeView, paletteId: string): string {
+  const vars = Object.entries(paletteVars(getPalette(paletteId)))
+    .map(([k, v]) => `${k}:${v}`)
+    .join(";");
+  return `[data-theme-view="${view}"]{${vars}}`;
+}
+
+function applyCss(selection: Selection) {
+  if (typeof document === "undefined") return;
+  let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+  if (!el) {
+    el = document.createElement("style");
+    el.id = STYLE_ID;
+    document.head.appendChild(el);
   }
+  el.textContent = THEME_VIEWS.map(v => themeCss(v, selection.themes[v])).join("\n");
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-  } catch { /* ignore quota */ }
+function changed() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); } catch { /* ignore quota */ }
+  applyCss(current);
+  listeners.forEach(fn => fn());
 }
 
-// Re-reads localStorage: main.tsx calls this after applying the server's
-// app_config, and the module-level `current` was read before that (at import
-// time). Saving with that stale copy used to overwrite newer settings.
+// main.tsx calls this after applying the server's app_config, so it reads
+// the fresh copy rather than the one read at import time.
 export function initThemes() {
   current = readSelection();
-  if (typeof document === "undefined") return;
-  applyCssVars(current);
-}
-
-// Must return a stable reference for useSyncExternalStore. We only create a
-// new object inside setters when the selection actually changes.
-export function getSelection(): Selection {
-  return current;
-}
-
-export function getThemeFor(view: ThemeView): Theme {
-  return getThemeById(view, current.themes[view]);
-}
-
-export function getItemsLayoutId(): string {
-  return current.itemsLayout;
-}
-
-export function setThemeId(view: ThemeView, id: string) {
-  current = { ...current, themes: { ...current.themes, [view]: id } };
-  persist();
-  applyCssVars(current);
-  listeners.forEach(fn => fn(current));
-  void saveConfig("themes", current);
-}
-
-export function setItemsLayoutId(id: string) {
-  current = { ...current, itemsLayout: id };
-  persist();
-  listeners.forEach(fn => fn(current));
-  void saveConfig("themes", current);
-}
-
-export function resetThemes() {
-  current = { ...DEFAULT_SELECTION };
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch { /* ignore */ }
-  applyCssVars(current);
-  listeners.forEach(fn => fn(current));
-  void saveConfig("themes", current);
+  applyCss(current);
 }
 
 export function reloadThemes() {
   current = readSelection();
-  applyCssVars(current);
-  listeners.forEach(fn => fn(current));
+  applyCss(current);
+  listeners.forEach(fn => fn());
 }
 
-export function subscribeThemes(fn: (s: Selection) => void): () => void {
+export function getSelection(): Selection {
+  return current;
+}
+
+export function setThemeId(view: ThemeView, id: string) {
+  current = { version: 2, themes: { ...current.themes, [view]: id } };
+  changed();
+  void saveConfig("themes", current);
+}
+
+export function resetThemes() {
+  current = { version: 2, themes: { ...DEFAULT_THEME_IDS } };
+  changed();
+  void saveConfig("themes", current);
+}
+
+function subscribe(fn: () => void): () => void {
   listeners.add(fn);
   return () => { listeners.delete(fn); };
+}
+
+export function useThemeSelection(): Selection {
+  return useSyncExternalStore(subscribe, getSelection, getSelection);
+}
+
+// Marks the whole page (on <html>) as `view` while the calling screen is mounted.
+export function useThemeView(view: ThemeView) {
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-theme-view", view);
+    return () => {
+      if (root.getAttribute("data-theme-view") === view) root.removeAttribute("data-theme-view");
+    };
+  }, [view]);
 }

@@ -51,7 +51,7 @@ export default function ListSettingsSheet({ open, onClose, list, lang, userCount
       <input type="radio" name={group} value={value} checked={current === value} disabled={disabled}
         onChange={() => onPick(value)} className="sr-only peer" />
       <span aria-hidden="true" className="shrink-0 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center peer-focus-visible:ring-2 ring-accent"
-        style={{ borderColor: current === value ? "var(--color-accent)" : "#4a5268" }}>
+        style={{ borderColor: current === value ? "var(--color-accent)" : "var(--color-text-muted)" }}>
         {current === value && <span className="w-[11px] h-[11px] rounded-full" style={{ background: "var(--color-accent)" }} />}
       </span>
       <span className="flex-1 text-[15px] text-text">{text}</span>
@@ -93,7 +93,7 @@ export default function ListSettingsSheet({ open, onClose, list, lang, userCount
         <button type="button"
           onClick={() => { if (confirmDelete) onDeleteOrLeave(); else setConfirmDelete(true); }}
           className="w-full min-h-[52px] px-4 text-left text-[15px] font-semibold cursor-pointer"
-          style={confirmDelete ? { background: "#b71c1c", color: "#fff" } : { color: "#ff6b6b" }}>
+          style={confirmDelete ? { background: "var(--color-danger-strong)", color: "#fff" } : { color: "var(--color-important)" }}>
           {confirmDelete
             ? t(lang, isOwner ? "confirmDeleteList" : "confirmLeaveList")
             : t(lang, isOwner ? "deleteList" : "leaveList")}

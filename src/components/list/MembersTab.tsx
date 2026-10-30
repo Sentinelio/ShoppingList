@@ -52,13 +52,13 @@ export default function MembersTab({ list, members, userId, lang, onApprove, onR
                     <button type="button" onClick={() => confirmThen(`reject:${m.user_id}`, () => onReject(m.user_id))}
                       className="h-10 px-3 rounded-xl text-[13px] font-semibold cursor-pointer"
                       style={confirming === `reject:${m.user_id}`
-                        ? { background: "#b71c1c", color: "#fff" }
-                        : { background: "#2b1f24", color: "#ff9d9d" }}>
+                        ? { background: "var(--color-danger-strong)", color: "#fff" }
+                        : { background: "var(--color-danger-soft)", color: "var(--color-danger-ink)" }}>
                       {confirming === `reject:${m.user_id}` ? t(lang, "confirm") : t(lang, "reject")}
                     </button>
                     <button type="button" onClick={() => onApprove(m.user_id)}
                       className="h-10 px-3 rounded-xl text-[13px] font-bold cursor-pointer"
-                      style={{ background: "var(--color-accent)", color: "#0d1017" }}>
+                      style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
                       {t(lang, "approve")}
                     </button>
                   </>
@@ -87,7 +87,7 @@ export default function MembersTab({ list, members, userId, lang, onApprove, onR
               {canRemove && !isMe && !isOwner && (
                 <button type="button" onClick={() => confirmThen(key, () => onRemove(m.user_id))}
                   className="h-10 px-3 rounded-xl text-[13px] font-semibold cursor-pointer shrink-0"
-                  style={confirming === key ? { background: "#b71c1c", color: "#fff" } : { background: "#2b1f24", color: "#ff9d9d" }}>
+                  style={confirming === key ? { background: "var(--color-danger-strong)", color: "#fff" } : { background: "var(--color-danger-soft)", color: "var(--color-danger-ink)" }}>
                   {confirming === key ? t(lang, "confirm") : t(lang, "expel")}
                 </button>
               )}

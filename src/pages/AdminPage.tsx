@@ -18,16 +18,12 @@ import {
 } from "../lib/customStoreConfig";
 import { SEED_CATEGORIES } from "../data/seedCategories";
 import { CHANGELOG, type ChangeType } from "../data/changelog";
-import { ALL_THEMES, VIEW_LABELS, type ThemeView } from "../data/themes";
-import { setThemeId, setItemsLayoutId, resetThemes } from "../lib/themeStore";
-import { syncLabSelectionToRemote } from "../lib/itemDetailLab";
-import { useSelection } from "../hooks/useTheme";
+import { PALETTES, THEME_VIEWS, VIEW_LABELS, getPalette, type ThemeView } from "../data/themes";
+import { setThemeId, resetThemes, useThemeSelection } from "../lib/themeStore";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ConnectionBadge, AdminErrorBanner } from "../components/admin/AdminStatus";
 import { reportAdminError, describeError } from "../lib/adminErrors";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
-import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
-import type { Item, ListMember } from "../lib/pocketbase";
 import {
   ensureStorePhrasesLoaded,
   upsertStorePhrase,
@@ -69,26 +65,6 @@ interface ListRow {
   who_can_approve: string;
   who_can_remove: string;
 }
-
-// ── Themes tab: Items layout picker ────────────────────────────────────────
-// Renders a grid of miniature previews of every items layout (the 21 entries
-// in ITEMS_LAYOUTS). Each preview runs the real layout component against a
-// small hand-crafted sample so the admin sees exactly how their data will
-// look.
-
-const PREVIEW_ITEMS: Item[] = [
-  { id: "p1", list_id: "x", original: "milk",    translations: { en: "Milk",    es: "Leche",    pl: "Mleko" },    category: "dairy",       qty: "2",   unit: "L",  note: "",       brand: "", photo: null, important: true,  checked: false, checked_at: null, added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:00:00Z" },
-  { id: "p2", list_id: "x", original: "bread",   translations: { en: "Bread",   es: "Pan",      pl: "Chleb" },    category: "breads",      qty: "",    unit: "",   note: "rye",    brand: "", photo: null, important: false, checked: false, checked_at: null, added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:01:00Z" },
-  { id: "p3", list_id: "x", original: "chicken", translations: { en: "Chicken", es: "Pollo",    pl: "Kurczak" },  category: "poultry",     qty: "1",   unit: "kg", note: "",       brand: "", photo: null, important: true,  checked: false, checked_at: null, added_by: "u2", added_by_name: "Manu",  created_at: "2026-04-05T10:02:00Z" },
-  { id: "p4", list_id: "x", original: "tomato",  translations: { en: "Tomatoes",es: "Tomates",  pl: "Pomidory" }, category: "vegetables",  qty: "500", unit: "g",  note: "",       brand: "", photo: null, important: false, checked: false, checked_at: null, added_by: "u2", added_by_name: "Manu",  created_at: "2026-04-05T10:03:00Z" },
-  { id: "p5", list_id: "x", original: "apple",   translations: { en: "Apples",  es: "Manzanas", pl: "Jabłka" },   category: "fruits",      qty: "6",   unit: "",   note: "",       brand: "", photo: null, important: false, checked: true, checked_at: "2026-04-05T10:04:00Z", added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:04:00Z" },
-  { id: "p6", list_id: "x", original: "coffee",  translations: { en: "Coffee",  es: "Café",     pl: "Kawa" },     category: "drinks",      qty: "250", unit: "g",  note: "ground", brand: "", photo: null, important: false, checked: false, checked_at: null, added_by: "u1", added_by_name: "Kasia", created_at: "2026-04-05T10:05:00Z" },
-];
-
-const PREVIEW_MEMBERS: ListMember[] = [
-  { list_id: "x", user_id: "u1", role: "owner",  status: "active", joined_at: "", user_name: "Kasia", user_lang: "pl", user_country: "PL" },
-  { list_id: "x", user_id: "u2", role: "member", status: "active", joined_at: "", user_name: "Manu",  user_lang: "es", user_country: "ES" },
-];
 
 // ── Drag-and-drop phrase list ─────────────────────────────────────────────
 // Pointer-event based reorder so it works on mouse AND touch without any
@@ -616,83 +592,6 @@ function PhraseEditModal({
   );
 }
 
-function ItemsLayoutsPicker({ selectedId }: { selectedId: string }) {
-  return (
-    <>
-      <div className="text-[10px] text-text-muted mb-2 px-1">
-        {ITEMS_LAYOUTS.length} full redesigns · tap to apply instantly
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {ITEMS_LAYOUTS.map(layout => {
-          const isActive = layout.id === selectedId;
-          const Comp = layout.Component;
-          return (
-            // A div, not a <button>: the previews render the layouts' own
-            // buttons, and a button can't contain buttons.
-            <div
-              key={layout.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={isActive}
-              onClick={() => setItemsLayoutId(layout.id)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setItemsLayoutId(layout.id); } }}
-              className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
-              style={{
-                background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
-                border: isActive
-                  ? "2px solid var(--color-accent, #f0883e)"
-                  : "1px solid var(--color-border, rgba(255,255,255,0.08))",
-              }}
-            >
-              {/* Scaled-down preview. overflow hidden + fixed height keeps
-                  all 21 previews visually comparable. */}
-              <div
-                className="mb-1.5 pointer-events-none rounded-lg"
-                style={{
-                  height: 180,
-                  overflow: "hidden",
-                  background: "var(--color-bg, #0d1017)",
-                  position: "relative",
-                }}
-              >
-                <div
-                  style={{
-                    transform: "scale(0.55)",
-                    transformOrigin: "top left",
-                    width: "181.8%", // 1/0.55
-                    paddingTop: 8,
-                  }}
-                >
-                  <Comp
-                    items={PREVIEW_ITEMS}
-                    members={PREVIEW_MEMBERS}
-                    userLang="es"
-                    shelfLang="pl"
-                    onToggle={() => {}}
-                    onClick={() => {}}
-                    preview
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-1 px-0.5">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-text truncate">{layout.name}</div>
-                  <div className="text-[9px] text-text-muted truncate">{layout.tag}</div>
-                </div>
-                {isActive && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>
-                    ACTIVE
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </>
-  );
-}
-
 // PocketBase has no bulk delete: fetch the ids, then delete in small batches.
 // Returns an error message, or null on success.
 async function deleteDictionaryRows(ids: string[]): Promise<string | null> {
@@ -721,10 +620,8 @@ export default function AdminPage() {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
   const [tab, setTab] = useState<Tab>("stats");
-  const [themeSubView, setThemeSubView] = useState<ThemeView>("items");
-  const selection = useSelection();
-  const selectedThemes = selection.themes;
-  const selectedItemsLayoutId = selection.itemsLayout;
+  const [themeSubView, setThemeSubView] = useState<ThemeView>("lists");
+  const selectedThemes = useThemeSelection().themes;
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [collapsedStores, setCollapsedStores] = useState<Set<string>>(() => {
@@ -797,15 +694,6 @@ export default function AdminPage() {
   // (It used to push this browser's whole localStorage config to the server
   // on mount, which could overwrite newer settings saved from elsewhere.
   // Every setter now saves its own key.)
-
-  // Detect iframe lab changes via postMessage and sync to Supabase
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === "lab_selection_changed") syncLabSelectionToRemote();
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
 
   const deleteUser = async (userId: string) => {
     if (IS_DEMO) {
@@ -2492,126 +2380,65 @@ export default function AdminPage() {
           <PhrasesAdminSection />
         )}
 
-        {/* ── Themes ── */}
-        {tab === "themes" && (() => {
-          const views: ThemeView[] = ["items", "lists", "details", "store"];
-          return (
-            <div>
-              {/* Summary of current selection */}
-              <div className="bg-card rounded-xl p-3 border border-border mb-3">
-                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
-                  Current selection
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="bg-bg rounded-lg px-2 py-1.5">
-                    <div className="text-text-muted text-[9px]">Items layout</div>
-                    <div className="text-text font-semibold truncate">
-                      {getItemsLayout(selectedItemsLayoutId).name}
+        {/* ── Themes: one palette per screen ── */}
+        {tab === "themes" && (
+          <div>
+            <div className="flex gap-1 mb-3 overflow-x-auto">
+              {THEME_VIEWS.map(v => (
+                <button
+                  key={v}
+                  onClick={() => setThemeSubView(v)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                    themeSubView === v ? "bg-accent text-on-accent" : "bg-card text-text-soft active:bg-accent/20"
+                  }`}
+                >
+                  {VIEW_LABELS[v]}
+                  <span className="block text-[9px] font-medium opacity-70">{getPalette(selectedThemes[v]).name}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-2 mb-2 px-1">
+              <div className="text-[11px] text-text-muted">
+                Pantalla «{VIEW_LABELS[themeSubView]}» · {PALETTES.length} temas · se aplica al momento en todas las apps abiertas
+              </div>
+              <button
+                onClick={() => resetThemes()}
+                className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer bg-card text-text-soft border border-border-light"
+              >
+                ↺ Todo por defecto
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {PALETTES.map(p => {
+                const isActive = p.id === selectedThemes[themeSubView];
+                return (
+                  // A div, not a <button>: the preview contains the app's real buttons.
+                  <div
+                    key={p.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setThemeId(themeSubView, p.id)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setThemeId(themeSubView, p.id); } }}
+                    aria-pressed={isActive}
+                    aria-label={`${p.name} para ${VIEW_LABELS[themeSubView]}`}
+                    className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98] bg-card"
+                    style={{ border: isActive ? "2px solid var(--color-accent)" : "1px solid var(--color-border-light)" }}
+                  >
+                    <div className="flex justify-center mb-1.5">
+                      <ThemePreview palette={p} view={themeSubView} />
+                    </div>
+                    <div className="flex items-center justify-between gap-1 px-0.5">
+                      <div className="text-[12px] font-bold text-text truncate">{p.name}</div>
+                      {isActive
+                        ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>ACTIVO</span>
+                        : <span className="text-[9px] text-text-muted">{p.mode === "light" ? "claro" : "oscuro"}</span>}
                     </div>
                   </div>
-                  {(["lists", "details", "store"] as ThemeView[]).map(v => (
-                    <div key={v} className="bg-bg rounded-lg px-2 py-1.5">
-                      <div className="text-text-muted text-[9px]">{VIEW_LABELS[v]} palette</div>
-                      <div className="text-text font-semibold truncate">
-                        {ALL_THEMES[v].find(t => t.id === selectedThemes[v])?.name ?? "—"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => resetThemes()}
-                  className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
-                  style={{
-                    background: "rgba(255,176,61,0.1)",
-                    color: "#ffb03d",
-                    border: "1px solid rgba(255,176,61,0.2)",
-                  }}
-                >
-                  ↺ Reset all to defaults
-                </button>
-              </div>
-
-              {/* Sub-tabs */}
-              <div className="flex gap-1 mb-3 overflow-x-auto">
-                {views.map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setThemeSubView(v)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                      themeSubView === v
-                        ? "bg-accent text-white"
-                        : "bg-card text-text-soft active:bg-accent/20"
-                    }`}
-                  >
-                    {VIEW_LABELS[v]}
-                  </button>
-                ))}
-              </div>
-
-              {themeSubView === "items" ? (
-                <ItemsLayoutsPicker selectedId={selectedItemsLayoutId} />
-              ) : themeSubView === "details" ? (
-                /* Item Detail Lab — replaces the color palette grid for the
-                   Details sub-tab with the full interactive side-tab lab. */
-                <div style={{ margin: "-16px -16px 0", marginTop: 0 }}>
-                  <iframe
-                    src={`${import.meta.env.BASE_URL}item-detail-lab.html?v=${__BUILD_HASH__}`}
-                    title="Item Detail Lab"
-                    style={{
-                      width: "100%",
-                      height: "calc(100vh - 200px)",
-                      border: "none",
-                      borderRadius: 12,
-                      background: "var(--color-bg, #0d1017)",
-                    }}
-                  />
-                </div>
-              ) : (
-                (() => {
-                  const currentThemes = ALL_THEMES[themeSubView];
-                  const currentSelectedId = selectedThemes[themeSubView];
-                  return (
-                    <>
-                      <div className="text-[10px] text-text-muted mb-2 px-1">
-                        {currentThemes.length} palettes · tap to apply instantly
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {currentThemes.map(theme => {
-                          const isActive = theme.id === currentSelectedId;
-                          return (
-                            <button
-                              key={theme.id}
-                              onClick={() => setThemeId(themeSubView, theme.id)}
-                              className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98]"
-                              style={{
-                                background: isActive ? "rgba(240,136,62,0.12)" : "var(--color-card, #151922)",
-                                border: isActive
-                                  ? "2px solid var(--color-accent, #f0883e)"
-                                  : "1px solid var(--color-border, rgba(255,255,255,0.08))",
-                              }}
-                            >
-                              <div className="mb-1.5 pointer-events-none">
-                                <ThemePreview theme={theme} view={themeSubView} />
-                              </div>
-                              <div className="flex items-center justify-between px-0.5">
-                                <div className="text-[11px] font-bold text-text truncate">{theme.name}</div>
-                                {isActive && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: "rgba(61,214,140,0.15)", color: "#3dd68c" }}>
-                                    ACTIVE
-                                  </span>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  );
-                })()
-              )}
+                );
+              })}
             </div>
-          );
-        })()}
+          </div>
+        )}
       </div>
 
       {/* Dictionary edit modal (shared across tabs) */}

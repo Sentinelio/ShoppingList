@@ -14,8 +14,21 @@ export interface ChangelogEntry {
 // When bumping: assign the next v0.N to the new HEAD entry.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "v1.03",
+    version: "v1.04",
     hash: "HEAD",
+    date: "2026-10-30",
+    time: "21:30",
+    type: "feat",
+    title: "Themes per screen that really change the app",
+    details: [
+      "Admin → Themes: one palette per screen (Mis listas, Lista, Tienda, Detalle) out of 8 (BabelCart, Medianoche, Bosque, Ciruela, Grafito, Alto contraste, Papel, Día — the last two light); previews render the real list rows, store tab and bottom bar",
+      "Themes set the same colour tokens the redesigned screens use (they used to set variables nothing read); hard-coded colours in the new screens now follow the theme, borders follow the text colour so light themes work",
+      "Removed the 21 unused item layouts and the Item Detail Lab (nobody had a selection saved; the detail keeps the design everyone saw)",
+    ],
+  },
+  {
+    version: "v1.03",
+    hash: "a505216",
     date: "2026-10-29",
     time: "22:45",
     type: "feat",

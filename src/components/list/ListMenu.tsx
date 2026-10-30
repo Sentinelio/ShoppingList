@@ -30,7 +30,7 @@ export default function ListMenu({ open, onClose, lang, sortByCategory, onToggle
   }, [open, onClose]);
 
   if (!open) return null;
-  const item = "w-full min-h-[48px] flex items-center gap-3 px-4 text-left text-[15px] cursor-pointer active:bg-white/5 disabled:opacity-40 disabled:cursor-default";
+  const item = "w-full min-h-[48px] flex items-center gap-3 px-4 text-left text-[15px] cursor-pointer active:bg-text/5 disabled:opacity-40 disabled:cursor-default";
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div
@@ -44,7 +44,7 @@ export default function ListMenu({ open, onClose, lang, sortByCategory, onToggle
           {sortByCategory && <IconCheck size={18} className="text-accent" />}
         </button>
         <button role="menuitem" className={item} disabled={boughtCount === 0}
-          style={{ color: confirmClear ? "#fff" : "#ff6b6b", background: confirmClear ? "#b71c1c" : undefined }}
+          style={{ color: confirmClear ? "#fff" : "var(--color-important)", background: confirmClear ? "var(--color-danger-strong)" : undefined }}
           onClick={() => {
             if (!confirmClear) { setConfirmClear(true); return; }
             onClearBought();

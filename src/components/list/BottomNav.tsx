@@ -59,7 +59,7 @@ export default function BottomNav({ tab, onTab, onAdd, lang, pendingCount = 0 }:
           type="button"
           onClick={onAdd}
           aria-label={t(lang, "addProduct")}
-          className="shrink-0 w-12 h-12 ml-1 rounded-2xl flex items-center justify-center text-[#0d1017] cursor-pointer active:brightness-90"
+          className="shrink-0 w-12 h-12 ml-1 rounded-2xl flex items-center justify-center text-on-accent cursor-pointer active:brightness-90"
           style={{ background: "var(--color-accent)" }}
         >
           <IconPlus size={26} strokeWidth={2.6} />

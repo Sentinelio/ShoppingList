@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useThemeView } from "../lib/themeStore";
 import { useAuth } from "../hooks/useAuth";
 import { useLists, exitList, useMyPendingRequests, cancelJoinRequest, archiveList } from "../hooks/useList";
 import { useListsOverview, usedAgo, type ListOverview } from "../hooks/useListsOverview";
@@ -22,6 +23,7 @@ interface ListsPageProps {
 export default function ListsPage({ onNavigate }: ListsPageProps) {
   const { user, updateUser, logout } = useAuth();
   const lang = (user?.lang ?? "en") as Lang;
+  useThemeView("lists");
   const { lists, loading, refresh } = useLists(user?.id);
   const { requests: pendingRequests, refresh: refreshPending } = useMyPendingRequests(user?.id);
 
@@ -95,12 +97,12 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const membersStack = (o: ListOverview) => (
     <span className="flex -space-x-2 shrink-0">
       {o.members.slice(0, 3).map(m => (
-        <span key={m.user_id} className="rounded-full ring-2 ring-[#161b24]">
+        <span key={m.user_id} className="rounded-full ring-2 ring-card">
           <Avatar name={m.name || "?"} index={colorIndex(m.user_id)} size={24} />
         </span>
       ))}
       {o.members.length > 3 && (
-        <span className="w-6 h-6 rounded-full ring-2 ring-[#161b24] bg-bg text-[10px] font-bold text-text-soft flex items-center justify-center">
+        <span className="w-6 h-6 rounded-full ring-2 ring-card bg-bg text-[10px] font-bold text-text-soft flex items-center justify-center">
           +{o.members.length - 3}
         </span>
       )}
@@ -117,7 +119,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const section = "text-[13px] font-bold uppercase tracking-wide px-1 mb-2 mt-5";
   const userAvatar = (
     <span className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-      style={{ background: user?.avatar_color || "#f0883e" }}>
+      style={{ background: user?.avatar_color || "var(--color-accent)" }}>
       {(user?.name || "?")[0].toUpperCase()}
     </span>
   );
@@ -128,7 +130,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
       <div className="fixed inset-0 bg-bg flex flex-col" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <header className="shrink-0 h-14 flex items-center gap-1 px-1.5">
           <button onClick={() => setShowArchived(false)} aria-label={t(lang, "back")}
-            className="w-11 h-11 flex items-center justify-center rounded-full text-text-soft active:bg-white/5 cursor-pointer">
+            className="w-11 h-11 flex items-center justify-center rounded-full text-text-soft active:bg-text/5 cursor-pointer">
             <IconBack />
           </button>
           <h1 className="flex-1 min-w-0 truncate text-[20px] font-bold text-text">{t(lang, "archivedTitle")}</h1>
@@ -159,7 +161,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                     </button>
                     <button type="button" onClick={() => removeArchived(o.list.id)}
                       className="h-10 px-3 rounded-xl text-[13px] font-semibold cursor-pointer shrink-0"
-                      style={confirming ? { background: "#b71c1c", color: "#fff" } : { background: "#2b1f24", color: "#ff9d9d" }}>
+                      style={confirming ? { background: "var(--color-danger-strong)", color: "#fff" } : { background: "var(--color-danger-soft)", color: "var(--color-danger-ink)" }}>
                       {confirming ? t(lang, "confirm") : owner ? t(lang, "deleteArchived") : t(lang, "leaveList")}
                     </button>
                     </div>
@@ -207,7 +209,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
               <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden mt-1">
                 {active.map(o => (
                   <button key={o.list.id} type="button" onClick={() => onNavigate("list-detail", { listId: o.list.id })}
-                    className="w-full flex items-center gap-3 px-3 min-h-[72px] py-2 text-left cursor-pointer active:bg-white/5">
+                    className="w-full flex items-center gap-3 px-3 min-h-[72px] py-2 text-left cursor-pointer active:bg-text/5">
                     {flagTile(o)}
                     <span className="flex-1 min-w-0">
                       <span className="block truncate text-[16px] font-semibold text-text">{o.list.name}</span>
@@ -232,14 +234,14 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
                     <div key={pr.list_id} className="flex items-center gap-3 px-3 min-h-[60px] py-2">
                       <span className="flex-1 min-w-0">
                         <span className="block truncate text-[15px] font-semibold text-text">{pr.list_name}</span>
-                        <span className="block text-[12px]" style={{ color: pr.status === "rejected" ? "#ff9d9d" : "var(--color-text-muted)" }}>
+                        <span className="block text-[12px]" style={{ color: pr.status === "rejected" ? "var(--color-danger-ink)" : "var(--color-text-muted)" }}>
                           {pr.status === "rejected" ? t(lang, "statusRejected") : t(lang, "statusPending")}
                         </span>
                       </span>
                       <button type="button"
                         onClick={async () => { await cancelJoinRequest(pr.list_id, user?.id ?? ""); refreshPending(); }}
                         className="h-10 px-3 rounded-xl text-[13px] font-semibold cursor-pointer shrink-0"
-                        style={{ background: "#2b1f24", color: "#ff9d9d" }}>
+                        style={{ background: "var(--color-danger-soft)", color: "var(--color-danger-ink)" }}>
                         {t(lang, "cancel")}
                       </button>
                     </div>
@@ -250,7 +252,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
 
             <div className="rounded-[14px] bg-card overflow-hidden mt-5">
               <button type="button" onClick={() => setShowArchived(true)}
-                className="w-full min-h-[52px] flex items-center gap-3 px-4 text-left cursor-pointer active:bg-white/5">
+                className="w-full min-h-[52px] flex items-center gap-3 px-4 text-left cursor-pointer active:bg-text/5">
                 <span className="text-lg" aria-hidden="true">🗄️</span>
                 <span className="flex-1 text-[15px] text-text">{t(lang, "archivedLists")}</span>
                 <span className="text-[14px] text-text-muted tabular-nums">{archived.length}</span>
@@ -283,7 +285,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
       <button
         type="button"
         onClick={() => setShowCreate(true)}
-        className="fixed bottom-6 right-5 z-40 h-14 w-14 rounded-2xl flex items-center justify-center text-[#0d1017] shadow-lg cursor-pointer active:brightness-90"
+        className="fixed bottom-6 right-5 z-40 h-14 w-14 rounded-2xl flex items-center justify-center text-on-accent shadow-lg cursor-pointer active:brightness-90"
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)", background: "var(--color-accent)" }}
         aria-label={t(lang, "newList")}
       >
@@ -346,12 +348,12 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
           </div>
         </div>
         <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
-        <button onClick={() => { setShowSettings(false); onNavigate("admin"); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "rgba(108,138,255,0.3)", color: "#6c8aff" }}>🛠️ Admin Panel</button>
-        <div className="mt-4 p-3 rounded-xl" style={{ background: "rgba(255,92,92,0.05)", border: "1px solid rgba(255,92,92,0.15)" }}>
+        <button onClick={() => { setShowSettings(false); onNavigate("admin"); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)", color: "var(--color-info)" }}>🛠️ Admin Panel</button>
+        <div className="mt-4 p-3 rounded-xl" style={{ background: "color-mix(in srgb, var(--color-danger) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-danger) 15%, transparent)" }}>
           <button
             onClick={() => { logout(); }}
             className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer"
-            style={{ background: "rgba(255,92,92,0.08)", color: "#ff5c5c", border: "1px solid rgba(255,92,92,0.2)" }}
+            style={{ background: "color-mix(in srgb, var(--color-danger) 8%, transparent)", color: "var(--color-danger)", border: "1px solid color-mix(in srgb, var(--color-danger) 20%, transparent)" }}
           >
             🔄 {t(lang, "logout")}
           </button>

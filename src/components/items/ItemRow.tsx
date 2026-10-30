@@ -62,7 +62,7 @@ function ItemRow({ item, listLang, userLang, query, onToggle, onOpen }: ItemRowP
         {qty && (
           <span
             className="shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold tabular-nums"
-            style={{ background: "rgba(255,255,255,0.07)", color: "var(--color-text)" }}
+            style={{ background: "color-mix(in srgb, var(--color-text) 7%, transparent)", color: "var(--color-text)" }}
           >
             {qty}
           </span>
@@ -81,9 +81,9 @@ function ItemRow({ item, listLang, userLang, query, onToggle, onOpen }: ItemRowP
           style={{
             width: 24,
             height: 24,
-            border: item.checked ? "none" : "2px solid #4a5268",
+            border: item.checked ? "none" : "2px solid var(--color-text-muted)",
             background: item.checked ? "var(--color-accent)" : "transparent",
-            color: "#0d1017",
+            color: "var(--color-on-accent)",
           }}
         >
           {item.checked && <IconCheck size={16} strokeWidth={3} />}

@@ -65,7 +65,7 @@ export default function ShareSheet({ open, onClose, list, items, listLang, userL
   };
 
   const inviteText = t(lang, "inviteText").replace("{name}", list.name).replace("{code}", list.code);
-  const optionBtn = "w-full min-h-[52px] flex items-center gap-3 px-4 text-left text-[15px] text-text cursor-pointer active:bg-white/5";
+  const optionBtn = "w-full min-h-[52px] flex items-center gap-3 px-4 text-left text-[15px] text-text cursor-pointer active:bg-text/5";
 
   return (
     <Sheet open={open} onClose={onClose} title={t(lang, "share")} closeLabel={t(lang, "close")}>
@@ -90,7 +90,7 @@ export default function ShareSheet({ open, onClose, list, items, listLang, userL
           <input type="checkbox" role="switch" className="sr-only peer" checked={list.require_approval}
             disabled={!isOwner} onChange={(e) => onRequireApproval(e.target.checked)} />
           <span aria-hidden="true" className="relative shrink-0 w-12 h-7 rounded-full transition-colors peer-focus-visible:ring-2 ring-accent"
-            style={{ background: list.require_approval ? "var(--color-accent)" : "#3a4255" }}>
+            style={{ background: list.require_approval ? "var(--color-accent)" : "var(--color-scroll)" }}>
             <span className="absolute top-1 w-5 h-5 rounded-full bg-white transition-all" style={{ left: list.require_approval ? 24 : 4 }} />
           </span>
         </label>
