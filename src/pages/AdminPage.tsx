@@ -698,6 +698,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [catFilter] = useState("");
+  // Catalog filters: entries missing a language, one store type.
+  const [catMissingLang, setCatMissingLang] = useState("");
+  const [catStore, setCatStore] = useState("");
   const [editingEntry, setEditingEntry] = useState<DictRow | null>(null);
   const [, setNewEntry] = useState(false);
   const [toast, setToast] = useState("");
@@ -1037,12 +1040,23 @@ export default function AdminPage() {
   };
 
   // Filter dictionary
-  const filteredDict = dictRows.filter(row => {
-    const matchSearch = !search || row.key.includes(search.toLowerCase()) ||
-      Object.values(row.translations).some(v => v.toLowerCase().includes(search.toLowerCase()));
+  const storeOfCategory = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const st of storeTypesWithCats) for (const c of st.categories) m[c.id] = st.id;
+    return m;
+  }, [storeTypesWithCats]);
+  const filteredDict = useMemo(() => dictRows.filter(row => {
+    const q = search.toLowerCase();
+    const matchSearch = !search || row.key.includes(q) ||
+      Object.values(row.translations).some(v => v.toLowerCase().includes(q));
     const matchCat = !catFilter || row.category === catFilter;
-    return matchSearch && matchCat;
-  });
+    const matchMissing = !catMissingLang || !row.translations?.[catMissingLang];
+    const matchStore = !catStore || storeOfCategory[row.category] === catStore;
+    return matchSearch && matchCat && matchMissing && matchStore;
+  }), [dictRows, search, catFilter, catMissingLang, catStore, storeOfCategory]);
+  // Flat results (instead of the store/category tree) while searching or filtering by language.
+  const catalogFlat = !!search || !!catMissingLang;
+  const dictPage = useShowMore(filteredDict, `${search}|${catMissingLang}|${catStore}`);
 
   // Admin home: sections grouped, each with a one-line summary and an
   // alert when something needs attention.
@@ -1194,28 +1208,59 @@ export default function AdminPage() {
           const totalListMembers = Object.values(listMembers).reduce((a, b) => a + b, 0);
           const totalListItems = Object.values(listItems).reduce((a, b) => a + b, 0);
 
-          const StatCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) => (
-            <div className="bg-card rounded-xl p-3 border border-border">
-              <div className="text-xl mb-0.5">{icon}</div>
-              <div className="text-xl font-bold" style={{ color }}>{value}</div>
-              <div className="text-text-muted text-[10px] mt-0.5">{label}</div>
-            </div>
-          );
-
           return (
-            <div className="space-y-4">
-              {/* Top-level counters */}
-              <div className="grid grid-cols-3 gap-2">
-                <StatCard label="Dictionary" value={dictRows.length} icon="📖" color="#f0883e" />
-                <StatCard label="Local dict" value={LOCAL_DICTIONARY.length} icon="💾" color="#3dd68c" />
-                <StatCard label="Store types" value={storeTypesWithCats.length} icon="🏪" color="#6c8aff" />
-                <StatCard label="Categories" value={storeTypesWithCats.reduce((n, st) => n + st.categories.length, 0)} icon="🏷️" color="#f472b6" />
-                <StatCard label="Languages" value={`${enabledLangsList.length}/${ALL_LANGUAGES.length}`} icon="🌍" color="#34d6c0" />
-                <StatCard label="Countries" value={getCountries().length} icon="🗺️" color="#ffb03d" />
-                <StatCard label="Users" value={users.length} icon="👥" color="#6c8aff" />
-                <StatCard label="Lists" value={lists.length} icon="📝" color="#c76dff" />
-                <StatCard label="List items" value={totalListItems} icon="🛒" color="#e8c364" />
+            <div className="space-y-3">
+              {/* Key figures */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Entradas del catálogo", value: dictRows.length, to: "catalog" as Tab },
+                  { label: "Usuarios", value: users.length, to: "users" as Tab },
+                  { label: "Listas", value: lists.length, to: "lists" as Tab },
+                  { label: "Productos en listas", value: totalListItems, to: "lists" as Tab },
+                ].map(k => (
+                  <button key={k.label} type="button" onClick={() => setTab(k.to)}
+                    className="bg-card rounded-xl p-3 border border-border text-left cursor-pointer active:bg-text/5">
+                    <div className="text-[24px] font-bold text-text leading-tight">{k.value}</div>
+                    <div className="text-text-muted text-[11px]">{k.label}</div>
+                  </button>
+                ))}
               </div>
+
+              {/* Things to look at: each opens the catalog already filtered */}
+              {(() => {
+                const alerts: { text: string; action: () => void }[] = [];
+                for (const l of [...dictByLang].sort((a, b) => a.n - b.n)) {
+                  const missing = totalDict - l.n;
+                  if (missing > 0) alerts.push({
+                    text: `${l.flag} ${missing} ${missing === 1 ? "entrada" : "entradas"} sin ${l.name}`,
+                    action: () => { setSearch(""); setCatStore(""); setCatMissingLang(l.code); setTab("catalog"); },
+                  });
+                }
+                const emptyStores = dictByStore.filter(d => d.n === 0);
+                if (emptyStores.length) alerts.push({
+                  text: `🏬 ${emptyStores.length} tipos de tienda sin entradas`,
+                  action: () => { setSearch(""); setCatMissingLang(""); setCatStore(emptyStores[0].st.id); setTab("catalog"); },
+                });
+                if (!alerts.length) return (
+                  <div className="rounded-xl p-3 text-[13px]" style={{ background: "color-mix(in srgb, var(--color-success) 10%, transparent)", color: "var(--color-success)" }}>
+                    ✅ Todo el catálogo está en todos los idiomas activos.
+                  </div>
+                );
+                return (
+                  <div>
+                    <h3 className="px-1 mb-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">Para revisar</h3>
+                    <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
+                      {alerts.map(a => (
+                        <button key={a.text} type="button" onClick={a.action}
+                          className="w-full flex items-center gap-2 px-3 min-h-[48px] text-left text-[13px] text-text cursor-pointer active:bg-text/5">
+                          <span className="flex-1 min-w-0 truncate">{a.text}</span>
+                          <span className="text-text-muted" aria-hidden="true">›</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Maintenance: orphan entries */}
               {(() => {
@@ -1252,12 +1297,9 @@ export default function AdminPage() {
                 );
               })()}
 
+              <h3 className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">Detalle</h3>
               {/* Dictionary by store type */}
-              <div className="bg-card rounded-xl p-3 border border-border">
-                <h3 className="text-xs font-bold mb-2 flex items-center justify-between">
-                  <span>🏪 Dictionary by store type</span>
-                  <span className="text-[10px] text-text-muted font-normal">{totalDict} total</span>
-                </h3>
+              <Collapsible title="🏪 Catálogo por tipo de tienda" summary={`${dictByStore.filter(d => d.n > 0).length} con entradas`}>
                 {dictByStore.map(({ st, n }) => (
                   <div key={st.id} className="flex items-center gap-2 py-1">
                     <span className="text-sm w-5">{st.emoji}</span>
@@ -1268,12 +1310,11 @@ export default function AdminPage() {
                     <span className="text-[10px] text-text-muted w-10 text-right">{n}</span>
                   </div>
                 ))}
-              </div>
+              </Collapsible>
 
               {/* Dictionary by category */}
-              <div className="bg-card rounded-xl p-3 border border-border">
-                <h3 className="text-xs font-bold mb-2">🏷️ Dictionary by category</h3>
-                <div className="max-h-80 overflow-y-auto pr-1">
+              <Collapsible title="🏷️ Catálogo por categoría" summary={`${new Set(dictRows.map(d => d.category)).size} categorías`}>
+                <div>
                   {storeTypesWithCats.flatMap(st => st.categories.map(c => {
                     const total = dictRows.filter(d => d.category === c.id).length;
                     if (total === 0) return null;
@@ -1290,11 +1331,10 @@ export default function AdminPage() {
                     );
                   }))}
                 </div>
-              </div>
+              </Collapsible>
 
               {/* Dictionary by language */}
-              <div className="bg-card rounded-xl p-3 border border-border">
-                <h3 className="text-xs font-bold mb-2">🌍 Dictionary coverage by language</h3>
+              <Collapsible title="🌍 Idiomas del catálogo" summary={`${dictByLang.filter(l => l.n === totalDict).length}/${dictByLang.length} completos`}>
                 {dictByLang.map(l => (
                   <div key={l.code} className="flex items-center gap-2 py-1">
                     <span className="text-sm w-5">{l.flag}</span>
@@ -1305,13 +1345,12 @@ export default function AdminPage() {
                     <span className="text-[10px] text-text-muted w-16 text-right">{l.n} / {totalDict}</span>
                   </div>
                 ))}
-              </div>
+              </Collapsible>
 
               {/* Users by country / language */}
               {!IS_DEMO && users.length > 0 && (
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="bg-card rounded-xl p-3 border border-border">
-                    <h3 className="text-xs font-bold mb-2">🗺️ Users by country</h3>
+                <>
+                  <Collapsible title="🗺️ Usuarios por país" summary={`${usersByCountryList.length} países`}>
                     {usersByCountryList.slice(0, 20).map(([code, n]) => {
                       const c = getCountries().find(cc => cc.code === code);
                       return (
@@ -1322,9 +1361,8 @@ export default function AdminPage() {
                         </div>
                       );
                     })}
-                  </div>
-                  <div className="bg-card rounded-xl p-3 border border-border">
-                    <h3 className="text-xs font-bold mb-2">💬 Users by language</h3>
+                  </Collapsible>
+                  <Collapsible title="💬 Usuarios por idioma" summary={`${usersByLangList.length} idiomas`}>
                     {usersByLangList.slice(0, 20).map(([code, n]) => {
                       const l = ALL_LANGUAGES.find(ll => ll.code === code);
                       return (
@@ -1335,29 +1373,15 @@ export default function AdminPage() {
                         </div>
                       );
                     })}
-                  </div>
-                </div>
-              )}
-
-              {/* Lists summary */}
-              {!IS_DEMO && lists.length > 0 && (
-                <div className="bg-card rounded-xl p-3 border border-border">
-                  <h3 className="text-xs font-bold mb-2">📝 Lists summary</h3>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <div className="text-lg font-bold text-text">{lists.length}</div>
-                      <div className="text-[10px] text-text-muted">Total lists</div>
+                  </Collapsible>
+                  <Collapsible title="📝 Listas" summary={`${lists.length} listas`}>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div><div className="text-lg font-bold text-text">{lists.length}</div><div className="text-[10px] text-text-muted">Listas</div></div>
+                      <div><div className="text-lg font-bold text-text">{totalListMembers}</div><div className="text-[10px] text-text-muted">Miembros activos</div></div>
+                      <div><div className="text-lg font-bold text-text">{totalListItems}</div><div className="text-[10px] text-text-muted">Productos</div></div>
                     </div>
-                    <div>
-                      <div className="text-lg font-bold text-text">{totalListMembers}</div>
-                      <div className="text-[10px] text-text-muted">Active members</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-text">{totalListItems}</div>
-                      <div className="text-[10px] text-text-muted">Items total</div>
-                    </div>
-                  </div>
-                </div>
+                  </Collapsible>
+                </>
               )}
             </div>
           );
@@ -1366,29 +1390,38 @@ export default function AdminPage() {
         {/* ── Catalog (Stores + Categories + Dictionary + Builder unified) ── */}
         {tab === "catalog" && (
           <div>
-            {/* Search bar */}
-            <div className="relative mb-3">
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search products..."
-                className="w-full bg-card border border-border-light rounded-lg pl-3 pr-9 py-2 text-sm text-text outline-none focus:border-accent"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-text-muted cursor-pointer active:text-text"
-                  title="Clear search"
-                >✕</button>
-              )}
+            <SearchBox value={search} onChange={setSearch} placeholder="Buscar en cualquier idioma" />
+            <div className="flex gap-2 mb-3">
+              <select value={catStore} onChange={e => setCatStore(e.target.value)} aria-label="Tipo de tienda"
+                className="flex-1 min-w-0 h-10 px-2 rounded-xl bg-card border border-border-light text-[13px] text-text cursor-pointer">
+                <option value="">🏬 Todas las tiendas</option>
+                {storeTypesWithCats.map(st => (
+                  <option key={st.id} value={st.id}>{st.emoji} {(st as unknown as Record<string, string>)[lang] || st.en}</option>
+                ))}
+              </select>
+              <select value={catMissingLang} onChange={e => setCatMissingLang(e.target.value)} aria-label="Idioma que falta"
+                className="flex-1 min-w-0 h-10 px-2 rounded-xl bg-card border border-border-light text-[13px] text-text cursor-pointer">
+                <option value="">🌍 Todos los idiomas</option>
+                {getEnabledLangs().map(code => {
+                  const missing = dictRows.filter(r => !r.translations?.[code]).length;
+                  return <option key={code} value={code}>Le falta {code} ({missing})</option>;
+                })}
+              </select>
             </div>
+            {catMissingLang && !IS_DEMO && filteredDict.length > 0 && (
+              <button type="button" onClick={() => fillLanguageTranslations(catMissingLang)} disabled={!!bulkRunning}
+                className="w-full mb-3 h-11 rounded-xl text-[13px] font-bold cursor-pointer disabled:opacity-40"
+                style={{ background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)" }}>
+                {bulkRunning === `fillLang:${catMissingLang}` ? "⏳ Traduciendo…" : `🧠 Traducir a ${catMissingLang} las que faltan`}
+              </button>
+            )}
 
-            {/* Search results (flat list) */}
-            {search && (
+            {/* Search / filter results (flat list) */}
+            {catalogFlat && (
               <div className="mb-4">
-                <div className="text-text-muted text-xs mb-2">{filteredDict.length} results</div>
-                <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                  {filteredDict.slice(0, 50).map(row => {
+                <div className="text-text-muted text-xs mb-2 px-1">{filteredDict.length} {filteredDict.length === 1 ? "entrada" : "entradas"}</div>
+                <div className="space-y-1.5">
+                  {dictPage.visible.map(row => {
                     const catData = CATEGORIES[row.category] ?? CATEGORIES.other;
                     return (
                       <div key={row.key} className="bg-card rounded-lg p-2 border border-border flex items-center gap-2">
@@ -1403,7 +1436,9 @@ export default function AdminPage() {
                             )}
                           </div>
                           <div className="text-text-muted text-[10px] truncate">
-                            {Object.entries(row.translations).slice(0, 3).map(([l, v]) => `${l}:${v}`).join(" · ")}
+                            {catMissingLang
+                              ? `${getEnabledLangs().filter(c => !row.translations?.[c]).map(c => `sin ${c}`).join(" · ")} · ${Object.entries(row.translations).slice(0, 2).map(([l, v]) => `${l}:${v}`).join(" · ")}`
+                              : Object.entries(row.translations).slice(0, 3).map(([l, v]) => `${l}:${v}`).join(" · ")}
                           </div>
                         </div>
                         <button onClick={() => setEditingEntry(row)} className="text-accent text-xs cursor-pointer px-1">✏️</button>
@@ -1423,15 +1458,13 @@ export default function AdminPage() {
                       </div>
                     );
                   })}
-                  {filteredDict.length > 50 && (
-                    <div className="text-text-muted text-xs text-center py-2">Showing 50 of {filteredDict.length}</div>
-                  )}
+                  <ShowMore remaining={dictPage.remaining} onMore={dictPage.more} />
                 </div>
               </div>
             )}
 
             {/* Global actions: + Store type · Generate all · Clear all (1/3 each) */}
-            {!search && (
+            {!catalogFlat && (
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => { setAddingStore(true); setNewStoreForm({ emoji: "🛒", name: "" }); }}
@@ -1442,19 +1475,19 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={() => {
-                    const allIds = storeTypesWithCats.flatMap(st => st.categories.map(c => c.id));
+                    const allIds = storeTypesWithCats.filter(st => !catStore || st.id === catStore).flatMap(st => st.categories.map(c => c.id));
                     openGenerate(allIds);
                   }}
                   disabled={!!bulkRunning}
                   className="w-1/3 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                   style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
                 >
-                  {buildingCategory ? "⏳ Generating..." : "🧠 Generate all"}
+                  {buildingCategory ? "⏳ Generando…" : catStore ? "🧠 Generar tienda" : "🧠 Generate all"}
                 </button>
                 <button
                   onClick={() => {
                     if (confirmClearAll) {
-                      const allIds = storeTypesWithCats.flatMap(st => st.categories.map(c => c.id));
+                      const allIds = storeTypesWithCats.filter(st => !catStore || st.id === catStore).flatMap(st => st.categories.map(c => c.id));
                       clearCategories(allIds);
                       setConfirmClearAll(false);
                     } else {
@@ -1470,7 +1503,7 @@ export default function AdminPage() {
                     border: confirmClearAll ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
                   }}
                 >
-                  {confirmClearAll ? "⚠️ Confirm clear" : "🧹 Clear all"}
+                  {confirmClearAll ? "⚠️ Confirm clear" : catStore ? "🧹 Vaciar tienda" : "🧹 Clear all"}
                 </button>
               </div>
             )}
@@ -1520,8 +1553,8 @@ export default function AdminPage() {
 
             {/* Store types with categories */}
             <div className="space-y-2">
-              {storeTypesWithCats.map((st: StoreTypeWithCategories) => {
-                const isCollapsed = collapsedStores.has(st.id);
+              {(catalogFlat ? [] : storeTypesWithCats.filter(st => !catStore || st.id === catStore)).map((st: StoreTypeWithCategories) => {
+                const isCollapsed = collapsedStores.has(st.id) && st.id !== catStore;
                 const storeCatIds = new Set(st.categories.map(c => c.id));
                 const storeItemCount = dictRows.filter(d => storeCatIds.has(d.category)).length;
                 return (
