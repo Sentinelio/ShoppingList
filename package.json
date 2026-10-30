@@ -11,6 +11,7 @@
     "test:pb": "node --experimental-eventsource --no-warnings pocketbase/tests/run.mjs"
   },
   "dependencies": {
+    "country-flag-emoji-polyfill": "0.1.10",
     "pocketbase": "^0.28.1",
     "qrcode-generator": "1.4.4",
     "react": "^19.2.4",

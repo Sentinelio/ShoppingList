@@ -29,6 +29,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Members tab, share sheet with invite code + real QR (#join=CODE link) and \"approve before joining\", ⋮ menu (sort by category, delete bought, archive, settings), list settings (name, country, No hay policy, who can approve and remove, delete/leave)",
       "Mis listas: flag tile, items to buy, last used, member avatars, sent requests with status, personal archive (hidden only for you) with restore / delete",
       "Product icons are Fluent Emoji 3D images bundled in public/fluent (MIT)",
+      "Country flags also show on Windows (it has no flag emojis): a flags-only font from Twemoji (CC-BY 4.0, via country-flag-emoji-polyfill, MIT) bundled with the app and loaded only where needed",
+      "Admin catalog \"Generate\" no longer fails with \"Could not parse array\" on big categories (Claude's reply was cut by the token limit)",
       "Safari on iPhone shows once how to add the app to the Home Screen",
       "Setup and session start report errors (with a Tailscale hint for network failures) instead of failing silently; saved credentials are only dropped when the server rejects them",
       "Admin: every failure shows a banner and goes to console.error, the status dot really pings the server, and admin changes reach open apps at once (realtime) — see pocketbase/README.md",

@@ -20,7 +20,9 @@
   --color-danger: #ff5c5c;
   --color-border: rgba(255, 255, 255, 0.06);
   --color-border-light: rgba(255, 255, 255, 0.10);
-  --font-sans: "DM Sans", system-ui, sans-serif;
+  /* "Twemoji Country Flags" only covers flag emojis and only loads where the
+     system can't draw them (Windows): see polyfillCountryFlagEmojis in main.tsx. */
+  --font-sans: "Twemoji Country Flags", "DM Sans", system-ui, sans-serif;
 }
 
 * {

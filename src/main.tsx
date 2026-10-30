@@ -6,6 +6,12 @@ import { AuthProvider } from './hooks/useAuth'
 import { initThemes } from './lib/themeStore'
 import { loadRemoteConfig } from './lib/appConfigStore'
 import { startLiveConfig } from './lib/liveConfig'
+import { polyfillCountryFlagEmojis } from 'country-flag-emoji-polyfill'
+import flagFontUrl from 'country-flag-emoji-polyfill/dist/TwemojiCountryFlags.woff2?url'
+
+// Windows has no flag emojis (🇪🇸 shows as "ES"): there, load a font with
+// just the flags (Twemoji, CC-BY 4.0), bundled with the app instead of a CDN.
+polyfillCountryFlagEmojis('Twemoji Country Flags', flagFontUrl)
 
 // Unregister any stale service workers
 if ('serviceWorker' in navigator) {
