@@ -89,7 +89,7 @@ function callClaude(tag, kind, maxTokens, content, timeoutSec) {
 
   const blocks = (res.json && res.json.content) || []
   const first = blocks.find((b) => b.type === "text")
-  return { text: first ? first.text : "" }
+  return { text: first ? first.text : "", stopReason: (res.json && res.json.stop_reason) || "" }
 }
 
 // Extracts and parses the first {...} (or [...]) JSON value from a model reply,
@@ -108,4 +108,16 @@ function extractJson(tag, text, kind) {
   }
 }
 
-module.exports = { callClaude, extractJson, modelFor, isDryRun }
+// Reply cut by max_tokens: keeps the complete flat {...} entries after the
+// opening "[" (the last, unfinished one is dropped).
+function extractCompleteObjects(text) {
+  const start = text.indexOf("[")
+  if (start < 0) return []
+  const out = []
+  for (const m of text.slice(start).match(/\{[^{}]*\}/g) || []) {
+    try { out.push(JSON.parse(m)) } catch (_) { /* skip a broken entry */ }
+  }
+  return out
+}
+
+module.exports = { callClaude, extractJson, extractCompleteObjects, modelFor, isDryRun }

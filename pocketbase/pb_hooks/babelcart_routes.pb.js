@@ -239,7 +239,7 @@ routerAdd("POST", "/api/babelcart/parse-receipt", (e) => {
 //   { count, prompt, category?, storeType?, mode? }  →  { success, generated, inserted }
 // ─────────────────────────────────────────────────────────────────────────
 routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
-  const { callClaude, extractJson } = require(`${__hooks}/lib/claude.js`)
+  const { callClaude, extractJson, extractCompleteObjects } = require(`${__hooks}/lib/claude.js`)
   const { seedPrompt } = require(`${__hooks}/lib/prompts.js`)
   const { isAdmin } = require(`${__hooks}/lib/members.js`)
 
@@ -253,10 +253,19 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
   }
   const isBrandsMode = body.mode === "brands"
 
-  const res = callClaude("seed-dictionary", "translate", 4096, seedPrompt(count, catPrompt, isBrandsMode))
+  // 35 products x 7 languages overflowed the old 4096-token limit: the reply
+  // was cut before its closing "]".
+  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode), 180)
   if (res.dryRun) return e.json(200, { dry_run: true, request: res.dryRun })
 
-  const items = extractJson("seed-dictionary", res.text, "array")
+  let items
+  if (res.stopReason === "max_tokens") {
+    items = extractCompleteObjects(res.text)
+    console.error(`[babelcart/seed-dictionary] reply cut by max_tokens; kept ${items.length} complete entries`)
+    if (!items.length) throw new ApiError(502, "Claude's reply was cut by the token limit before any complete entry")
+  } else {
+    items = extractJson("seed-dictionary", res.text, "array")
+  }
   if (!Array.isArray(items)) throw new ApiError(502, "Response is not an array")
 
   // Brand keys collapse punctuation so "Coca-Cola" and "Coca Cola" share a row.
