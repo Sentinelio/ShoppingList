@@ -26,14 +26,14 @@ function App() {
   // Bumped when the admin's configuration changes (lib/liveConfig.ts).
   const configVersion = useSyncExternalStore(subscribeConfigVersion, getConfigVersion)
   const [route, setRoute] = useState<Route>(() => {
-    if (window.location.hash === '#admin') return { page: 'admin' }
+    if (window.location.hash.startsWith('#admin')) return { page: 'admin' }
     return { page: 'lists' }
   })
 
   // Listen for hash changes
   useEffect(() => {
     const handler = () => {
-      if (window.location.hash === '#admin') setRoute({ page: 'admin' })
+      if (window.location.hash.startsWith('#admin')) setRoute({ page: 'admin' })
     }
     window.addEventListener('hashchange', handler)
     return () => window.removeEventListener('hashchange', handler)

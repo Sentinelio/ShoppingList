@@ -23,6 +23,8 @@ import { setThemeId, resetThemes, useThemeSelection } from "../lib/themeStore";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ConnectionBadge, AdminErrorBanner } from "../components/admin/AdminStatus";
 import { reportAdminError, describeError } from "../lib/adminErrors";
+import { AdminHome, SectionHeader, SearchBox, Chips, Collapsible, ShowMore, type HomeEntry } from "../components/admin/AdminUi";
+import { useShowMore } from "../hooks/useShowMore";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
 import {
   ensureStorePhrasesLoaded,
@@ -36,6 +38,18 @@ import {
 import { useStorePhrases } from "../hooks/useStorePhrases";
 
 type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
+type Section = Tab | "home";
+
+const SECTION_TITLES: Record<Tab, string> = {
+  stats: "Estadísticas", catalog: "Catálogo", phrases: "Frases", languages: "Idiomas",
+  users: "Usuarios", lists: "Listas", themes: "Temas", changelog: "Versiones y estado", roadmap: "Roadmap",
+};
+
+// #admin → home, #admin/users → that section (so the phone's back works).
+function sectionFromHash(): Section {
+  const m = window.location.hash.match(/^#admin\/(\w+)/);
+  return m && m[1] in SECTION_TITLES ? (m[1] as Tab) : "home";
+}
 
 interface DictRow {
   id?: string;
@@ -619,7 +633,18 @@ async function deleteDictionaryWhere(filter: string): Promise<string | null> {
 export default function AdminPage() {
   const { user } = useAuth();
   const lang = user?.lang ?? "en";
-  const [tab, setTab] = useState<Tab>("stats");
+  const [tab, setTabState] = useState<Section>(sectionFromHash);
+  useEffect(() => {
+    const onHash = () => { setTabState(sectionFromHash()); window.scrollTo(0, 0); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const setTab = (next: Section) => { window.location.hash = next === "home" ? "#admin" : `#admin/${next}`; };
+  const [usersQuery, setUsersQuery] = useState("");
+  const [usersSort, setUsersSort] = useState<"seen" | "recent" | "name">("seen");
+  const [listsQuery, setListsQuery] = useState("");
+  const [addLangQuery, setAddLangQuery] = useState("");
+  const [showAllLog, setShowAllLog] = useState(false);
   const [themeSubView, setThemeSubView] = useState<ThemeView>("lists");
   const selectedThemes = useThemeSelection().themes;
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
@@ -976,10 +1001,10 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === "catalog") fetchDictionary();
+    if (tab === "catalog" || tab === "languages") fetchDictionary();
     if (tab === "users") fetchUsers();
     if (tab === "lists") fetchLists();
-    if (tab === "stats") { fetchDictionary(); fetchUsers(); fetchLists(); }
+    if (tab === "stats" || tab === "home") { fetchDictionary(); fetchUsers(); fetchLists(); }
   }, [tab, fetchDictionary, fetchUsers, fetchLists]);
 
   // Save dictionary entry
@@ -1019,16 +1044,50 @@ export default function AdminPage() {
     return matchSearch && matchCat;
   });
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: "stats", label: "Stats", icon: "📊" },
-    { key: "catalog", label: "Catalog", icon: "📦" },
-    { key: "languages", label: "Languages", icon: "🌍" },
-    { key: "users", label: "Users", icon: "👥" },
-    { key: "lists", label: "Lists", icon: "📝" },
-    { key: "roadmap", label: "Roadmap", icon: "🗺️" },
-    { key: "themes", label: "Themes", icon: "🎨" },
-    { key: "phrases", label: "Phrases", icon: "💬" },
-    { key: "changelog", label: "Log", icon: "📰" },
+  // Admin home: sections grouped, each with a one-line summary and an
+  // alert when something needs attention.
+  const enabledForHome = getEnabledLangs();
+  const missingLangRows = dictRows.filter(r => enabledForHome.some(c => !r.translations?.[c])).length;
+  const weekAgo = Date.now() - 7 * 864e5;
+  const newUsers = users.filter(u => new Date(u.created_at).getTime() > weekAgo).length;
+  const lastRun = ciRuns[0];
+  const norm = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const usersFiltered = useMemo(() => {
+    const q = norm(usersQuery.trim());
+    const rows = users.filter(u => !q || norm(`${u.name} ${u.lang} ${u.country}`).includes(q));
+    const time = (v?: string | null) => (v ? new Date(v).getTime() : 0);
+    return [...rows].sort((a, b) =>
+      usersSort === "name" ? a.name.localeCompare(b.name)
+        : usersSort === "recent" ? time(b.created_at) - time(a.created_at)
+        : time(b.last_seen_at) - time(a.last_seen_at));
+  }, [users, usersQuery, usersSort]);
+  const usersPage = useShowMore(usersFiltered, `${usersQuery}|${usersSort}`);
+  const listsFiltered = useMemo(() => {
+    const q = norm(listsQuery.trim());
+    return lists.filter(l => !q || norm(`${l.name} ${l.code}`).includes(q));
+  }, [lists, listsQuery]);
+  const listsPage = useShowMore(listsFiltered, listsQuery);
+
+  const homeGroups: { title: string; entries: HomeEntry<Tab>[] }[] = [
+    { title: "Contenido", entries: [
+      { key: "catalog", icon: "📦", label: "Catálogo", summary: `${dictRows.length} entradas · ${storeTypesWithCats.length} tipos de tienda`,
+        alert: missingLangRows ? `${missingLangRows} sin todos los idiomas` : undefined },
+      { key: "phrases", icon: "💬", label: "Frases", summary: "Frases para el personal de la tienda" },
+      { key: "languages", icon: "🌍", label: "Idiomas", summary: `${enabledForHome.length} activos · ${enabledForHome.join(", ")}` },
+    ] },
+    { title: "Personas", entries: [
+      { key: "users", icon: "👥", label: "Usuarios", summary: `${users.length} usuarios`, alert: newUsers ? `${newUsers} nuevos esta semana` : undefined },
+      { key: "lists", icon: "📝", label: "Listas", summary: `${lists.length} listas · ${Object.values(listItems).reduce((a, b) => a + b, 0)} productos` },
+    ] },
+    { title: "Apariencia", entries: [
+      { key: "themes", icon: "🎨", label: "Temas", summary: THEME_VIEWS.map(v => `${VIEW_LABELS[v]}: ${getPalette(selectedThemes[v]).name}`).join(" · ") },
+    ] },
+    { title: "Sistema", entries: [
+      { key: "stats", icon: "📊", label: "Estadísticas", summary: "Catálogo por tienda, categoría e idioma; usuarios por país" },
+      { key: "changelog", icon: "📰", label: "Versiones y estado", summary: `${CHANGELOG[0]?.version ?? ""} · ${CHANGELOG[0]?.title ?? ""}`,
+        alert: lastRun?.conclusion === "failure" ? "Último despliegue falló" : undefined },
+      { key: "roadmap", icon: "🗺️", label: "Roadmap", summary: "Lo hecho y lo que viene" },
+    ] },
   ];
 
 
@@ -1089,21 +1148,6 @@ export default function AdminPage() {
         <ConnectionBadge />
       </header>
 
-      {/* Tabs */}
-      <div className="flex gap-1 px-4 py-2 overflow-x-auto border-b border-border">
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-              tab === t.key ? "bg-accent text-white" : "bg-card text-text-soft active:bg-accent/20"
-            }`}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
       {/* Toast */}
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-card border border-accent/30 text-accent px-4 py-2 rounded-xl text-sm font-medium shadow-lg">
@@ -1114,7 +1158,12 @@ export default function AdminPage() {
       <AdminErrorBanner lang={lang} />
 
       <div className="px-4 py-4">
-        {loading && <div className="text-center py-8 text-text-muted animate-pulse">Loading...</div>}
+        {tab === "home" ? (
+          <AdminHome groups={homeGroups} onOpen={setTab} />
+        ) : (
+          <SectionHeader title={SECTION_TITLES[tab]} onBack={() => setTab("home")} />
+        )}
+        {loading && tab !== "home" && <div className="text-center py-8 text-text-muted animate-pulse">Cargando…</div>}
 
         {/* ── Stats ── */}
         {tab === "stats" && !loading && (() => {
@@ -1836,8 +1885,8 @@ export default function AdminPage() {
           return (
           <div>
             {/* Enabled Languages */}
-            <h3 className="text-sm font-bold mb-3">Active Languages ({enabledLangs.length})</h3>
-            <p className="text-text-muted text-[10px] mb-3">These languages are available in the app. Toggle to enable/disable.</p>
+            <h3 className="text-sm font-bold mb-1 px-1">Activos ({enabledLangs.length})</h3>
+            <p className="text-text-muted text-[11px] mb-3 px-1">Los idiomas y países que se pueden elegir en la app. ✕ lo desactiva.</p>
 
             <div className="space-y-3 mb-6">
               {enabledLangs.map(lang => {
@@ -1916,25 +1965,41 @@ export default function AdminPage() {
                         );
                       })()}
                     </div>
-                    {/* Countries */}
-                    <div className="flex flex-wrap gap-1.5 px-3 pb-3">
-                      {lang.countries.map(c => (
-                        <span key={c.code} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-bg border border-border-light">
-                          <span>{c.flag}</span> {c.name}
-                        </span>
-                      ))}
-                    </div>
+                    {/* Countries, folded: some languages have 20+ */}
+                    <details className="px-3 pb-3 group">
+                      <summary className="cursor-pointer text-[11px] text-text-soft select-none">
+                        {lang.countries.length} {lang.countries.length === 1 ? "país" : "países"}: {lang.countries.slice(0, 3).map(c => c.flag).join(" ")}{lang.countries.length > 3 ? " …" : ""}
+                      </summary>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {lang.countries.map(c => (
+                          <span key={c.code} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-bg border border-border-light">
+                            <span>{c.flag}</span> {c.name}
+                          </span>
+                        ))}
+                      </div>
+                    </details>
                   </div>
                 );
               })}
             </div>
 
-            {/* Available Languages */}
-            <h3 className="text-sm font-bold mb-2">Add Language ({availableLangs.length} languages · {availableLangs.reduce((n, l) => n + l.countries.length, 0)} countries available)</h3>
-            <p className="text-text-muted text-[10px] mb-3">Enable a language to add its countries to the app</p>
-
+            {/* Available Languages: search first, the full list is 60+ rows */}
+            <h3 className="text-sm font-bold mb-1 px-1">Añadir idioma</h3>
+            <p className="text-text-muted text-[11px] mb-3 px-1">{availableLangs.length} idiomas disponibles · al añadirlo se añaden sus países</p>
+            <SearchBox value={addLangQuery} onChange={setAddLangQuery} placeholder="Buscar idioma, código o país" />
+            {(() => {
+              const q = addLangQuery.trim().toLowerCase();
+              const matches = availableLangs.filter(l => !q
+                || l.name.toLowerCase().includes(q) || l.code === q
+                || l.countries.some(c => c.name.toLowerCase().includes(q)));
+              const shown = q ? matches : matches.slice(0, 8);
+              return (
             <div className="space-y-1.5">
-              {availableLangs.map(lang => (
+              {!q && matches.length > shown.length && (
+                <p className="text-[11px] text-text-muted px-1">Mostrando 8 de {matches.length}. Busca para encontrar el resto.</p>
+              )}
+              {q && matches.length === 0 && <p className="text-[12px] text-text-muted px-1 py-4 text-center">Ningún idioma coincide.</p>}
+              {shown.map(lang => (
                 <div key={lang.code} className="flex items-center gap-3 bg-card rounded-xl p-3 border border-border">
                   <span className="text-xl">{lang.flag}</span>
                   <div className="flex-1 min-w-0">
@@ -1964,11 +2029,13 @@ export default function AdminPage() {
                     className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                     style={{ background: "linear-gradient(135deg, #f09848, #e07028)", color: "white" }}
                   >
-                    + Add
+                    + Añadir
                   </button>
                 </div>
               ))}
             </div>
+              );
+            })()}
           </div>
           );
         })()}
@@ -1980,9 +2047,13 @@ export default function AdminPage() {
               <p className="text-text-muted text-sm py-8 text-center">Connect Supabase to see users</p>
             ) : (
               <>
-                <p className="text-text-muted text-xs mb-3">{users.length} registered users</p>
+                <SearchBox value={usersQuery} onChange={setUsersQuery} placeholder="Buscar por nombre, idioma o país" />
+                <Chips value={usersSort} onChange={setUsersSort} options={[
+                  { id: "seen", label: "Vistos hace poco" }, { id: "recent", label: "Nuevos" }, { id: "name", label: "Nombre" },
+                ]} />
+                <p className="text-text-muted text-xs mb-2 px-1">{usersFiltered.length === users.length ? `${users.length} usuarios` : `${usersFiltered.length} de ${users.length} usuarios`}</p>
                 <div className="space-y-2">
-                  {users.map(u => {
+                  {usersPage.visible.map(u => {
                     const flag = getCountries().find(c => c.code === u.country)?.flag || "🌍";
                     const langFlag = LANGS.find(l => l.code === u.lang)?.flag || "";
                     const isConfirming = confirmDeleteUser === u.id;
@@ -2031,6 +2102,7 @@ export default function AdminPage() {
                     );
                   })}
                 </div>
+                <ShowMore remaining={usersPage.remaining} onMore={usersPage.more} />
               </>
             )}
           </div>
@@ -2048,8 +2120,7 @@ export default function AdminPage() {
                   const globalApproval = lists.length > 0 ? lists[0].require_approval : true;
                   const globalWho = lists.length > 0 ? lists[0].who_can_approve : "owner";
                   return (
-                    <div className="bg-card rounded-xl p-3 border border-border mb-4">
-                      <div className="text-xs font-bold mb-2">⚙️ Configuración de acceso (todas las listas)</div>
+                    <Collapsible title="⚙️ Acceso a todas las listas" summary={globalApproval ? "con aprobación" : "sin aprobación"}>
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                           <div>
@@ -2130,12 +2201,13 @@ export default function AdminPage() {
                           </select>
                         </div>
                       </div>
-                    </div>
+                    </Collapsible>
                   );
                 })()}
-                <p className="text-text-muted text-xs mb-3">{lists.length} lists</p>
+                <SearchBox value={listsQuery} onChange={setListsQuery} placeholder="Buscar por nombre o código" />
+                <p className="text-text-muted text-xs mb-2 px-1">{listsFiltered.length === lists.length ? `${lists.length} listas` : `${listsFiltered.length} de ${lists.length} listas`}</p>
                 <div className="space-y-2">
-                  {lists.map(l => {
+                  {listsPage.visible.map(l => {
                     const isConfirming = confirmDeleteList === l.id;
                     return (
                       <div key={l.id} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
@@ -2171,6 +2243,7 @@ export default function AdminPage() {
                     );
                   })}
                 </div>
+                <ShowMore remaining={listsPage.remaining} onMore={listsPage.more} />
               </>
             )}
           </div>
@@ -2233,9 +2306,7 @@ export default function AdminPage() {
           return (
             <div>
               {/* Build info */}
-              {(() => { /* build info local scope */ return null; })()}
-              <div className="bg-card rounded-xl p-3 border border-border mb-3">
-                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Current build</div>
+              <Collapsible title="Versión publicada" summary={`${CHANGELOG.find(e => e.hash === __BUILD_HASH__)?.version ?? CHANGELOG[0]?.version ?? "v?"} · ${__BUILD_HASH__}`}>
                 <div className="space-y-1.5 text-[12px]">
                   <div className="flex items-center gap-2">
                     <span className="text-text-muted w-20 shrink-0">Version</span>
@@ -2261,11 +2332,10 @@ export default function AdminPage() {
                     <span className="text-text text-[11px]">{IS_DEMO ? "Demo (no backend)" : "PocketBase"}</span>
                   </div>
                 </div>
-              </div>
+              </Collapsible>
 
               {/* Runtime state */}
-              <div className="bg-card rounded-xl p-3 border border-border mb-3">
-                <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Runtime state</div>
+              <Collapsible title="Estado en este navegador" summary={`${dictRows.length} entradas · ${users.length} usuarios`}>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="bg-bg rounded-lg px-2 py-1.5">
                     <div className="text-text-muted text-[9px]">Dictionary</div>
@@ -2297,17 +2367,17 @@ export default function AdminPage() {
                   className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                   style={{ background: "rgba(240,136,62,0.1)", color: "#f0883e", border: "1px solid rgba(240,136,62,0.2)" }}
                 >🔄 Refresh state</button>
-              </div>
+              </Collapsible>
 
               {/* CI Builds status */}
-              <div className="bg-card rounded-xl border border-border overflow-hidden">
-                <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">CI Builds</div>
-                  <button onClick={fetchCI} disabled={ciLoading} className="text-[10px] text-accent cursor-pointer font-semibold">
-                    {ciLoading ? "..." : "🔄"}
+              <Collapsible title="Despliegues (GitHub Actions)"
+                summary={ciRuns[0] ? (ciRuns[0].conclusion === "success" ? "✅ último OK" : ciRuns[0].conclusion === "failure" ? "❌ último falló" : "⏳ en curso") : undefined}>
+                <div className="flex justify-end mb-1">
+                  <button onClick={fetchCI} disabled={ciLoading} className="text-[11px] text-accent cursor-pointer font-semibold">
+                    {ciLoading ? "..." : "🔄 Actualizar"}
                   </button>
                 </div>
-                <div className="divide-y divide-border max-h-[200px] overflow-y-auto">
+                <div className="divide-y divide-border -mx-3">
                   {ciRuns.length === 0 && !ciLoading && (
                     <div className="px-3 py-4 text-center text-text-muted text-xs">No builds found</div>
                   )}
@@ -2330,16 +2400,16 @@ export default function AdminPage() {
                     </a>
                   ))}
                 </div>
-              </div>
+              </Collapsible>
 
-              {/* Changelog list */}
+              {/* Changelog list: latest 5, the rest on demand */}
               <div className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Recent changes</div>
-                  <div className="text-[10px] text-text-muted">{CHANGELOG.length} entries</div>
+                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Últimos cambios</div>
+                  <div className="text-[10px] text-text-muted">{CHANGELOG.length} versiones</div>
                 </div>
-                <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
-                  {CHANGELOG.map((e, i) => {
+                <div className="divide-y divide-border">
+                  {(showAllLog ? CHANGELOG : CHANGELOG.slice(0, 5)).map((e, i) => {
                     const color = typeColor[e.type];
                     const isCurrent = e.hash === __BUILD_HASH__;
                     return (
@@ -2371,6 +2441,12 @@ export default function AdminPage() {
                   })}
                 </div>
               </div>
+              {!showAllLog && CHANGELOG.length > 5 && (
+                <button type="button" onClick={() => setShowAllLog(true)}
+                  className="w-full mt-2 h-11 rounded-xl bg-card border border-border-light text-[13px] font-semibold text-text-soft cursor-pointer">
+                  Ver las {CHANGELOG.length - 5} versiones anteriores
+                </button>
+              )}
             </div>
           );
         })()}
