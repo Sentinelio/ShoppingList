@@ -573,6 +573,12 @@ if (su.authStore.isValid) {
       eq(r.dry_run, true, "dry_run");
       assert(r.request.prompt.includes("brand-name dictionary"), "brands prompt");
     });
+    await test("seed-dictionary asks for the languages it is given", async () => {
+      const r = await D.pb.send("/api/babelcart/seed-dictionary", { method: "POST", body: { count: 3, prompt: "dairy products", langs: ["es", "nl", "en", "bad code!"] } });
+      assert(r.request.prompt.includes("en, es, nl"), "langs in prompt: " + r.request.prompt.slice(0, 300));
+      assert(!r.request.prompt.includes("bad code"), "invalid code filtered");
+      eq(r.request.max_tokens, 16000, "max_tokens");
+    });
   }
 } else {
   console.log("  (skipped is_admin tests: pass --admin-email/--admin-pass)");

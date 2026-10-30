@@ -25,6 +25,7 @@ import { useSelection } from "../hooks/useTheme";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ConnectionBadge, AdminErrorBanner } from "../components/admin/AdminStatus";
 import { reportAdminError, describeError } from "../lib/adminErrors";
+import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
 import { ITEMS_LAYOUTS, getItemsLayout } from "../layouts/items/layouts";
 import type { Item, ListMember } from "../lib/pocketbase";
 import {
@@ -743,6 +744,7 @@ export default function AdminPage() {
   };
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [buildingCategory, setBuildingCategory] = useState<string | null>(null);
+  const [generating, setGenerating] = useState<{ mode: GenerateMode; targets: GenerateTarget[] } | null>(null);
   const [storeCatVersion, setStoreCatVersion] = useState(0); // bumps to force re-read of localStorage
   const [addingStore, setAddingStore] = useState(false);
   const [addingCatFor, setAddingCatFor] = useState<string | null>(null);
@@ -972,15 +974,36 @@ export default function AdminPage() {
     fetchDictionary();
   };
 
-  const buildOneCategory = async (categoryId: string, mode: "generic" | "brands" = "generic") => {
-    const seed = SEED_CATEGORIES.find(s => s.category === categoryId);
-    if (!seed) { showToast("No seed config for this category"); return; }
+  // "Generate": opens a dialog that says how many entries, where and in which
+  // languages before calling Claude (it used to start straight away).
+  const openGenerate = (categoryIds: string[], mode: GenerateMode = "generic") => {
     if (IS_DEMO) { showToast("Connect the backend first"); return; }
+    const targets: GenerateTarget[] = [];
+    for (const id of categoryIds) {
+      const seed = SEED_CATEGORIES.find(s => s.category === id);
+      if (!seed) continue;
+      const st = storeTypesWithCats.find(s => s.categories.some(c => c.id === id));
+      const cat = st?.categories.find(c => c.id === id);
+      const label = (o: object | undefined, fallback: string) => (o as Record<string, string> | undefined)?.[lang] || (o as Record<string, string> | undefined)?.en || fallback;
+      targets.push({
+        seed,
+        catLabel: label(cat, seed.name),
+        catEmoji: cat?.emoji ?? "📦",
+        storeLabel: label(st, seed.storeType),
+        storeEmoji: st?.emoji ?? "🏬",
+        existing: dictRows.filter(d => d.category === id).length,
+      });
+    }
+    if (targets.length === 0) { showToast("No seed configs found"); return; }
+    setGenerating({ mode, targets });
+  };
 
-    setBuildingCategory(categoryId);
+  const runGenerate = async (target: GenerateTarget, count: number, mode: GenerateMode): Promise<GenerateResult> => {
+    const { seed } = target;
+    setBuildingCategory(seed.category);
     try {
-      const data = await callRoute<{ inserted?: number; generated?: number; dry_run?: boolean }>("seed-dictionary", {
-        count: mode === "brands" ? 15 : seed.count,
+      const data = await callRoute<{ inserted?: number; generated?: number; created?: number; updated?: number; unchanged?: number; dry_run?: boolean }>("seed-dictionary", {
+        count,
         // For brands we reuse the seed prompt only as a section label to
         // steer Claude toward the right product space (e.g. "drinks",
         // "snacks, cookies, chocolate").
@@ -988,38 +1011,19 @@ export default function AdminPage() {
         category: seed.category,
         storeType: seed.storeType,
         mode,
+        langs: getEnabledLangs(),
       });
-      const label = mode === "brands" ? `${seed.name} brands` : seed.name;
-      if (data.dry_run) showToast(`🧪 ${label}: dry run (BABELCART_DRY_RUN), nothing saved`);
-      else if (!data.inserted) reportAdminError(`Generar ${label}`, new Error(`Claude returned ${data.generated ?? 0} items, none saved (see the server log)`));
-      else showToast(`✅ ${label}: ${data.inserted} added`);
-      fetchDictionary();
+      if (data.dry_run) return { created: 0, updated: 0, unchanged: 0, dryRun: true };
+      const result = { created: data.created ?? data.inserted ?? 0, updated: data.updated ?? 0, unchanged: data.unchanged ?? 0 };
+      if (!data.generated) throw new Error("Claude no devolvió ninguna entrada (mira el log del servidor)");
+      return result;
     } catch (err) {
-      reportAdminError(`Generar ${seed.name}`, err);
+      reportAdminError(`Generar ${target.catLabel}`, err);
+      throw new Error(describeError(err));
+    } finally {
+      setBuildingCategory(null);
+      fetchDictionary();
     }
-    setBuildingCategory(null);
-  };
-
-  const buildManyCategories = async (
-    categoryIds: string[],
-    label: string,
-    mode: "generic" | "brands" = "generic",
-  ) => {
-    if (IS_DEMO) { showToast("Connect the backend first"); return; }
-    const seeds = categoryIds
-      .map(id => SEED_CATEGORIES.find(s => s.category === id))
-      .filter((s): s is typeof SEED_CATEGORIES[number] => !!s);
-    if (seeds.length === 0) { showToast("No seed configs found"); return; }
-    setBulkRunning(label);
-    let total = 0;
-    for (const seed of seeds) {
-      await buildOneCategory(seed.category, mode);
-      total++;
-      showToast(`(${total}/${seeds.length}) ${seed.name} done`);
-    }
-    setBulkRunning(null);
-    const what = mode === "brands" ? "brands" : "categories";
-    showToast(`✅ ${label}: ${seeds.length} ${what} generated`);
   };
 
   // Fetch data based on tab
@@ -1142,6 +1146,19 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
+      {generating && (
+        <GenerateDialog
+          mode={generating.mode}
+          targets={generating.targets}
+          langs={getEnabledLangs()}
+          run={(t, count) => runGenerate(t, count, generating.mode)}
+          onClose={(ran) => {
+            // One category: open it so the new entries are in view.
+            if (ran && generating.targets.length === 1) setExpandedCategory(generating.targets[0].seed.category);
+            setGenerating(null);
+          }}
+        />
+      )}
       {/* Keyframes kept outside the header so they're not a 0-width flex item. */}
       <style>{`
         @keyframes admin-status-pulse {
@@ -1489,13 +1506,13 @@ export default function AdminPage() {
                 <button
                   onClick={() => {
                     const allIds = storeTypesWithCats.flatMap(st => st.categories.map(c => c.id));
-                    buildManyCategories(allIds, "All categories");
+                    openGenerate(allIds);
                   }}
                   disabled={!!bulkRunning}
                   className="w-1/3 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                   style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
                 >
-                  {bulkRunning === "All categories" ? "⏳ Generating..." : "🧠 Generate all"}
+                  {buildingCategory ? "⏳ Generating..." : "🧠 Generate all"}
                 </button>
                 <button
                   onClick={() => {
@@ -1610,26 +1627,26 @@ export default function AdminPage() {
                                 disabled={!!bulkRunning || st.categories.length === 0}
                                 onClick={() => {
                                   const ids = st.categories.map(c => c.id);
-                                  buildManyCategories(ids, `store:${st.id}`, "generic");
+                                  openGenerate(ids, "generic");
                                   setOpenStoreMenu(null);
                                 }}
                                 className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
                                 style={{ color: "#3dd68c" }}
                               >
-                                <span>🧠</span><span>{bulkRunning === `store:${st.id}` ? "Generating..." : "Generate all items"}</span>
+                                <span>🧠</span><span>Generate all items</span>
                               </button>
                               <button
                                 disabled={!!bulkRunning || st.categories.length === 0}
                                 onClick={() => {
                                   const ids = st.categories.map(c => c.id);
-                                  buildManyCategories(ids, `store-brands:${st.id}`, "brands");
+                                  openGenerate(ids, "brands");
                                   setOpenStoreMenu(null);
                                 }}
                                 className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
                                 style={{ color: "#a78bfa" }}
                                 title="Generate popular brand names for every category in this store type"
                               >
-                                <span>®️</span><span>{bulkRunning === `store-brands:${st.id}` ? "Generating..." : "Generate all brands"}</span>
+                                <span>®️</span><span>Generate all brands</span>
                               </button>
                               <button
                                 disabled={!!bulkRunning || st.categories.length === 0}
@@ -1775,7 +1792,7 @@ export default function AdminPage() {
                                         <div className="absolute right-0 top-9 z-20 bg-card border border-border-light rounded-xl shadow-lg py-1 min-w-[180px]">
                                           <button
                                             disabled={isBuilding || !seed}
-                                            onClick={() => { buildOneCategory(c.id, "generic"); setOpenCatMenu(null); }}
+                                            onClick={() => { openGenerate([c.id], "generic"); setOpenCatMenu(null); }}
                                             className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
                                             style={{ color: "#3dd68c" }}
                                           >
@@ -1783,7 +1800,7 @@ export default function AdminPage() {
                                           </button>
                                           <button
                                             disabled={isBuilding || !seed}
-                                            onClick={() => { buildOneCategory(c.id, "brands"); setOpenCatMenu(null); }}
+                                            onClick={() => { openGenerate([c.id], "brands"); setOpenCatMenu(null); }}
                                             className="w-full text-left px-3 py-2 text-[12px] font-medium cursor-pointer active:bg-accent/10 flex items-center gap-2 disabled:opacity-40"
                                             style={{ color: "#a78bfa" }}
                                             title="Generate popular brand names for this category"

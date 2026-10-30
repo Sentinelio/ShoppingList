@@ -236,11 +236,14 @@ routerAdd("POST", "/api/babelcart/parse-receipt", (e) => {
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/babelcart/seed-dictionary   (superuser or users.is_admin)
-//   { count, prompt, category?, storeType?, mode? }  →  { success, generated, inserted }
+//   { count, prompt, category?, storeType?, mode?, langs? }
+//   →  { success, generated, inserted, created, updated, unchanged, langs }
+// Existing entries keep their category and every translation already set
+// (hand edits win); only missing languages are filled in.
 // ─────────────────────────────────────────────────────────────────────────
 routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
   const { callClaude, extractJson, extractCompleteObjects } = require(`${__hooks}/lib/claude.js`)
-  const { seedPrompt } = require(`${__hooks}/lib/prompts.js`)
+  const { seedPrompt, seedLangs } = require(`${__hooks}/lib/prompts.js`)
   const { isAdmin } = require(`${__hooks}/lib/members.js`)
 
   if (!isAdmin(e)) throw new ForbiddenError("Admins only")
@@ -252,10 +255,13 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
     throw new BadRequestError("Provide count, prompt, category, storeType")
   }
   const isBrandsMode = body.mode === "brands"
+  const langs = Array.isArray(body.langs)
+    ? body.langs.filter((c) => typeof c === "string" && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(c)).slice(0, 40)
+    : []
 
   // 35 products x 7 languages overflowed the old 4096-token limit: the reply
   // was cut before its closing "]".
-  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode), 180)
+  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode, langs), 180)
   if (res.dryRun) return e.json(200, { dry_run: true, request: res.dryRun })
 
   let items
@@ -271,15 +277,17 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
   // Brand keys collapse punctuation so "Coca-Cola" and "Coca Cola" share a row.
   const normalizeKey = (s) => s.toLowerCase().trim().replace(/[\s\-_.·'"]+/g, "")
   const collection = $app.findCollectionByNameOrId("dictionary")
-  let inserted = 0
+  let created = 0
+  let updated = 0
+  let unchanged = 0
   for (const item of items) {
     const raw = String((item && item.en) || "").trim()
     if (!raw) continue
     const key = isBrandsMode ? normalizeKey(raw) : raw.toLowerCase()
 
-    const translations = {}
+    const generated = {}
     for (const [k, v] of Object.entries(item)) {
-      if (typeof v === "string" && v.trim()) translations[k] = v.trim()
+      if (typeof v === "string" && v.trim()) generated[k] = v.trim()
     }
 
     try {
@@ -288,19 +296,39 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
       if (!rec) {
         rec = new Record(collection)
         rec.set("key", key)
+        rec.set("translations", generated)
+        rec.set("category", body.category || "other")
+        rec.set("store_type", body.storeType || "grocery")
+        rec.set("is_brand", isBrandsMode)
+        $app.save(rec)
+        created++
+        continue
       }
-      rec.set("translations", translations)
-      rec.set("category", body.category || "other")
-      rec.set("store_type", body.storeType || "grocery")
-      rec.set("is_brand", isBrandsMode)
+      let current = {}
+      try { current = JSON.parse(toString(rec.get("translations"))) || {} } catch (_) { /* empty */ }
+      const merged = Object.assign({}, current)
+      let added = 0
+      for (const [k, v] of Object.entries(generated)) {
+        if (typeof merged[k] !== "string" || !merged[k].trim()) { merged[k] = v; added++ }
+      }
+      if (!added) { unchanged++; continue }
+      rec.set("translations", merged)
       $app.save(rec)
-      inserted++
+      updated++
     } catch (err) {
       console.error(`[babelcart/seed-dictionary] could not save '${key}':`, err)
     }
   }
 
-  return e.json(200, { success: true, generated: items.length, inserted: inserted })
+  return e.json(200, {
+    success: true,
+    generated: items.length,
+    inserted: created + updated, // kept for older admin builds
+    created: created,
+    updated: updated,
+    unchanged: unchanged,
+    langs: seedLangs(langs),
+  })
 }, $apis.requireAuth())
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Product icons are Fluent Emoji 3D images bundled in public/fluent (MIT)",
       "Country flags also show on Windows (it has no flag emojis): a flags-only font from Twemoji (CC-BY 4.0, via country-flag-emoji-polyfill, MIT) bundled with the app and loaded only where needed",
       "Admin catalog \"Generate\" no longer fails with \"Could not parse array\" on big categories (Claude's reply was cut by the token limit)",
+      "Admin catalog \"Generate\" first shows how many entries, in which categories and store types and in which languages (the enabled ones, not a fixed 7), then the result per category; existing entries keep their category and hand edits, and only get the languages they were missing",
       "Safari on iPhone shows once how to add the app to the Home Screen",
       "Setup and session start report errors (with a Tailscale hint for network failures) instead of failing silently; saved credentials are only dropped when the server rejects them",
       "Admin: every failure shows a banner and goes to console.error, the status dot really pings the server, and admin changes reach open apps at once (realtime) — see pocketbase/README.md",

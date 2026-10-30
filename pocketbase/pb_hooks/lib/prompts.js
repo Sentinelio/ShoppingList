@@ -303,33 +303,43 @@ RULES:
 Return ONLY the JSON object, no markdown fences, no commentary.`
 }
 
-function seedPrompt(count, catPrompt, isBrandsMode) {
-  const langs = "en, es, pl, de, fr, it, pt"
+const SEED_DEFAULT_LANGS = ["en", "es", "pl", "de", "fr", "it", "pt"]
+
+// `langs`: language codes to fill (the admin's enabled languages; "en" is
+// always included because it is the dictionary key).
+function seedLangs(langs) {
+  return ["en"].concat((langs && langs.length ? langs : SEED_DEFAULT_LANGS).filter((c) => c !== "en"))
+}
+
+function seedPrompt(count, catPrompt, isBrandsMode, langs) {
+  const codes = seedLangs(langs)
+  const n = codes.length
+  const brandExample = (name) => "{" + codes.map((c) => `"${c}":"${name}"`).join(",") + "}"
   return isBrandsMode
-    ? `You are building a brand-name dictionary for a shopping list app. Generate a list of ${count} popular BRAND / trademarked products sold in the "${catPrompt}" section of a store. Mix international brands (Coca-Cola, Nutella, Heinz…) with popular regional ones from Spain, Poland, Germany, France, Italy and Portugal.
+    ? `You are building a brand-name dictionary for a shopping list app. Generate a list of ${count} popular BRAND / trademarked products sold in the "${catPrompt}" section of a store. Mix international brands (Coca-Cola, Nutella, Heinz…) with popular regional ones from the countries where these languages are spoken: ${codes.join(", ")}.
 
 For EACH brand, return the SAME canonical name in all languages (brand names don't translate). Preserve the trademark's official spelling (capitalization, hyphens, accents).
 
 Return ONLY a JSON array, no markdown, no backticks:
-[{"en":"Coca-Cola","es":"Coca-Cola","pl":"Coca-Cola","de":"Coca-Cola","fr":"Coca-Cola","it":"Coca-Cola","pt":"Coca-Cola"},{"en":"Nutella","es":"Nutella","pl":"Nutella","de":"Nutella","fr":"Nutella","it":"Nutella","pt":"Nutella"},...]
+[${brandExample("Coca-Cola")},${brandExample("Nutella")},...]
 
 Rules:
 - Only real brands, no generic descriptions
-- Same exact string for all 7 languages
+- Same exact string for all ${n} languages
 - ${count} distinct brands, no duplicates
-- All 7 languages required per entry`
+- All ${n} languages required per entry`
     : `You are a product translation dictionary builder. Generate a list of ${count} common ${catPrompt} that people buy regularly.
 
-For EACH product, provide translations in these languages: ${langs}
+For EACH product, provide translations in these languages (ISO 639-1 codes): ${codes.join(", ")}
 
-Return ONLY a JSON array, no markdown, no backticks:
-[{"en":"milk","es":"leche","pl":"mleko","de":"Milch","fr":"lait","it":"latte","pt":"leite"},...]
+Return ONLY a JSON array, no markdown, no backticks, one object per product with exactly these keys: ${codes.join(", ")}
+Example: [{"en":"milk","es":"leche","pl":"mleko","de":"Milch"},...]
 
 Rules:
-- Use the most common/generic name (not brand names)
+- Use the most common/generic name (not brand names), as written on shop shelves in each language
 - Use singular forms
 - ${count} products, no duplicates
-- Every product MUST have all 7 languages`
+- Every product MUST have all ${n} languages`
 }
 
-module.exports = { CATEGORIES_LIST, CATEGORY_KEYS, translatePrompt, translateUiPrompt, receiptPrompt, seedPrompt }
+module.exports = { CATEGORIES_LIST, CATEGORY_KEYS, translatePrompt, translateUiPrompt, receiptPrompt, seedPrompt, seedLangs }
