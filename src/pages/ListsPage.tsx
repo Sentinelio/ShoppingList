@@ -348,7 +348,6 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
           </div>
         </div>
         <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-3 rounded-xl border border-border-light text-text-soft font-medium cursor-pointer active:bg-card">{t(lang, "close")}</button>
-        <button onClick={() => { setShowSettings(false); onNavigate("admin"); }} className="w-full mt-2 py-3 rounded-xl border font-medium cursor-pointer active:bg-card" style={{ borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)", color: "var(--color-info)" }}>🛠️ Admin Panel</button>
         <div className="mt-4 p-3 rounded-xl" style={{ background: "color-mix(in srgb, var(--color-danger) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-danger) 15%, transparent)" }}>
           <button
             onClick={() => { logout(); }}
