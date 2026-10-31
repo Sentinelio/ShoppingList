@@ -79,10 +79,15 @@ export function useLists(userId: string | undefined) {
       return;
     }
 
-    // The list rule already restricts results to lists where the user is an
-    // active member.
+    // Only lists I'm an active member of. The list rule already limits normal
+    // users to those, but admins may read every list: without this filter an
+    // admin's home showed everyone's lists, where adding items then failed
+    // (items' create rule needs membership).
     try {
-      const fetched = await pb.collection("lists").getFullList<List>({ sort: "created_at" });
+      const fetched = await pb.collection("lists").getFullList<List>({
+        sort: "created_at",
+        filter: pb.filter("active_members.id ?= {:user}", { user: userId }),
+      });
       setLists(fetched);
     } catch (err) {
       console.error("[useLists]", err);
