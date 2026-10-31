@@ -25,6 +25,11 @@ import { ConnectionBadge, AdminErrorBanner } from "../components/admin/AdminStat
 import { reportAdminError, describeError } from "../lib/adminErrors";
 import { AdminHome, SectionHeader, SearchBox, Chips, Collapsible, ShowMore, type HomeEntry } from "../components/admin/AdminUi";
 import { useShowMore } from "../hooks/useShowMore";
+import { useIsDesktop } from "../hooks/useIsDesktop";
+import { DesktopShell, TopBar, type NavGroup } from "../components/admin/desktop/DesktopShell";
+import UsersDesktop from "../components/admin/desktop/UsersDesktop";
+import ListsDesktop, { type BulkField } from "../components/admin/desktop/ListsDesktop";
+import { loadPeople, EMPTY_PEOPLE, type PeopleData } from "../lib/adminPeople";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
 import {
   ensureStorePhrasesLoaded,
@@ -41,8 +46,8 @@ type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "
 type Section = Tab | "home";
 
 const SECTION_TITLES: Record<Tab, string> = {
-  stats: "Estadísticas", catalog: "Catálogo", phrases: "Frases", languages: "Idiomas",
-  users: "Usuarios", lists: "Listas", themes: "Temas", changelog: "Versiones y estado", roadmap: "Roadmap",
+  stats: "Stats", catalog: "Catalog", phrases: "Phrases", languages: "Languages",
+  users: "Users", lists: "Lists", themes: "Themes", changelog: "Versions & status", roadmap: "Roadmap",
 };
 
 // #admin → home, #admin/users → that section (so the phone's back works).
@@ -297,7 +302,7 @@ function PhrasesAdminSection() {
       await deleteStorePhrase(key);
       showToast(`Deleted '${key}'`);
     } catch (err) {
-      reportAdminError(`Borrar frase '${key}'`, err);
+      reportAdminError(`Delete phrase '${key}'`, err);
     }
   };
 
@@ -307,7 +312,7 @@ function PhrasesAdminSection() {
       const { filled } = await fillPhrasesForLang(lang);
       showToast(filled > 0 ? `✅ Filled ${filled} ${lang} phrases` : `All phrases already have ${lang}`);
     } catch (err) {
-      reportAdminError(`Traducir frases a ${lang}`, err);
+      reportAdminError(`Translate phrases to ${lang}`, err);
     }
     setFillingLang(null);
   };
@@ -491,7 +496,7 @@ function PhraseEditModal({
       });
       onSaved(isNew ? `Phrase '${key}' added` : `Phrase '${key}' updated`);
     } catch (err) {
-      reportAdminError(`Guardar frase '${key}'`, err);
+      reportAdminError(`Save phrase '${key}'`, err);
     }
     setSaving(false);
   };
@@ -645,6 +650,14 @@ export default function AdminPage() {
   const [listsQuery, setListsQuery] = useState("");
   const [addLangQuery, setAddLangQuery] = useState("");
   const [showAllLog, setShowAllLog] = useState(false);
+  // Desktop (≥1024 px): sidebar layout and table screens.
+  const isDesktop = useIsDesktop();
+  const [people, setPeople] = useState<PeopleData>(EMPTY_PEOPLE);
+  const [openListId, setOpenListId] = useState<string | null>(null);
+  const refreshPeople = useCallback(() => { void loadPeople().then(setPeople); }, []);
+  useEffect(() => {
+    if (isDesktop && (tab === "users" || tab === "lists")) refreshPeople();
+  }, [isDesktop, tab, refreshPeople]);
   const [themeSubView, setThemeSubView] = useState<ThemeView>("lists");
   const selectedThemes = useThemeSelection().themes;
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
@@ -759,7 +772,7 @@ export default function AdminPage() {
       // 3. Finally delete the user
       await pb.collection("users").delete(userId);
     } catch (error) {
-      reportAdminError("Borrar usuario", error);
+      reportAdminError("Delete user", error);
       fetchLists();
       return;
     }
@@ -772,6 +785,16 @@ export default function AdminPage() {
     fetchLists(); // refresh to show new ownership
   };
 
+  const bulkUpdateLists = async (field: BulkField, value: boolean | string) => {
+    setPeople(prev => ({ ...prev, lists: prev.lists.map(l => ({ ...l, [field]: value })) }));
+    if (IS_DEMO) return;
+    const ids = people.lists.map(l => l.id);
+    const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { [field]: value })));
+    const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed.length) reportAdminError(`${field}: ${failed.length} of ${ids.length} lists failed`, failed[0].reason);
+    refreshPeople();
+  };
+
   const deleteListFromAdmin = async (listId: string) => {
     if (IS_DEMO) {
       setLists(prev => prev.filter(l => l.id !== listId));
@@ -781,7 +804,7 @@ export default function AdminPage() {
     try {
       await pb.collection("lists").delete(listId);
     } catch (error) {
-      reportAdminError("Borrar lista", error);
+      reportAdminError("Delete list", error);
       return;
     }
     setLists(prev => prev.filter(l => l.id !== listId));
@@ -796,7 +819,7 @@ export default function AdminPage() {
     const error = await deleteDictionaryWhere(
       onlyCategory ? pb.filter("category = {:c}", { c: onlyCategory }) : "",
     );
-    if (error) { reportAdminError(onlyCategory ? `Vaciar categoría '${onlyCategory}'` : "Vaciar diccionario", new Error(error)); return; }
+    if (error) { reportAdminError(onlyCategory ? `Clear category '${onlyCategory}'` : "Clear dictionary", new Error(error)); return; }
     showToast(onlyCategory ? `Cleared category '${onlyCategory}'` : "Dictionary cleared");
     fetchDictionary();
   };
@@ -807,7 +830,7 @@ export default function AdminPage() {
     const error = await deleteDictionaryWhere(
       pb.filter(ids.map((_, i) => `category = {:c${i}}`).join(" || "), Object.fromEntries(ids.map((c, i) => [`c${i}`, c]))),
     );
-    if (error) { reportAdminError("Vaciar categorías", new Error(error)); return; }
+    if (error) { reportAdminError("Clear categories", new Error(error)); return; }
     showToast(`Cleared ${ids.length} categories`);
     fetchDictionary();
   };
@@ -819,7 +842,7 @@ export default function AdminPage() {
     const orphans = dictRows.filter(d => !valid.has(d.category));
     if (orphans.length === 0) { showToast("No orphan entries found"); return; }
     const error = await deleteDictionaryRows(orphans.map(o => o.id).filter((id): id is string => !!id));
-    if (error) { reportAdminError("Limpiar entradas huérfanas", new Error(error)); return; }
+    if (error) { reportAdminError("Clean orphan entries", new Error(error)); return; }
     showToast(`🧹 Cleaned ${orphans.length} orphan entries`);
     fetchDictionary();
   };
@@ -885,7 +908,7 @@ export default function AdminPage() {
       showToast(`Translating ${langCode}: ${done}/${missing.length}`);
     }
     setBulkRunning(null);
-    if (failed) reportAdminError(`Traducir diccionario a ${langCode}: ${failed} de ${missing.length} fallaron`, firstError);
+    if (failed) reportAdminError(`Translate dictionary to ${langCode}: ${failed} of ${missing.length} failed`, firstError);
     showToast(`✅ Filled ${done}/${missing.length} ${langCode} translations`);
     fetchDictionary();
   };
@@ -931,10 +954,10 @@ export default function AdminPage() {
       });
       if (data.dry_run) return { created: 0, updated: 0, unchanged: 0, dryRun: true };
       const result = { created: data.created ?? data.inserted ?? 0, updated: data.updated ?? 0, unchanged: data.unchanged ?? 0 };
-      if (!data.generated) throw new Error("Claude no devolvió ninguna entrada (mira el log del servidor)");
+      if (!data.generated) throw new Error("Claude returned no entries (see the server log)");
       return result;
     } catch (err) {
-      reportAdminError(`Generar ${target.catLabel}`, err);
+      reportAdminError(`Generate ${target.catLabel}`, err);
       throw new Error(describeError(err));
     } finally {
       setBuildingCategory(null);
@@ -955,7 +978,7 @@ export default function AdminPage() {
     } else {
       const all = await pb.collection("dictionary")
         .getFullList<DictRow>({ sort: "-created_at", batch: 1000 })
-        .catch((err) => { reportAdminError("Cargar el diccionario", err); return [] as DictRow[]; });
+        .catch((err) => { reportAdminError("Load dictionary", err); return [] as DictRow[]; });
       setDictRows(all);
     }
     setLoading(false);
@@ -965,7 +988,7 @@ export default function AdminPage() {
     setLoading(true);
     if (!IS_DEMO) {
       const data = await pb.collection("users").getFullList<UserRow>({ sort: "-created_at" })
-        .catch((err) => { reportAdminError("Cargar usuarios", err); return null; });
+        .catch((err) => { reportAdminError("Load users", err); return null; });
       if (data) setUsers(data);
     }
     setLoading(false);
@@ -975,12 +998,12 @@ export default function AdminPage() {
     setLoading(true);
     if (!IS_DEMO) {
       const data = await pb.collection("lists").getFullList<ListRow>({ sort: "-created_at" })
-        .catch((err) => { reportAdminError("Cargar listas", err); return null; });
+        .catch((err) => { reportAdminError("Load lists", err); return null; });
       if (data) setLists(data);
       // Fetch member counts
       const members = await pb.collection("list_members")
         .getFullList<{ list_id: string; status: string }>({ fields: "list_id,status" })
-        .catch((err) => { reportAdminError("Cargar miembros", err); return null; });
+        .catch((err) => { reportAdminError("Load members", err); return null; });
       if (members) {
         const counts: Record<string, number> = {};
         members.forEach(m => {
@@ -991,7 +1014,7 @@ export default function AdminPage() {
       // Fetch item counts
       const items = await pb.collection("items")
         .getFullList<{ list_id: string }>({ fields: "list_id" })
-        .catch((err) => { reportAdminError("Cargar productos", err); return null; });
+        .catch((err) => { reportAdminError("Load items", err); return null; });
       if (items) {
         const counts: Record<string, number> = {};
         items.forEach(i => {
@@ -1016,7 +1039,7 @@ export default function AdminPage() {
     try {
       await upsertByKey("dictionary", key.toLowerCase().trim(), { translations, category });
     } catch (err) {
-      reportAdminError(`Guardar '${key}'`, err);
+      reportAdminError(`Save '${key}'`, err);
       return;
     }
     showToast("Saved!");
@@ -1028,11 +1051,11 @@ export default function AdminPage() {
   const deleteEntry = async (key: string) => {
     if (IS_DEMO) return;
     const row = dictRows.find(r => r.key === key);
-    if (!row?.id) { reportAdminError(`Borrar '${key}'`, new Error("Entry not found in the loaded dictionary")); return; }
+    if (!row?.id) { reportAdminError(`Delete '${key}'`, new Error("Entry not found in the loaded dictionary")); return; }
     try {
       await pb.collection("dictionary").delete(row.id);
     } catch (err) {
-      reportAdminError(`Borrar '${key}'`, err);
+      reportAdminError(`Delete '${key}'`, err);
       return;
     }
     showToast("Deleted");
@@ -1083,30 +1106,37 @@ export default function AdminPage() {
   const listsPage = useShowMore(listsFiltered, listsQuery);
 
   const homeGroups: { title: string; entries: HomeEntry<Tab>[] }[] = [
-    { title: "Contenido", entries: [
-      { key: "catalog", icon: "📦", label: "Catálogo", summary: `${dictRows.length} entradas · ${storeTypesWithCats.length} tipos de tienda`,
-        alert: missingLangRows ? `${missingLangRows} sin todos los idiomas` : undefined },
-      { key: "phrases", icon: "💬", label: "Frases", summary: "Frases para el personal de la tienda" },
-      { key: "languages", icon: "🌍", label: "Idiomas", summary: `${enabledForHome.length} activos · ${enabledForHome.join(", ")}` },
+    { title: "Content", entries: [
+      { key: "catalog", icon: "📦", label: "Catalog", summary: `${dictRows.length} entries · ${storeTypesWithCats.length} store types`,
+        alert: missingLangRows ? `${missingLangRows} missing a language` : undefined },
+      { key: "phrases", icon: "💬", label: "Phrases", summary: "Phrases to show shop staff" },
+      { key: "languages", icon: "🌍", label: "Languages", summary: `${enabledForHome.length} enabled · ${enabledForHome.join(", ")}` },
     ] },
-    { title: "Personas", entries: [
-      { key: "users", icon: "👥", label: "Usuarios", summary: `${users.length} usuarios`, alert: newUsers ? `${newUsers} nuevos esta semana` : undefined },
-      { key: "lists", icon: "📝", label: "Listas", summary: `${lists.length} listas · ${Object.values(listItems).reduce((a, b) => a + b, 0)} productos` },
+    { title: "People", entries: [
+      { key: "users", icon: "👥", label: "Users", summary: `${users.length} users`, alert: newUsers ? `${newUsers} new this week` : undefined },
+      { key: "lists", icon: "📝", label: "Lists", summary: `${lists.length} lists · ${Object.values(listItems).reduce((a, b) => a + b, 0)} items` },
     ] },
-    { title: "Apariencia", entries: [
-      { key: "themes", icon: "🎨", label: "Temas", summary: THEME_VIEWS.map(v => `${VIEW_LABELS[v]}: ${getPalette(selectedThemes[v]).name}`).join(" · ") },
+    { title: "Appearance", entries: [
+      { key: "themes", icon: "🎨", label: "Themes", summary: THEME_VIEWS.map(v => `${VIEW_LABELS[v]}: ${getPalette(selectedThemes[v]).name}`).join(" · ") },
     ] },
-    { title: "Sistema", entries: [
-      { key: "stats", icon: "📊", label: "Estadísticas", summary: "Catálogo por tienda, categoría e idioma; usuarios por país" },
-      { key: "changelog", icon: "📰", label: "Versiones y estado", summary: `${CHANGELOG[0]?.version ?? ""} · ${CHANGELOG[0]?.title ?? ""}`,
-        alert: lastRun?.conclusion === "failure" ? "Último despliegue falló" : undefined },
-      { key: "roadmap", icon: "🗺️", label: "Roadmap", summary: "Lo hecho y lo que viene" },
+    { title: "System", entries: [
+      { key: "stats", icon: "📊", label: "Stats", summary: "Catalog by store, category and language; users by country" },
+      { key: "changelog", icon: "📰", label: "Versions & status", summary: `${CHANGELOG[0]?.version ?? ""} · ${CHANGELOG[0]?.title ?? ""}`,
+        alert: lastRun?.conclusion === "failure" ? "Last deploy failed" : undefined },
+      { key: "roadmap", icon: "🗺️", label: "Roadmap", summary: "Done and what comes next" },
     ] },
   ];
+  const navGroups: NavGroup<Tab>[] = homeGroups.map(g => ({
+    title: g.title,
+    entries: g.entries.map(e => ({ key: e.key, icon: e.icon, label: e.label })),
+  }));
+  const wrapContent = (node: React.ReactNode) => isDesktop
+    ? <DesktopShell groups={navGroups} current={tab} onOpen={setTab}>{node}</DesktopShell>
+    : <div className="px-4 py-4">{node}</div>;
 
 
   return (
-    <div className="min-h-screen bg-bg text-text" style={{ maxWidth: 960, margin: "0 auto" }}>
+    <div className="min-h-screen bg-bg text-text" style={isDesktop ? undefined : { maxWidth: 960, margin: "0 auto" }}>
       {generating && (
         <GenerateDialog
           mode={generating.mode}
@@ -1171,13 +1201,26 @@ export default function AdminPage() {
 
       <AdminErrorBanner lang={lang} />
 
-      <div className="px-4 py-4">
+      {wrapContent(<>
         {tab === "home" ? (
           <AdminHome groups={homeGroups} onOpen={setTab} />
+        ) : isDesktop ? (
+          tab !== "users" && tab !== "lists" && <TopBar title={SECTION_TITLES[tab]} />
         ) : (
           <SectionHeader title={SECTION_TITLES[tab]} onBack={() => setTab("home")} />
         )}
-        {loading && tab !== "home" && <div className="text-center py-8 text-text-muted animate-pulse">Cargando…</div>}
+        {loading && tab !== "home" && !(isDesktop && (tab === "users" || tab === "lists")) && <div className="text-center py-8 text-text-muted animate-pulse">Loading…</div>}
+
+        {isDesktop && tab === "users" && (
+          <UsersDesktop data={people}
+            onDelete={async id => { await deleteUser(id); refreshPeople(); }}
+            onOpenList={id => { setOpenListId(id); setTab("lists"); }} />
+        )}
+        {isDesktop && tab === "lists" && (
+          <ListsDesktop data={people} openId={openListId} onOpen={setOpenListId}
+            onDelete={async id => { await deleteListFromAdmin(id); refreshPeople(); }}
+            onBulkUpdate={bulkUpdateLists} />
+        )}
 
         {/* ── Stats ── */}
         {tab === "stats" && !loading && (() => {
@@ -1213,10 +1256,10 @@ export default function AdminPage() {
               {/* Key figures */}
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Entradas del catálogo", value: dictRows.length, to: "catalog" as Tab },
-                  { label: "Usuarios", value: users.length, to: "users" as Tab },
-                  { label: "Listas", value: lists.length, to: "lists" as Tab },
-                  { label: "Productos en listas", value: totalListItems, to: "lists" as Tab },
+                  { label: "Catalog entries", value: dictRows.length, to: "catalog" as Tab },
+                  { label: "Users", value: users.length, to: "users" as Tab },
+                  { label: "Lists", value: lists.length, to: "lists" as Tab },
+                  { label: "Items in lists", value: totalListItems, to: "lists" as Tab },
                 ].map(k => (
                   <button key={k.label} type="button" onClick={() => setTab(k.to)}
                     className="bg-card rounded-xl p-3 border border-border text-left cursor-pointer active:bg-text/5">
@@ -1232,23 +1275,23 @@ export default function AdminPage() {
                 for (const l of [...dictByLang].sort((a, b) => a.n - b.n)) {
                   const missing = totalDict - l.n;
                   if (missing > 0) alerts.push({
-                    text: `${l.flag} ${missing} ${missing === 1 ? "entrada" : "entradas"} sin ${l.name}`,
+                    text: `${l.flag} ${missing} ${missing === 1 ? "entry" : "entries"} missing ${l.name}`,
                     action: () => { setSearch(""); setCatStore(""); setCatMissingLang(l.code); setTab("catalog"); },
                   });
                 }
                 const emptyStores = dictByStore.filter(d => d.n === 0);
                 if (emptyStores.length) alerts.push({
-                  text: `🏬 ${emptyStores.length} tipos de tienda sin entradas`,
+                  text: `🏬 ${emptyStores.length} store types with no entries`,
                   action: () => { setSearch(""); setCatMissingLang(""); setCatStore(emptyStores[0].st.id); setTab("catalog"); },
                 });
                 if (!alerts.length) return (
                   <div className="rounded-xl p-3 text-[13px]" style={{ background: "color-mix(in srgb, var(--color-success) 10%, transparent)", color: "var(--color-success)" }}>
-                    ✅ Todo el catálogo está en todos los idiomas activos.
+                    ✅ The whole catalog is in every enabled language.
                   </div>
                 );
                 return (
                   <div>
-                    <h3 className="px-1 mb-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">Para revisar</h3>
+                    <h3 className="px-1 mb-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">To review</h3>
                     <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
                       {alerts.map(a => (
                         <button key={a.text} type="button" onClick={a.action}
@@ -1297,9 +1340,9 @@ export default function AdminPage() {
                 );
               })()}
 
-              <h3 className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">Detalle</h3>
+              <h3 className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">Details</h3>
               {/* Dictionary by store type */}
-              <Collapsible title="🏪 Catálogo por tipo de tienda" summary={`${dictByStore.filter(d => d.n > 0).length} con entradas`}>
+              <Collapsible title="🏪 Catalog by store type" summary={`${dictByStore.filter(d => d.n > 0).length} with entries`}>
                 {dictByStore.map(({ st, n }) => (
                   <div key={st.id} className="flex items-center gap-2 py-1">
                     <span className="text-sm w-5">{st.emoji}</span>
@@ -1313,7 +1356,7 @@ export default function AdminPage() {
               </Collapsible>
 
               {/* Dictionary by category */}
-              <Collapsible title="🏷️ Catálogo por categoría" summary={`${new Set(dictRows.map(d => d.category)).size} categorías`}>
+              <Collapsible title="🏷️ Catalog by category" summary={`${new Set(dictRows.map(d => d.category)).size} categories`}>
                 <div>
                   {storeTypesWithCats.flatMap(st => st.categories.map(c => {
                     const total = dictRows.filter(d => d.category === c.id).length;
@@ -1334,7 +1377,7 @@ export default function AdminPage() {
               </Collapsible>
 
               {/* Dictionary by language */}
-              <Collapsible title="🌍 Idiomas del catálogo" summary={`${dictByLang.filter(l => l.n === totalDict).length}/${dictByLang.length} completos`}>
+              <Collapsible title="🌍 Catalog languages" summary={`${dictByLang.filter(l => l.n === totalDict).length}/${dictByLang.length} complete`}>
                 {dictByLang.map(l => (
                   <div key={l.code} className="flex items-center gap-2 py-1">
                     <span className="text-sm w-5">{l.flag}</span>
@@ -1350,7 +1393,7 @@ export default function AdminPage() {
               {/* Users by country / language */}
               {!IS_DEMO && users.length > 0 && (
                 <>
-                  <Collapsible title="🗺️ Usuarios por país" summary={`${usersByCountryList.length} países`}>
+                  <Collapsible title="🗺️ Users by country" summary={`${usersByCountryList.length} countries`}>
                     {usersByCountryList.slice(0, 20).map(([code, n]) => {
                       const c = getCountries().find(cc => cc.code === code);
                       return (
@@ -1362,7 +1405,7 @@ export default function AdminPage() {
                       );
                     })}
                   </Collapsible>
-                  <Collapsible title="💬 Usuarios por idioma" summary={`${usersByLangList.length} idiomas`}>
+                  <Collapsible title="💬 Users by language" summary={`${usersByLangList.length} languages`}>
                     {usersByLangList.slice(0, 20).map(([code, n]) => {
                       const l = ALL_LANGUAGES.find(ll => ll.code === code);
                       return (
@@ -1374,11 +1417,11 @@ export default function AdminPage() {
                       );
                     })}
                   </Collapsible>
-                  <Collapsible title="📝 Listas" summary={`${lists.length} listas`}>
+                  <Collapsible title="📝 Lists" summary={`${lists.length} lists`}>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div><div className="text-lg font-bold text-text">{lists.length}</div><div className="text-[10px] text-text-muted">Listas</div></div>
-                      <div><div className="text-lg font-bold text-text">{totalListMembers}</div><div className="text-[10px] text-text-muted">Miembros activos</div></div>
-                      <div><div className="text-lg font-bold text-text">{totalListItems}</div><div className="text-[10px] text-text-muted">Productos</div></div>
+                      <div><div className="text-lg font-bold text-text">{lists.length}</div><div className="text-[10px] text-text-muted">Lists</div></div>
+                      <div><div className="text-lg font-bold text-text">{totalListMembers}</div><div className="text-[10px] text-text-muted">Active members</div></div>
+                      <div><div className="text-lg font-bold text-text">{totalListItems}</div><div className="text-[10px] text-text-muted">Items</div></div>
                     </div>
                   </Collapsible>
                 </>
@@ -1390,21 +1433,21 @@ export default function AdminPage() {
         {/* ── Catalog (Stores + Categories + Dictionary + Builder unified) ── */}
         {tab === "catalog" && (
           <div>
-            <SearchBox value={search} onChange={setSearch} placeholder="Buscar en cualquier idioma" />
+            <SearchBox value={search} onChange={setSearch} placeholder="Search in any language" />
             <div className="flex gap-2 mb-3">
-              <select value={catStore} onChange={e => setCatStore(e.target.value)} aria-label="Tipo de tienda"
+              <select value={catStore} onChange={e => setCatStore(e.target.value)} aria-label="Store type"
                 className="flex-1 min-w-0 h-10 px-2 rounded-xl bg-card border border-border-light text-[13px] text-text cursor-pointer">
-                <option value="">🏬 Todas las tiendas</option>
+                <option value="">🏬 All store types</option>
                 {storeTypesWithCats.map(st => (
                   <option key={st.id} value={st.id}>{st.emoji} {(st as unknown as Record<string, string>)[lang] || st.en}</option>
                 ))}
               </select>
-              <select value={catMissingLang} onChange={e => setCatMissingLang(e.target.value)} aria-label="Idioma que falta"
+              <select value={catMissingLang} onChange={e => setCatMissingLang(e.target.value)} aria-label="Missing language"
                 className="flex-1 min-w-0 h-10 px-2 rounded-xl bg-card border border-border-light text-[13px] text-text cursor-pointer">
-                <option value="">🌍 Todos los idiomas</option>
+                <option value="">🌍 All languages</option>
                 {getEnabledLangs().map(code => {
                   const missing = dictRows.filter(r => !r.translations?.[code]).length;
-                  return <option key={code} value={code}>Le falta {code} ({missing})</option>;
+                  return <option key={code} value={code}>Missing {code} ({missing})</option>;
                 })}
               </select>
             </div>
@@ -1412,14 +1455,14 @@ export default function AdminPage() {
               <button type="button" onClick={() => fillLanguageTranslations(catMissingLang)} disabled={!!bulkRunning}
                 className="w-full mb-3 h-11 rounded-xl text-[13px] font-bold cursor-pointer disabled:opacity-40"
                 style={{ background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)" }}>
-                {bulkRunning === `fillLang:${catMissingLang}` ? "⏳ Traduciendo…" : `🧠 Traducir a ${catMissingLang} las que faltan`}
+                {bulkRunning === `fillLang:${catMissingLang}` ? "⏳ Translating…" : `🧠 Translate the missing ones to ${catMissingLang}`}
               </button>
             )}
 
             {/* Search / filter results (flat list) */}
             {catalogFlat && (
               <div className="mb-4">
-                <div className="text-text-muted text-xs mb-2 px-1">{filteredDict.length} {filteredDict.length === 1 ? "entrada" : "entradas"}</div>
+                <div className="text-text-muted text-xs mb-2 px-1">{filteredDict.length} {filteredDict.length === 1 ? "entry" : "entries"}</div>
                 <div className="space-y-1.5">
                   {dictPage.visible.map(row => {
                     const catData = CATEGORIES[row.category] ?? CATEGORIES.other;
@@ -1437,7 +1480,7 @@ export default function AdminPage() {
                           </div>
                           <div className="text-text-muted text-[10px] truncate">
                             {catMissingLang
-                              ? `${getEnabledLangs().filter(c => !row.translations?.[c]).map(c => `sin ${c}`).join(" · ")} · ${Object.entries(row.translations).slice(0, 2).map(([l, v]) => `${l}:${v}`).join(" · ")}`
+                              ? `${getEnabledLangs().filter(c => !row.translations?.[c]).map(c => `no ${c}`).join(" · ")} · ${Object.entries(row.translations).slice(0, 2).map(([l, v]) => `${l}:${v}`).join(" · ")}`
                               : Object.entries(row.translations).slice(0, 3).map(([l, v]) => `${l}:${v}`).join(" · ")}
                           </div>
                         </div>
@@ -1482,7 +1525,7 @@ export default function AdminPage() {
                   className="w-1/3 py-2 rounded-lg text-[11px] font-semibold cursor-pointer disabled:opacity-40"
                   style={{ background: "rgba(61,214,140,0.1)", color: "#3dd68c", border: "1px solid rgba(61,214,140,0.2)" }}
                 >
-                  {buildingCategory ? "⏳ Generando…" : catStore ? "🧠 Generar tienda" : "🧠 Generate all"}
+                  {buildingCategory ? "⏳ Generating…" : catStore ? "🧠 Generate store" : "🧠 Generate all"}
                 </button>
                 <button
                   onClick={() => {
@@ -1503,7 +1546,7 @@ export default function AdminPage() {
                     border: confirmClearAll ? "1px solid #b71c1c" : "1px solid rgba(255,92,92,0.15)",
                   }}
                 >
-                  {confirmClearAll ? "⚠️ Confirm clear" : catStore ? "🧹 Vaciar tienda" : "🧹 Clear all"}
+                  {confirmClearAll ? "⚠️ Confirm clear" : catStore ? "🧹 Clear store" : "🧹 Clear all"}
                 </button>
               </div>
             )}
@@ -1908,18 +1951,18 @@ export default function AdminPage() {
                 saveUITranslations(langCode, data.translations);
                 showToast(`✅ ${langName} UI ready! (${Object.keys(data.translations).length} strings)`);
               } else {
-                reportAdminError(`Generar interfaz en ${langName}`, new Error("The server returned no translations"));
+                reportAdminError(`Generate UI in ${langName}`, new Error("The server returned no translations"));
               }
             } catch (err) {
-              reportAdminError(`Generar interfaz en ${langName}`, err);
+              reportAdminError(`Generate UI in ${langName}`, err);
             }
           };
 
           return (
           <div>
             {/* Enabled Languages */}
-            <h3 className="text-sm font-bold mb-1 px-1">Activos ({enabledLangs.length})</h3>
-            <p className="text-text-muted text-[11px] mb-3 px-1">Los idiomas y países que se pueden elegir en la app. ✕ lo desactiva.</p>
+            <h3 className="text-sm font-bold mb-1 px-1">Enabled ({enabledLangs.length})</h3>
+            <p className="text-text-muted text-[11px] mb-3 px-1">Languages and countries users can pick in the app. ✕ disables one.</p>
 
             <div className="space-y-3 mb-6">
               {enabledLangs.map(lang => {
@@ -2001,7 +2044,7 @@ export default function AdminPage() {
                     {/* Countries, folded: some languages have 20+ */}
                     <details className="px-3 pb-3 group">
                       <summary className="cursor-pointer text-[11px] text-text-soft select-none">
-                        {lang.countries.length} {lang.countries.length === 1 ? "país" : "países"}: {lang.countries.slice(0, 3).map(c => c.flag).join(" ")}{lang.countries.length > 3 ? " …" : ""}
+                        {lang.countries.length} {lang.countries.length === 1 ? "country" : "countries"}: {lang.countries.slice(0, 3).map(c => c.flag).join(" ")}{lang.countries.length > 3 ? " …" : ""}
                       </summary>
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {lang.countries.map(c => (
@@ -2017,9 +2060,9 @@ export default function AdminPage() {
             </div>
 
             {/* Available Languages: search first, the full list is 60+ rows */}
-            <h3 className="text-sm font-bold mb-1 px-1">Añadir idioma</h3>
-            <p className="text-text-muted text-[11px] mb-3 px-1">{availableLangs.length} idiomas disponibles · al añadirlo se añaden sus países</p>
-            <SearchBox value={addLangQuery} onChange={setAddLangQuery} placeholder="Buscar idioma, código o país" />
+            <h3 className="text-sm font-bold mb-1 px-1">Add language</h3>
+            <p className="text-text-muted text-[11px] mb-3 px-1">{availableLangs.length} languages available · adding one adds its countries</p>
+            <SearchBox value={addLangQuery} onChange={setAddLangQuery} placeholder="Search language, code or country" />
             {(() => {
               const q = addLangQuery.trim().toLowerCase();
               const matches = availableLangs.filter(l => !q
@@ -2029,9 +2072,9 @@ export default function AdminPage() {
               return (
             <div className="space-y-1.5">
               {!q && matches.length > shown.length && (
-                <p className="text-[11px] text-text-muted px-1">Mostrando 8 de {matches.length}. Busca para encontrar el resto.</p>
+                <p className="text-[11px] text-text-muted px-1">Showing 8 of {matches.length}. Search to find the rest.</p>
               )}
-              {q && matches.length === 0 && <p className="text-[12px] text-text-muted px-1 py-4 text-center">Ningún idioma coincide.</p>}
+              {q && matches.length === 0 && <p className="text-[12px] text-text-muted px-1 py-4 text-center">No language matches.</p>}
               {shown.map(lang => (
                 <div key={lang.code} className="flex items-center gap-3 bg-card rounded-xl p-3 border border-border">
                   <span className="text-xl">{lang.flag}</span>
@@ -2055,14 +2098,14 @@ export default function AdminPage() {
                           const { filled } = await fillPhrasesForLang(lang.code);
                           if (filled > 0) showToast(`✅ Filled ${filled} ${lang.code} phrases`);
                         } catch (err) {
-                          reportAdminError(`Traducir frases a ${lang.code}`, err);
+                          reportAdminError(`Translate phrases to ${lang.code}`, err);
                         }
                       }
                     }}
                     className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                     style={{ background: "linear-gradient(135deg, #f09848, #e07028)", color: "white" }}
                   >
-                    + Añadir
+                    + Add
                   </button>
                 </div>
               ))}
@@ -2074,17 +2117,17 @@ export default function AdminPage() {
         })()}
 
         {/* ── Users ── */}
-        {tab === "users" && !loading && (
+        {tab === "users" && !isDesktop && !loading && (
           <div>
             {IS_DEMO ? (
               <p className="text-text-muted text-sm py-8 text-center">Connect Supabase to see users</p>
             ) : (
               <>
-                <SearchBox value={usersQuery} onChange={setUsersQuery} placeholder="Buscar por nombre, idioma o país" />
+                <SearchBox value={usersQuery} onChange={setUsersQuery} placeholder="Search name, language or country" />
                 <Chips value={usersSort} onChange={setUsersSort} options={[
-                  { id: "seen", label: "Vistos hace poco" }, { id: "recent", label: "Nuevos" }, { id: "name", label: "Nombre" },
+                  { id: "seen", label: "Recently seen" }, { id: "recent", label: "Newest" }, { id: "name", label: "Name" },
                 ]} />
-                <p className="text-text-muted text-xs mb-2 px-1">{usersFiltered.length === users.length ? `${users.length} usuarios` : `${usersFiltered.length} de ${users.length} usuarios`}</p>
+                <p className="text-text-muted text-xs mb-2 px-1">{usersFiltered.length === users.length ? `${users.length} users` : `${usersFiltered.length} of ${users.length} users`}</p>
                 <div className="space-y-2">
                   {usersPage.visible.map(u => {
                     const flag = getCountries().find(c => c.code === u.country)?.flag || "🌍";
@@ -2099,16 +2142,16 @@ export default function AdminPage() {
                           <div className="font-semibold text-sm truncate">{u.name}</div>
                           <div className="text-text-muted text-xs truncate">{langFlag} {u.lang} · {flag} {u.country}</div>
                           <div className="text-text-muted text-[10px]">
-                            Creado: {new Date(u.created_at).toLocaleDateString()}
-                            {u.last_seen_at && <> · Visto: {(() => {
+                            Joined: {new Date(u.created_at).toLocaleDateString()}
+                            {u.last_seen_at && <> · Seen: {(() => {
                               const diff = Date.now() - new Date(u.last_seen_at).getTime();
                               const mins = Math.floor(diff / 60000);
-                              if (mins < 1) return "ahora";
-                              if (mins < 60) return `hace ${mins}m`;
+                              if (mins < 1) return "now";
+                              if (mins < 60) return `${mins}m ago`;
                               const hours = Math.floor(mins / 60);
-                              if (hours < 24) return `hace ${hours}h`;
+                              if (hours < 24) return `${hours}h ago`;
                               const days = Math.floor(hours / 24);
-                              return `hace ${days}d`;
+                              return `${days}d ago`;
                             })()}</>}
                           </div>
                         </div>
@@ -2142,7 +2185,7 @@ export default function AdminPage() {
         )}
 
         {/* ── Lists ── */}
-        {tab === "lists" && !loading && (
+        {tab === "lists" && !isDesktop && !loading && (
           <div>
             {IS_DEMO ? (
               <p className="text-text-muted text-sm py-8 text-center">Connect Supabase to see lists</p>
@@ -2153,12 +2196,12 @@ export default function AdminPage() {
                   const globalApproval = lists.length > 0 ? lists[0].require_approval : true;
                   const globalWho = lists.length > 0 ? lists[0].who_can_approve : "owner";
                   return (
-                    <Collapsible title="⚙️ Acceso a todas las listas" summary={globalApproval ? "con aprobación" : "sin aprobación"}>
+                    <Collapsible title="⚙️ Access for all lists" summary={globalApproval ? "approval on" : "approval off"}>
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-[12px] font-semibold text-text">Requiere aprobación</div>
-                            <div className="text-[10px] text-text-muted">Si está OFF, cualquiera con el código entra directamente</div>
+                            <div className="text-[12px] font-semibold text-text">Require approval</div>
+                            <div className="text-[10px] text-text-muted">Off: anyone with the code joins straight away</div>
                           </div>
                           <button
                             onClick={async () => {
@@ -2168,7 +2211,7 @@ export default function AdminPage() {
                                 const ids = lists.map(l => l.id);
                                 const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { require_approval: next })));
                                 const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-                                if (failed.length) { reportAdminError(`Aprobar antes de unirse: ${failed.length} de ${ids.length} listas`, failed[0].reason); fetchLists(); }
+                                if (failed.length) { reportAdminError(`Require approval: ${failed.length} of ${ids.length} lists failed`, failed[0].reason); fetchLists(); }
                               }
                             }}
                             className="cursor-pointer shrink-0"
@@ -2187,8 +2230,8 @@ export default function AdminPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-[12px] font-semibold text-text">Quién puede aprobar</div>
-                            <div className="text-[10px] text-text-muted">Quién puede aceptar nuevos miembros</div>
+                            <div className="text-[12px] font-semibold text-text">Who can approve</div>
+                            <div className="text-[10px] text-text-muted">Who accepts new members</div>
                           </div>
                           <select
                             value={globalWho}
@@ -2199,20 +2242,20 @@ export default function AdminPage() {
                                 const ids = lists.map(l => l.id);
                                 const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { who_can_approve: next })));
                                 const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-                                if (failed.length) { reportAdminError(`Quién puede aprobar: ${failed.length} de ${ids.length} listas`, failed[0].reason); fetchLists(); }
+                                if (failed.length) { reportAdminError(`Who can approve: ${failed.length} of ${ids.length} lists failed`, failed[0].reason); fetchLists(); }
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
                             style={{ fontFamily: "inherit" }}
                           >
-                            <option value="owner">Solo el creador</option>
-                            <option value="any_member">Cualquier miembro</option>
+                            <option value="owner">Only the creator</option>
+                            <option value="any_member">Any member</option>
                           </select>
                         </div>
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-[12px] font-semibold text-text">Quién puede expulsar</div>
-                            <div className="text-[10px] text-text-muted">Quién puede sacar miembros de la lista</div>
+                            <div className="text-[12px] font-semibold text-text">Who can remove</div>
+                            <div className="text-[10px] text-text-muted">Who can take members out of a list</div>
                           </div>
                           <select
                             value={lists.length > 0 ? lists[0].who_can_remove : "owner"}
@@ -2223,22 +2266,22 @@ export default function AdminPage() {
                                 const ids = lists.map(l => l.id);
                                 const results = await Promise.allSettled(ids.map(id => pb.collection("lists").update(id, { who_can_remove: next })));
                                 const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-                                if (failed.length) { reportAdminError(`Quién puede expulsar: ${failed.length} de ${ids.length} listas`, failed[0].reason); fetchLists(); }
+                                if (failed.length) { reportAdminError(`Who can remove: ${failed.length} of ${ids.length} lists failed`, failed[0].reason); fetchLists(); }
                               }
                             }}
                             className="text-[11px] bg-bg border border-border rounded-lg px-2 py-1.5 text-text cursor-pointer shrink-0"
                             style={{ fontFamily: "inherit" }}
                           >
-                            <option value="owner">Solo el creador</option>
-                            <option value="any_member">Cualquier miembro</option>
+                            <option value="owner">Only the creator</option>
+                            <option value="any_member">Any member</option>
                           </select>
                         </div>
                       </div>
                     </Collapsible>
                   );
                 })()}
-                <SearchBox value={listsQuery} onChange={setListsQuery} placeholder="Buscar por nombre o código" />
-                <p className="text-text-muted text-xs mb-2 px-1">{listsFiltered.length === lists.length ? `${lists.length} listas` : `${listsFiltered.length} de ${lists.length} listas`}</p>
+                <SearchBox value={listsQuery} onChange={setListsQuery} placeholder="Search name or code" />
+                <p className="text-text-muted text-xs mb-2 px-1">{listsFiltered.length === lists.length ? `${lists.length} lists` : `${listsFiltered.length} of ${lists.length} lists`}</p>
                 <div className="space-y-2">
                   {listsPage.visible.map(l => {
                     const isConfirming = confirmDeleteList === l.id;
@@ -2339,7 +2382,7 @@ export default function AdminPage() {
           return (
             <div>
               {/* Build info */}
-              <Collapsible title="Versión publicada" summary={`${CHANGELOG.find(e => e.hash === __BUILD_HASH__)?.version ?? CHANGELOG[0]?.version ?? "v?"} · ${__BUILD_HASH__}`}>
+              <Collapsible title="Published version" summary={`${CHANGELOG.find(e => e.hash === __BUILD_HASH__)?.version ?? CHANGELOG[0]?.version ?? "v?"} · ${__BUILD_HASH__}`}>
                 <div className="space-y-1.5 text-[12px]">
                   <div className="flex items-center gap-2">
                     <span className="text-text-muted w-20 shrink-0">Version</span>
@@ -2368,7 +2411,7 @@ export default function AdminPage() {
               </Collapsible>
 
               {/* Runtime state */}
-              <Collapsible title="Estado en este navegador" summary={`${dictRows.length} entradas · ${users.length} usuarios`}>
+              <Collapsible title="State in this browser" summary={`${dictRows.length} entries · ${users.length} users`}>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="bg-bg rounded-lg px-2 py-1.5">
                     <div className="text-text-muted text-[9px]">Dictionary</div>
@@ -2403,11 +2446,11 @@ export default function AdminPage() {
               </Collapsible>
 
               {/* CI Builds status */}
-              <Collapsible title="Despliegues (GitHub Actions)"
-                summary={ciRuns[0] ? (ciRuns[0].conclusion === "success" ? "✅ último OK" : ciRuns[0].conclusion === "failure" ? "❌ último falló" : "⏳ en curso") : undefined}>
+              <Collapsible title="Deploys (GitHub Actions)"
+                summary={ciRuns[0] ? (ciRuns[0].conclusion === "success" ? "✅ last OK" : ciRuns[0].conclusion === "failure" ? "❌ last failed" : "⏳ running") : undefined}>
                 <div className="flex justify-end mb-1">
                   <button onClick={fetchCI} disabled={ciLoading} className="text-[11px] text-accent cursor-pointer font-semibold">
-                    {ciLoading ? "..." : "🔄 Actualizar"}
+                    {ciLoading ? "..." : "🔄 Refresh"}
                   </button>
                 </div>
                 <div className="divide-y divide-border -mx-3">
@@ -2438,8 +2481,8 @@ export default function AdminPage() {
               {/* Changelog list: latest 5, the rest on demand */}
               <div className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Últimos cambios</div>
-                  <div className="text-[10px] text-text-muted">{CHANGELOG.length} versiones</div>
+                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Latest changes</div>
+                  <div className="text-[10px] text-text-muted">{CHANGELOG.length} versions</div>
                 </div>
                 <div className="divide-y divide-border">
                   {(showAllLog ? CHANGELOG : CHANGELOG.slice(0, 5)).map((e, i) => {
@@ -2477,7 +2520,7 @@ export default function AdminPage() {
               {!showAllLog && CHANGELOG.length > 5 && (
                 <button type="button" onClick={() => setShowAllLog(true)}
                   className="w-full mt-2 h-11 rounded-xl bg-card border border-border-light text-[13px] font-semibold text-text-soft cursor-pointer">
-                  Ver las {CHANGELOG.length - 5} versiones anteriores
+                  See the {CHANGELOG.length - 5} older versions
                 </button>
               )}
             </div>
@@ -2508,13 +2551,13 @@ export default function AdminPage() {
             </div>
             <div className="flex items-center justify-between gap-2 mb-2 px-1">
               <div className="text-[11px] text-text-muted">
-                Pantalla «{VIEW_LABELS[themeSubView]}» · {PALETTES.length} temas · se aplica al momento en todas las apps abiertas
+                “{VIEW_LABELS[themeSubView]}” screen · {PALETTES.length} themes · applies at once in every open app
               </div>
               <button
                 onClick={() => resetThemes()}
                 className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer bg-card text-text-soft border border-border-light"
               >
-                ↺ Todo por defecto
+                ↺ All to default
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -2529,7 +2572,7 @@ export default function AdminPage() {
                     onClick={() => setThemeId(themeSubView, p.id)}
                     onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setThemeId(themeSubView, p.id); } }}
                     aria-pressed={isActive}
-                    aria-label={`${p.name} para ${VIEW_LABELS[themeSubView]}`}
+                    aria-label={`${p.name} for ${VIEW_LABELS[themeSubView]}`}
                     className="text-left p-2 rounded-xl cursor-pointer transition-all active:scale-[0.98] bg-card"
                     style={{ border: isActive ? "2px solid var(--color-accent)" : "1px solid var(--color-border-light)" }}
                   >
@@ -2539,8 +2582,8 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between gap-1 px-0.5">
                       <div className="text-[12px] font-bold text-text truncate">{p.name}</div>
                       {isActive
-                        ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>ACTIVO</span>
-                        : <span className="text-[9px] text-text-muted">{p.mode === "light" ? "claro" : "oscuro"}</span>}
+                        ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>ACTIVE</span>
+                        : <span className="text-[9px] text-text-muted">{p.mode === "light" ? "light" : "dark"}</span>}
                     </div>
                   </div>
                 );
@@ -2548,7 +2591,7 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-      </div>
+      </>)}
 
       {/* Dictionary edit modal (shared across tabs) */}
       {editingEntry && (

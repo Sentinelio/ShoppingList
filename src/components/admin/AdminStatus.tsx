@@ -22,7 +22,7 @@ export function ConnectionBadge() {
     return () => { alive = false; clearInterval(id); };
   }, []);
   const color = ok ? "#3dd68c" : ok === null ? "#8b92a8" : "#ff5c5c";
-  const label = IS_DEMO ? "Demo Mode" : ok ? "PocketBase" : ok === null ? "…" : "Sin conexión";
+  const label = IS_DEMO ? "Demo Mode" : ok ? "PocketBase" : ok === null ? "…" : "Offline";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}
       title={IS_DEMO ? "Running in Demo Mode (no backend connection)" : ok ? "Connected to PocketBase" : "PocketBase does not answer"}>

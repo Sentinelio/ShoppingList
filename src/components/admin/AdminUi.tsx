@@ -14,7 +14,7 @@ export function SectionHeader({ title, subtitle, onBack, right }: {
 }) {
   return (
     <div className="flex items-center gap-1 mb-3 -ml-2">
-      <button type="button" onClick={onBack} aria-label="Volver al inicio del admin"
+      <button type="button" onClick={onBack} aria-label="Back to admin home"
         className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-text-soft cursor-pointer active:bg-text/5">
         <IconBack />
       </button>
@@ -34,7 +34,7 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
       <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         className="flex-1 min-w-0 bg-transparent outline-none text-[14px] text-text placeholder:text-text-muted" />
       {value && (
-        <button type="button" onClick={() => onChange("")} className="text-[12px] font-semibold text-text-soft cursor-pointer">Borrar</button>
+        <button type="button" onClick={() => onChange("")} className="text-[12px] font-semibold text-text-soft cursor-pointer">Clear</button>
       )}
     </label>
   );
@@ -86,7 +86,7 @@ export function ShowMore({ remaining, onMore }: { remaining: number; onMore: () 
   return (
     <button type="button" onClick={onMore}
       className="w-full mt-2 h-11 rounded-xl bg-card border border-border-light text-[13px] font-semibold text-text-soft cursor-pointer active:bg-text/5">
-      Ver {Math.min(remaining, PAGE_SIZE)} más · quedan {remaining}
+      Show {Math.min(remaining, PAGE_SIZE)} more · {remaining} left
     </button>
   );
 }

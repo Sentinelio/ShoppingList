@@ -35,7 +35,7 @@ export async function saveConfig(key: ConfigKey, value: unknown): Promise<boolea
     await upsertByKey("app_config", key, { value });
     return true;
   } catch (err) {
-    reportAdminError(`Guardar configuración '${key}'`, err);
+    reportAdminError(`Save config '${key}'`, err);
     return false;
   }
 }

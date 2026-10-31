@@ -10,10 +10,10 @@ export type ThemeView = "lists" | "list" | "store" | "details";
 export const THEME_VIEWS: ThemeView[] = ["lists", "list", "store", "details"];
 
 export const VIEW_LABELS: Record<ThemeView, string> = {
-  lists: "Mis listas",
-  list: "Lista",
-  store: "Tienda",
-  details: "Detalle",
+  lists: "My lists",
+  list: "List",
+  store: "Store",
+  details: "Item detail",
 };
 
 export interface Palette {
