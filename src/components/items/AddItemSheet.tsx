@@ -63,6 +63,11 @@ export default function AddItemSheet({
   const [important, setImportant] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<DictSuggestion[]>([]);
+  // A dictionary product picked from the suggestions: added with its
+  // translations and category (no Claude call). Typing again unpicks it.
+  const [selected, setSelected] = useState<DictSuggestion | null>(null);
+  // «As typed» picked: same as above, translated by Claude when added.
+  const [typedPicked, setTypedPicked] = useState(false);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,15 +116,31 @@ export default function AddItemSheet({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const mineOf = (s: DictSuggestion) => s.translations[userLang] || s.key;
+
+  // Picking a suggestion selects it and drops the keyboard, so the quantity
+  // and unit can be chosen before adding. (It used to only copy the name
+  // into the field: when that equalled what was typed, nothing seemed to
+  // happen.)
   const applySuggestion = (s: DictSuggestion) => {
-    setInput(s.translations[userLang] || s.key);
+    setSelected(s);
+    setInput(mineOf(s));
     setSuggestions([]);
     setHighlightedIdx(-1);
-    inputRef.current?.focus();
+    inputRef.current?.blur();
+  };
+
+  const pickTyped = () => {
+    setTypedPicked(true);
+    setSuggestions([]);
+    setHighlightedIdx(-1);
+    inputRef.current?.blur();
   };
 
   const reset = () => {
     setInput("");
+    setSelected(null);
+    setTypedPicked(false);
     setQty("");
     setUnit("");
     setNote("");
@@ -210,10 +231,15 @@ export default function AddItemSheet({
     setTranslating(true);
     setSubmitError(null);
 
-    // 1. Try to translate — but NEVER block adding the item
+    // 1. A picked dictionary product already has its translations; anything
+    //    else is translated — but that NEVER blocks adding the item.
     let translations: Record<string, string> = { [userLang]: parsed.text, en: parsed.text };
     let category = "other";
-    try {
+    const picked = selected && mineOf(selected) === trimmed ? selected : null;
+    if (picked && picked.translations[shelfLang]) {
+      translations = { ...picked.translations };
+      category = picked.category || "other";
+    } else try {
       // Timeout: if translation takes > 15s, give up and add untranslated
       const result = await Promise.race([
         translateProduct(parsed.text, targetLangs, userLang),
@@ -256,9 +282,11 @@ export default function AddItemSheet({
 
   if (!open) return null;
 
-  const showSuggestions = input.trim().length >= 2;
+  const showSuggestions = input.trim().length >= 2 && !selected && !typedPicked;
+  // Quantity, unit, important… appear once a product is chosen.
+  const picked = !!selected || typedPicked;
   const chip = (active: boolean) =>
-    `h-9 min-w-[44px] px-3 rounded-full text-[13px] font-semibold cursor-pointer transition-colors ${
+    `h-9 min-w-[44px] px-3 shrink-0 rounded-full text-[13px] font-semibold cursor-pointer transition-colors ${
       active ? "text-on-accent" : "text-text"
     }`;
   const chipStyle = (active: boolean) => ({
@@ -281,39 +309,26 @@ export default function AddItemSheet({
           maxHeight: `calc(100dvh - ${keyboardInset}px - 24px)`,
         }}
       >
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={t(lang, "addProduct")}
-          disabled={translating}
-          enterKeyHint="done"
-          className="w-full h-11 px-3.5 rounded-xl bg-bg border border-border-light text-text text-[16px] placeholder:text-text-muted outline-none focus:border-accent disabled:opacity-50"
-        />
-
-        {/* Suggestions: «as typed» first, then the dictionary. */}
+        {/* While typing: suggestions fill the space above the field (best match
+            next to it, «as typed» right on top of it); the other controls hide. */}
         {showSuggestions && (
-          <div className="rounded-[14px] bg-bg overflow-y-auto min-h-0 shrink" style={{ maxHeight: "34dvh" }} role="listbox">
+          <div className="flex-1 min-h-0 rounded-[14px] bg-bg overflow-y-auto flex flex-col-reverse" role="listbox">
             <button
               type="button"
               role="option"
               aria-selected={highlightedIdx === -1}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => handleSubmit()}
-              className="w-full flex items-center gap-3 px-3 min-h-[48px] text-left cursor-pointer border-b border-border"
+              onClick={pickTyped}
+              className="shrink-0 w-full flex items-center gap-3 px-3 min-h-[52px] text-left cursor-pointer"
             >
               <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 bg-card" aria-hidden="true">✍️</span>
               <span className="flex-1 min-w-0">
-                <span className="block text-[14px] font-semibold text-text truncate">«{input.trim()}»</span>
-                <span className="block text-[11px] truncate" style={{ color: "var(--color-secondary-name)" }}>{t(lang, "asTyped")}</span>
+                <span className="block text-[15px] font-semibold text-text truncate">«{input.trim()}»</span>
+                <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{t(lang, "asTyped")}</span>
               </span>
             </button>
             {suggestions.map((s, i) => {
-              const named = { original: s.key, translations: s.translations };
-              const mine = secondaryName(named, shelfLang, userLang);
+              const shelf = s.translations[shelfLang];
               return (
                 <button
                   key={`${s.key}-${i}`}
@@ -322,21 +337,47 @@ export default function AddItemSheet({
                   aria-selected={i === highlightedIdx}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applySuggestion(s)}
-                  className="w-full flex items-center gap-3 px-3 min-h-[48px] py-1 text-left cursor-pointer border-b border-border last:border-b-0"
+                  className="shrink-0 w-full flex items-center gap-3 px-3 min-h-[52px] py-1 text-left cursor-pointer border-b border-border"
                   style={{ background: i === highlightedIdx ? "color-mix(in srgb, var(--color-accent) 10%, transparent)" : "transparent" }}
                 >
                   <ItemIcon name={s.translations.en || s.key} category={s.category} size={32} />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[14px] font-semibold truncate" style={{ color: "var(--color-primary-name)" }}>
-                      {primaryName(named, shelfLang)}
-                    </span>
-                    {mine && (
-                      <span className="block text-[11px] truncate" style={{ color: "var(--color-secondary-name)" }}>{mine}</span>
+                    <span className="block text-[15px] font-semibold text-text truncate">{mineOf(s)}</span>
+                    {shelf && shelfLang !== userLang && shelf.toLowerCase() !== mineOf(s).toLowerCase() && (
+                      <span className="block text-[12px] truncate" style={{ color: "var(--color-primary-name)" }}>{shelf}</span>
                     )}
                   </span>
                 </button>
               );
             })}
+          </div>
+        )}
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={(e) => { setInput(e.target.value); setTypedPicked(false); if (selected && e.target.value !== mineOf(selected)) setSelected(null); }}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={t(lang, "addProduct")}
+          disabled={translating}
+          enterKeyHint="done"
+          className="w-full h-11 px-3.5 rounded-xl bg-bg border border-border-light text-text text-[16px] placeholder:text-text-muted outline-none focus:border-accent disabled:opacity-50"
+        />
+
+        {/* The picked dictionary product, as it will show in the list. */}
+        {selected && !showSuggestions && (
+          <div className="flex items-center gap-3 px-1 shrink-0">
+            <ItemIcon name={selected.translations.en || selected.key} category={selected.category} size={32} />
+            <span className="flex-1 min-w-0">
+              <span className="block text-[15px] font-bold truncate" style={{ color: "var(--color-primary-name)" }}>
+                {primaryName({ original: selected.key, translations: selected.translations }, shelfLang)}
+              </span>
+              <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>
+                {secondaryName({ original: selected.key, translations: selected.translations }, shelfLang, userLang) ?? mineOf(selected)}
+              </span>
+            </span>
           </div>
         )}
 
@@ -346,25 +387,24 @@ export default function AddItemSheet({
           </div>
         )}
 
-        {/* Quantity */}
-        <div className="flex items-center gap-1.5 overflow-x-auto shrink-0" aria-label={t(lang, "qty")}>
-          {QUICK_QTYS.map(q => (
-            <button key={q} type="button" onClick={() => setQty(qty === q ? "" : q)} className={chip(qty === q)} style={chipStyle(qty === q)} aria-pressed={qty === q}>
-              {q}
-            </button>
-          ))}
-        </div>
+        {/* Quantity and unit, one scrollable row */}
+        {picked && (
+          <div className="flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar" aria-label={`${t(lang, "qty")} · ${t(lang, "unit")}`}>
+            {QUICK_QTYS.map(q => (
+              <button key={q} type="button" onClick={() => setQty(qty === q ? "" : q)} className={chip(qty === q)} style={chipStyle(qty === q)} aria-pressed={qty === q}>
+                {q}
+              </button>
+            ))}
+            <span className="w-px h-6 bg-border-light shrink-0 mx-0.5" aria-hidden="true" />
+            {UNITS.map(u => (
+              <button key={u.value} type="button" onClick={() => setUnit(unit === u.value ? "" : u.value)} className={`${chip(unit === u.value)} shrink-0`} style={chipStyle(unit === u.value)} aria-pressed={unit === u.value}>
+                {u.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Unit */}
-        <div className="flex items-center gap-1.5 overflow-x-auto shrink-0" aria-label={t(lang, "unit")}>
-          {UNITS.map(u => (
-            <button key={u.value} type="button" onClick={() => setUnit(unit === u.value ? "" : u.value)} className={chip(unit === u.value)} style={chipStyle(unit === u.value)} aria-pressed={unit === u.value}>
-              {u.label}
-            </button>
-          ))}
-        </div>
-
-        {showExtra && (
+        {showExtra && picked && (
           <div className="flex gap-1.5 shrink-0">
             <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t(lang, "brand")}
               className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-bg border border-border text-text text-[16px] placeholder:text-text-muted outline-none focus:border-accent" />
@@ -374,7 +414,7 @@ export default function AddItemSheet({
         )}
 
         {/* Important · Brand & note · Photo · Add */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {picked && <div className="flex items-center gap-1.5 shrink-0">
           <button type="button" onClick={() => setImportant(v => !v)} aria-pressed={important}
             className="h-11 px-3 rounded-xl flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer"
             style={toggleStyle(important, "var(--color-important)")}>
@@ -398,7 +438,7 @@ export default function AddItemSheet({
             style={{ background: "var(--color-accent)" }}>
             {translating ? <span className="text-xs font-bold animate-pulse">…</span> : <IconPlus size={22} strokeWidth={2.6} />}
           </button>
-        </div>
+        </div>}
       </form>
     </div>
   );

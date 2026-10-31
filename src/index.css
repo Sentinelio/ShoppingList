@@ -79,6 +79,9 @@ input, textarea, select {
   background: var(--color-scroll);
   border-radius: 2px;
 }
+/* Rows of chips that scroll sideways: no bar at all. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* Important item: background pulses slowly with a muted red */
 @keyframes babelcart-pulse-red {
