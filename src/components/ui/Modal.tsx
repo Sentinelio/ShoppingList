@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useBackToClose } from "../../lib/router";
 
 interface ModalProps {
   open: boolean;
@@ -7,6 +8,8 @@ interface ModalProps {
 }
 
 export default function Modal({ open, onClose, children }: ModalProps) {
+  // Back closes the dialog instead of leaving the app.
+  useBackToClose(open, onClose);
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

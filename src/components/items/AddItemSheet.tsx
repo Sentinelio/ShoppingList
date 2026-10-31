@@ -9,6 +9,7 @@ import { exactSuggestion, otherNames, shownName } from "../../lib/suggestRank";
 import { uploadItemPhoto } from "../../lib/photoUpload";
 import { primaryName, secondaryName } from "../../lib/names";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
+import { useBackToClose } from "../../lib/router";
 import type { Item } from "../../lib/pocketbase";
 import ItemIcon from "./ItemIcon";
 import { IconAlert, IconCamera, IconCheck, IconNote } from "../ui/icons";
@@ -153,6 +154,8 @@ export default function AddItemSheet({
     reset();
     onClose();
   };
+  // Back closes the sheet instead of leaving the app.
+  useBackToClose(open, close);
 
   // Adds a dictionary product (with its translations) or the typed text
   // (translated, never blocking the add), then shows the options for it.

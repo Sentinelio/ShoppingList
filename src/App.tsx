@@ -1,43 +1,26 @@
-import { useState, useCallback, useEffect, lazy, Suspense, Fragment, useSyncExternalStore } from 'react'
+import { useCallback, lazy, Suspense, Fragment, useSyncExternalStore } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { IS_DEMO } from './lib/pocketbase'
 import SetupWizard from './components/setup/SetupWizard'
 import SessionError from './components/setup/SessionError'
 import ListsPage from './pages/ListsPage'
 import ListDetailPage from './pages/ListDetailPage'
-import SettingsPage from './pages/SettingsPage'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { getConfigVersion, subscribeConfigVersion } from './lib/liveConfig'
+import { go, useRoute } from './lib/router'
 
 // AdminPage is only used via #admin hash and imports the whole admin surface
 // area (changelog, stats, seed categories). Lazy-load it so the main bundle
 // stays lean.
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 
-type Page = 'setup' | 'lists' | 'list-detail' | 'settings' | 'admin'
-
-interface Route {
-  page: Page
-  params?: Record<string, string>
-}
-
 function App() {
   const { user, loading, authError, retryAuth, logout } = useAuth()
   // Bumped when the admin's configuration changes (lib/liveConfig.ts).
   const configVersion = useSyncExternalStore(subscribeConfigVersion, getConfigVersion)
-  const [route, setRoute] = useState<Route>(() => {
-    if (window.location.hash.startsWith('#admin')) return { page: 'admin' }
-    return { page: 'lists' }
-  })
-
-  // Listen for hash changes
-  useEffect(() => {
-    const handler = () => {
-      if (window.location.hash.startsWith('#admin')) setRoute({ page: 'admin' })
-    }
-    window.addEventListener('hashchange', handler)
-    return () => window.removeEventListener('hashchange', handler)
-  }, [])
+  // Every screen is a URL + history entry (lib/router.ts): the phone's
+  // Back goes to the previous screen instead of leaving the app.
+  const route = useRoute()
 
   const handleResetDebug = () => {
     logout()
@@ -45,8 +28,8 @@ function App() {
 
   const navigate = useCallback((page: string, params?: Record<string, string>) => {
     if (page === 'admin') window.location.hash = '#admin'
-    else window.location.hash = ''
-    setRoute({ page: page as Page, params })
+    else if (page === 'list-detail' && params?.listId) go({ page: 'list', listId: params.listId, tab: 'list' })
+    else go({ page: 'lists', view: 'home' })
   }, [])
 
   // Admin page — only for users flagged is_admin (set from the PocketBase
@@ -93,39 +76,26 @@ function App() {
   }
 
   if (!user) {
-    return <SetupWizard onComplete={() => setRoute({ page: 'lists' })} />
+    return <SetupWizard onComplete={() => go({ page: 'lists', view: 'home' }, { replace: true })} />
   }
 
   // Remount the page when the admin config changes, so everything that reads
   // it while rendering (languages, UI strings, themes, detail lab) refreshes.
-  const page = (() => {
-  switch (route.page) {
-    case 'list-detail':
-      return (
-        <ListDetailPage
-          listId={route.params?.listId ?? ''}
-          onNavigate={navigate}
-        />
-      )
-    case 'settings':
-      return <SettingsPage onNavigate={navigate} />
-    case 'lists':
-    default:
-      return (
-        <>
-          <ListsPage onNavigate={navigate} />
-          {IS_DEMO && (
-            <button
-              onClick={handleResetDebug}
-              className="fixed top-3 left-3 z-50 px-3 py-1.5 rounded-lg bg-danger text-white text-xs font-medium opacity-70 active:opacity-100 cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </>
-      )
-  }
-  })()
+  const page = route.page === 'list' ? (
+    <ListDetailPage listId={route.listId} tab={route.tab} itemId={route.itemId ?? null} />
+  ) : (
+    <>
+      <ListsPage view={route.page === 'lists' ? route.view : 'home'} onNavigate={navigate} />
+      {IS_DEMO && (
+        <button
+          onClick={handleResetDebug}
+          className="fixed top-3 left-3 z-50 px-3 py-1.5 rounded-lg bg-danger text-white text-xs font-medium opacity-70 active:opacity-100 cursor-pointer"
+        >
+          Reset
+        </button>
+      )}
+    </>
+  )
 
   return <Fragment key={configVersion}>{page}</Fragment>
 }

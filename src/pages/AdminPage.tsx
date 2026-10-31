@@ -26,6 +26,7 @@ import { reportAdminError, describeError } from "../lib/adminErrors";
 import { AdminHome, SectionHeader, SearchBox, Chips, Collapsible, ShowMore, type HomeEntry } from "../components/admin/AdminUi";
 import { useShowMore } from "../hooks/useShowMore";
 import { useIsDesktop } from "../hooks/useIsDesktop";
+import { useBackToClose } from "../lib/router";
 import { DesktopShell, TopBar, type NavGroup } from "../components/admin/desktop/DesktopShell";
 import UsersDesktop from "../components/admin/desktop/UsersDesktop";
 import ListsDesktop, { type BulkField } from "../components/admin/desktop/ListsDesktop";
@@ -717,6 +718,7 @@ export default function AdminPage() {
   const [catMissingLang, setCatMissingLang] = useState("");
   const [catStore, setCatStore] = useState("");
   const [editingEntry, setEditingEntry] = useState<DictRow | null>(null);
+  useBackToClose(!!editingEntry, () => setEditingEntry(null));
   const [, setNewEntry] = useState(false);
   const [toast, setToast] = useState("");
   const [, forceUpdate] = useState(0);

@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { IconClose } from "./icons";
+import { useBackToClose } from "../../lib/router";
 
 interface SheetProps {
   open: boolean;
@@ -11,6 +12,8 @@ interface SheetProps {
 
 // Bottom sheet: rounded top, glued to the bottom, scrolls when tall.
 export default function Sheet({ open, onClose, title, closeLabel, children }: SheetProps) {
+  // Back closes the sheet instead of leaving the app.
+  useBackToClose(open, onClose);
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

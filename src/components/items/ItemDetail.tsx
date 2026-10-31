@@ -867,6 +867,7 @@ export default function ItemDetail({
           <button
             type="button"
             onClick={onClose}
+            aria-label={t(lang, "close")}
             style={{
               position: "absolute", top: 8, right: 10, zIndex: 10,
               width: 28, height: 28, borderRadius: 9,

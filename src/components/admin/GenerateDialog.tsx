@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useBackToClose } from "../../lib/router";
 import { ALL_LANGUAGES } from "../../data/allLanguages";
 import type { SeedCategory } from "../../data/seedCategories";
 
@@ -45,6 +46,8 @@ export default function GenerateDialog({ mode, targets, langs, run, onClose }: P
   const [count, setCount] = useState(mode === "brands" ? BRAND_COUNT : targets[0]?.seed.count ?? 30);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [phase, setPhase] = useState<"plan" | "running" | "done">("plan");
+  // Back closes it — except while generating.
+  useBackToClose(true, () => { if (phase !== "running") onClose(phase === "done"); });
 
   const countFor = (t: GenerateTarget) => (single ? count : mode === "brands" ? BRAND_COUNT : t.seed.count);
   const total = targets.reduce((n, t) => n + countFor(t), 0);

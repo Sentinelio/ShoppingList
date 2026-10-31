@@ -15,6 +15,7 @@ import ItemRow from "../components/items/ItemRow";
 import AddItemSheet from "../components/items/AddItemSheet";
 import ItemDetail from "../components/items/ItemDetail";
 import BottomNav, { type ListTab } from "../components/list/BottomNav";
+import { go, goBack, useBackToClose } from "../lib/router";
 import StoreTab from "../components/list/StoreTab";
 import MembersTab from "../components/list/MembersTab";
 import ShareSheet from "../components/list/ShareSheet";
@@ -25,7 +26,10 @@ import { IconBack, IconCamera, IconChevronDown, IconClose, IconMore, IconSearch,
 
 interface ListDetailPageProps {
   listId: string;
-  onNavigate: (page: string, params?: Record<string, string>) => void;
+  /** From the URL (lib/router.ts): the open tab, and the product whose
+   *  detail is open, if any. */
+  tab: ListTab;
+  itemId: string | null;
 }
 
 type Filter = "pending" | "bought" | "unavailable";
@@ -43,7 +47,7 @@ const statusOf = (i: Item): Filter => (i.unavailable ? "unavailable" : i.checked
 const sortByImportance = (arr: Item[]) =>
   [...arr].sort((a, b) => (!!b.important === !!a.important ? 0 : b.important ? 1 : -1));
 
-export default function ListDetailPage({ listId, onNavigate }: ListDetailPageProps) {
+export default function ListDetailPage({ listId, tab, itemId }: ListDetailPageProps) {
   const { user } = useAuth();
   const userLang = user?.lang ?? "en";
   const lang = userLang;
@@ -52,11 +56,11 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
   // Primary language of every name in this list: the list country's.
   const shelfLang = listLangOf(list, user?.country);
 
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const editingItem = editingItemId ? items.find(i => i.id === editingItemId) ?? null : null;
+  const editingItem = itemId ? items.find(i => i.id === itemId) ?? null : null;
+  const listRoute = { page: "list" as const, listId, tab: "list" as const };
+  const closeItem = () => goBack(listRoute);
   // Product the Store tab opens on ("Mostrar en la tienda").
   const [storeStartId, setStoreStartId] = useState<string | null>(null);
-  const [tab, setTab] = useState<ListTab>("list");
   // The Tienda tab has its own theme; Lista and Miembros share the list's.
   useThemeView(tab === "store" ? "store" : "list");
   const [filter, setFilter] = useState<Filter>("pending");
@@ -219,11 +223,12 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     }
   }, [setItems, items, user]);
 
-  const handleDelete = useCallback(async (itemId: string) => {
-    setItems(prev => prev.filter(i => i.id !== itemId));
-    setEditingItemId(null);
-    try { await deleteItem(itemId); } catch { /* realtime will sync */ }
-  }, [setItems]);
+  const handleDelete = useCallback(async (deletedId: string) => {
+    setItems(prev => prev.filter(i => i.id !== deletedId));
+    if (itemId === deletedId) goBack(listRoute);
+    try { await deleteItem(deletedId); } catch { /* realtime will sync */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listRoute is derived from listId
+  }, [setItems, itemId, listId]);
 
 
   // "No hay": out of stock. Marking it takes the item out of the cart; the
@@ -259,24 +264,28 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
     }
   };
 
+  // The detail is a screen of its own (#/list/ID/item/ITEM): Back closes it.
   const openItem = useCallback((item: Item) => {
-    setEditingItemId(item.id);
-  }, []);
+    go({ page: "list", listId, tab: "list", itemId: item.id });
+  }, [listId]);
 
   const closeSearch = () => {
     setSearching(false);
     setSearchQuery("");
   };
+  // Back closes the search instead of leaving the list.
+  useBackToClose(searching, closeSearch);
 
   const openTab = (next: ListTab) => {
     if (next !== "store") setStoreStartId(null);
     closeSearch();
-    setTab(next);
+    // Tabs replace each other in the history: Back leaves the list.
+    go({ page: "list", listId, tab: next }, { replace: true });
   };
 
   const showInStore = (item: Item) => {
     setStoreStartId(item.id);
-    setTab("store");
+    go({ page: "list", listId, tab: "store" }, { replace: true });
   };
 
   // Optimistic list settings; the server enforces who may change what.
@@ -330,7 +339,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
           </>
         ) : (
           <>
-            <button onClick={() => onNavigate("lists")} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
+            <button onClick={() => goBack({ page: "lists", view: "home" })} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
             <h1 className="flex-1 min-w-0 truncate text-[20px] font-bold text-text px-1">{list?.name ?? "…"}</h1>
             <button onClick={() => setSearching(true)} className={iconBtn} aria-label={t(lang, "search")}><IconSearch size={22} /></button>
             <button onClick={() => setShowImportReceipt(true)} className={iconBtn} aria-label={t(lang, "importReceipt")}><IconCamera size={22} /></button>
@@ -490,7 +499,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
       <ItemDetail
         item={editingItem}
         open={editingItem !== null}
-        onClose={() => setEditingItemId(null)}
+        onClose={closeItem}
         userLang={userLang}
         shelfLang={shelfLang}
         countryFlag={countryFlag}
@@ -511,7 +520,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         onArchive={async () => {
           // Personal: hides the list from my home only.
           try { await archiveList(listId, true); } catch (err) { console.error("[archiveList]", err); }
-          onNavigate("lists");
+          go({ page: "lists", view: "home" }, { replace: true });
         }}
         onSettings={() => setShowSettings(true)}
       />
@@ -538,7 +547,7 @@ export default function ListDetailPage({ listId, onNavigate }: ListDetailPagePro
         onDeleteOrLeave={async () => {
           try { if (user) await exitList(listId, user.id); } catch { /* realtime will sync */ }
           setShowSettings(false);
-          onNavigate("lists");
+          go({ page: "lists", view: "home" }, { replace: true });
         }}
       />
 

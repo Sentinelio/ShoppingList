@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useBackToClose } from "../../lib/router";
 import { t } from "../../data/i18n";
 import { IconCheck } from "../ui/icons";
 
@@ -17,6 +18,7 @@ interface ListMenuProps {
 
 // 3.9 — ⋮ menu anchored under the top bar.
 export default function ListMenu({ open, onClose, lang, sortByCategory, onToggleSort, boughtCount, onClearBought, onArchive, onSettings }: ListMenuProps) {
+  useBackToClose(open, onClose);
   const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
