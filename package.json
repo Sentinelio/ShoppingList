@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:pb": "node --experimental-eventsource --no-warnings pocketbase/tests/run.mjs"
+    "test:pb": "node --experimental-eventsource --no-warnings pocketbase/tests/run.mjs",
+    "check:suggest": "node --no-warnings scripts/check-suggestions.mjs"
   },
   "dependencies": {
     "country-flag-emoji-polyfill": "0.1.10",

@@ -5,6 +5,7 @@ import { addItem, deleteItem, updateItem } from "../../hooks/useItems";
 import { t } from "../../data/i18n";
 import { getEnabledLangs } from "../../lib/langConfig";
 import { preloadDictionary, suggest, type DictSuggestion } from "../../lib/dictSuggest";
+import { exactSuggestion, otherNames, shownName } from "../../lib/suggestRank";
 import { uploadItemPhoto } from "../../lib/photoUpload";
 import { primaryName, secondaryName } from "../../lib/names";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
@@ -43,8 +44,6 @@ function getUnits(lang: string) {
     { value: "pack", label: t(lang, "unitPack") },
   ];
 }
-
-const sameText = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 
 // 3.3 — bottom sheet to add products, glued to the keyboard.
 //  1. Only the search field shows; results grow upwards from it (best match
@@ -241,7 +240,7 @@ export default function AddItemSheet({
 
   // An exact match in whatever language was typed: no «as typed» row, and
   // Enter adds it.
-  const exact = suggestions.find(s => s.exact) ?? suggestions.find(s => sameText(mineOf(s)) === sameText(input));
+  const exact = exactSuggestion(suggestions);
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -345,9 +344,8 @@ export default function AddItemSheet({
             {suggestions.map((s, i) => {
               // Big: the name in the language that matched what was typed.
               // Small: the country's name and mine, when they differ.
-              const shown = (s.matchLang && s.translations[s.matchLang]) || mineOf(s);
-              const others = [...new Set([s.translations[shelfLang], mineOf(s)].filter(Boolean))]
-                .filter(n => sameText(n) !== sameText(shown));
+              const shown = shownName(s, userLang);
+              const others = otherNames(s, userLang, shelfLang);
               return (
                 <button
                   key={`${s.key}-${i}`}

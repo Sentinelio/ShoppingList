@@ -5,94 +5,36 @@
 // single searchable string per entry, and exposes a fast substring matcher.
 
 import { pb, IS_DEMO } from "./pocketbase";
-import { LOCAL_DICTIONARY, type DictEntry } from "../data/localDictionary";
+import { LOCAL_DICTIONARY } from "../data/localDictionary";
 
-export interface DictSuggestion {
-  key: string;                         // canonical english/original text
-  translations: Record<string, string>; // language code → localized name
-  category: string;
-  /** Store type of the entry ("grocery", "hardware"…); grocery ranks first. */
-  storeType?: string;
-  /** Lowercased, accent-stripped concatenation of all language values — used
-   *  for the substring match. Never shown to the user. */
-  haystack: string;
-  /** Language whose name matched the query (set by suggest()): the add
-   *  sheet shows that name, so "turkey" lists "turkey", not "pavo". */
-  matchLang?: string;
-  /** The matched name equals the query (ignoring case and accents). */
-  exact?: boolean;
-}
+import { localToEntry, mergeEntries, normalize, rankSuggestions, remoteToEntry, type RankedSuggestion, type SuggestEntry } from "./suggestRank";
 
-const LANG_KEYS = ["en", "es", "pl", "de", "fr", "it", "pt"] as const;
+/** A ranked suggestion (see suggestRank.ts). */
+export type DictSuggestion = RankedSuggestion;
 
-let CACHE: DictSuggestion[] | null = null;
-let loadingPromise: Promise<DictSuggestion[]> | null = null;
+let CACHE: SuggestEntry[] | null = null;
+let loadingPromise: Promise<SuggestEntry[]> | null = null;
 
-function normalize(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function buildHaystack(translations: Record<string, string>): string {
-  return Object.values(translations).map(normalize).join(" | ");
-}
-
-function localEntryToSuggestion(e: DictEntry): DictSuggestion {
-  const tr: Record<string, string> = {};
-  for (const k of LANG_KEYS) {
-    const v = e[k];
-    if (typeof v === "string" && v.trim()) tr[k] = v;
-  }
-  const key = e.en || Object.values(tr)[0] || "";
-  return {
-    key,
-    translations: tr,
-    category: e.cat,
-    storeType: "grocery",
-    haystack: buildHaystack(tr),
-  };
-}
-
-async function fetchRemoteDict(): Promise<DictSuggestion[]> {
+async function fetchRemoteDict(): Promise<SuggestEntry[]> {
   if (IS_DEMO) return [];
-  const all: DictSuggestion[] = [];
   try {
     const data = await pb.collection("dictionary").getFullList<{ key: string; translations: Record<string, string>; category: string; store_type?: string }>({
       batch: 1000,
       fields: "key,translations,category,store_type",
     });
-    for (const row of data) {
-      const translations = row.translations || {};
-      all.push({
-        key: row.key,
-        translations,
-        category: row.category,
-        storeType: row.store_type || "grocery",
-        haystack: buildHaystack(translations),
-      });
-    }
-  } catch { /* offline: no remote suggestions */ }
-  return all;
+    return data.map(remoteToEntry);
+  } catch {
+    return []; // offline: no remote suggestions
+  }
 }
 
-async function ensureLoaded(): Promise<DictSuggestion[]> {
+async function ensureLoaded(): Promise<SuggestEntry[]> {
   if (CACHE) return CACHE;
   if (loadingPromise) return loadingPromise;
   loadingPromise = (async () => {
-    const remote = await fetchRemoteDict();
-    // Seed with LOCAL_DICTIONARY so autocomplete works even before the
-    // remote load completes on slow networks. Deduplicate by the English
-    // name (remote keys are often in another language: "puerro" = "leek");
-    // remote entries win.
-    const byKey = new Map<string, DictSuggestion>();
-    const dedupeKey = (s: DictSuggestion) => normalize(s.translations.en || s.key).trim();
-    for (const entry of LOCAL_DICTIONARY) {
-      const s = localEntryToSuggestion(entry);
-      if (s.key) byKey.set(dedupeKey(s), s);
-    }
-    for (const s of remote) {
-      if (s.key) byKey.set(dedupeKey(s), s);
-    }
-    CACHE = Array.from(byKey.values());
+    // LOCAL_DICTIONARY seeds autocomplete even before the remote load
+    // completes on slow networks (see mergeEntries).
+    CACHE = mergeEntries(LOCAL_DICTIONARY.map(localToEntry), await fetchRemoteDict());
     return CACHE;
   })();
   try {
@@ -112,69 +54,6 @@ export function invalidateDictionaryCache(): void {
   CACHE = null;
 }
 
-/** Tier of `entry` for the normalized query `q` (lower is better), or -1
- *  when it doesn't match. The user's own language comes first, and only
- *  names (or words of them) that START with the query count:
- *    0. exact match in `userLang`
- *    1. exact match in another language ("por" → leek, pl "por")
- *    2. the name in `userLang` starts with the query
- *    3. a word of the name in `userLang` starts with the query
- *    4. a name in another language, or one of its words, starts with it
- *    5. contained mid-word ("tur" in "pintura") — only used when nothing
- *       else matched and the query has 4+ letters (see rank()).
- *  So "tur" → turrón, turkey; not pintura or luz nocturna. */
-function matchTier(entry: DictSuggestion, q: string, userLang: string): number {
-  if (!entry.haystack.includes(q)) return -1;
-  const mine = entry.translations[userLang] ? normalize(entry.translations[userLang]) : "";
-  const names = Object.values(entry.translations).map(normalize);
-  const wordStarts = (n: string) => n.split(/[^\p{L}\p{N}]+/u).some(w => w.startsWith(q));
-  if (mine === q) return 0;
-  if (names.some(n => n === q)) return 1;
-  if (mine.startsWith(q)) return 2;
-  if (mine && wordStarts(mine)) return 3;
-  if (names.some(n => n.startsWith(q) || wordStarts(n))) return 4;
-  return 5;
-}
-
-// Which language's name matched `q` best (exact, starts, a word starts,
-// contains), preferring the user's language on a tie.
-function matchedLang(entry: DictSuggestion, q: string, userLang: string): { lang: string; exact: boolean } {
-  const langs = [userLang, ...Object.keys(entry.translations).filter(l => l !== userLang)];
-  const named = langs.filter(l => entry.translations[l]).map(l => ({ l, n: normalize(entry.translations[l]) }));
-  const tests: ((n: string) => boolean)[] = [
-    n => n === q,
-    n => n.startsWith(q),
-    n => n.split(/[^\p{L}\p{N}]+/u).some(w => w.startsWith(q)),
-    n => n.includes(q),
-  ];
-  for (let i = 0; i < tests.length; i++) {
-    const hit = named.find(x => tests[i](x.n));
-    if (hit) return { lang: hit.l, exact: i === 0 };
-  }
-  return { lang: userLang, exact: false };
-}
-
-function rank(entries: DictSuggestion[], query: string, userLang: string, limit: number): DictSuggestion[] {
-  const q = normalize(query).trim();
-  if (q.length < 2) return [];
-  const tiers: DictSuggestion[][] = [[], [], [], [], [], []];
-  for (const entry of entries) {
-    const tier = matchTier(entry, q, userLang);
-    if (tier >= 0) tiers[tier].push(entry);
-  }
-  // Within a tier, supermarket products before hardware, pharmacy…
-  // (sort is stable, so the dictionary order is kept otherwise).
-  const nonGrocery = (e: DictSuggestion) => (e.storeType && e.storeType !== "grocery" ? 1 : 0);
-  for (const tier of tiers) tier.sort((a, b) => nonGrocery(a) - nonGrocery(b));
-  // Mid-word matches are noise unless nothing starts with the query.
-  const starts = tiers.slice(0, 5).flat();
-  const pool = starts.length > 0 || q.length < 4 ? starts : tiers[5];
-  return pool.slice(0, limit).map(e => {
-    const m = matchedLang(e, q, userLang);
-    return { ...e, matchLang: m.lang, exact: m.exact };
-  });
-}
-
 /** Return up to `limit` suggestions matching `query`, best tier first
  *  (see matchTier). */
 export async function suggest(
@@ -183,7 +62,7 @@ export async function suggest(
   limit = 8,
 ): Promise<DictSuggestion[]> {
   if (normalize(query).trim().length < 2) return [];
-  return rank(await ensureLoaded(), query, userLang, limit);
+  return rankSuggestions(await ensureLoaded(), query, userLang, limit);
 }
 
 /** Synchronous variant for when the dictionary is already preloaded.
@@ -194,5 +73,5 @@ export function suggestSync(
   limit = 8,
 ): DictSuggestion[] {
   if (!CACHE) return [];
-  return rank(CACHE, query, userLang, limit);
+  return rankSuggestions(CACHE, query, userLang, limit);
 }
