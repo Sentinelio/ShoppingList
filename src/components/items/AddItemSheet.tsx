@@ -239,7 +239,9 @@ export default function AddItemSheet({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const exact = suggestions.find(s => sameText(mineOf(s)) === sameText(input));
+  // An exact match in whatever language was typed: no «as typed» row, and
+  // Enter adds it.
+  const exact = suggestions.find(s => s.exact) ?? suggestions.find(s => sameText(mineOf(s)) === sameText(input));
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -341,7 +343,11 @@ export default function AddItemSheet({
               </button>
             )}
             {suggestions.map((s, i) => {
-              const shelf = s.translations[shelfLang];
+              // Big: the name in the language that matched what was typed.
+              // Small: the country's name and mine, when they differ.
+              const shown = (s.matchLang && s.translations[s.matchLang]) || mineOf(s);
+              const others = [...new Set([s.translations[shelfLang], mineOf(s)].filter(Boolean))]
+                .filter(n => sameText(n) !== sameText(shown));
               return (
                 <button
                   key={`${s.key}-${i}`}
@@ -356,9 +362,9 @@ export default function AddItemSheet({
                 >
                   <ItemIcon name={s.translations.en || s.key} category={s.category} size={32} />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[15px] font-semibold text-text truncate">{mineOf(s)}</span>
-                    {shelf && shelfLang !== userLang && shelf.toLowerCase() !== mineOf(s).toLowerCase() && (
-                      <span className="block text-[12px] truncate" style={{ color: "var(--color-primary-name)" }}>{shelf}</span>
+                    <span className="block text-[15px] font-semibold text-text truncate">{shown}</span>
+                    {others.length > 0 && (
+                      <span className="block text-[12px] truncate" style={{ color: "var(--color-primary-name)" }}>{others.join(" · ")}</span>
                     )}
                   </span>
                 </button>

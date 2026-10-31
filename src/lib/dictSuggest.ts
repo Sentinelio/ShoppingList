@@ -14,6 +14,11 @@ export interface DictSuggestion {
   /** Lowercased, accent-stripped concatenation of all language values — used
    *  for the substring match. Never shown to the user. */
   haystack: string;
+  /** Language whose name matched the query (set by suggest()): the add
+   *  sheet shows that name, so "turkey" lists "turkey", not "pavo". */
+  matchLang?: string;
+  /** The matched name equals the query (ignoring case and accents). */
+  exact?: boolean;
 }
 
 const LANG_KEYS = ["en", "es", "pl", "de", "fr", "it", "pt"] as const;
@@ -127,6 +132,24 @@ function matchTier(entry: DictSuggestion, q: string, userLang: string): number {
   return 6;
 }
 
+// Which language's name matched `q` best (exact, starts, a word starts,
+// contains), preferring the user's language on a tie.
+function matchedLang(entry: DictSuggestion, q: string, userLang: string): { lang: string; exact: boolean } {
+  const langs = [userLang, ...Object.keys(entry.translations).filter(l => l !== userLang)];
+  const named = langs.filter(l => entry.translations[l]).map(l => ({ l, n: normalize(entry.translations[l]) }));
+  const tests: ((n: string) => boolean)[] = [
+    n => n === q,
+    n => n.startsWith(q),
+    n => n.split(/[^\p{L}\p{N}]+/u).some(w => w.startsWith(q)),
+    n => n.includes(q),
+  ];
+  for (let i = 0; i < tests.length; i++) {
+    const hit = named.find(x => tests[i](x.n));
+    if (hit) return { lang: hit.l, exact: i === 0 };
+  }
+  return { lang: userLang, exact: false };
+}
+
 function rank(entries: DictSuggestion[], query: string, userLang: string, limit: number): DictSuggestion[] {
   const q = normalize(query).trim();
   if (q.length < 2) return [];
@@ -135,7 +158,10 @@ function rank(entries: DictSuggestion[], query: string, userLang: string, limit:
     const tier = matchTier(entry, q, userLang);
     if (tier >= 0) tiers[tier].push(entry);
   }
-  return tiers.flat().slice(0, limit);
+  return tiers.flat().slice(0, limit).map(e => {
+    const m = matchedLang(e, q, userLang);
+    return { ...e, matchLang: m.lang, exact: m.exact };
+  });
 }
 
 /** Return up to `limit` suggestions matching `query`, best tier first
