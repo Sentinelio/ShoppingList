@@ -229,6 +229,10 @@ export const strings = {
     "nJoinRejected": "Your request to join {list} was declined",
     "nRemoved": "{by} removed you from {list}",
     "nListDeleted": "{by} deleted the list {list}",
+    "addAnother": "Add another product…",
+    "added": "added",
+    "undo": "Undo",
+    "addFailed": "Couldn't add it",
   },
   es: {
     "welcome": "Bienvenido",
@@ -456,6 +460,10 @@ export const strings = {
     "nJoinRejected": "Tu solicitud para unirte a {list} fue rechazada",
     "nRemoved": "{by} te ha sacado de {list}",
     "nListDeleted": "{by} ha borrado la lista {list}",
+    "addAnother": "Añadir otro producto…",
+    "added": "añadido",
+    "undo": "Deshacer",
+    "addFailed": "No se pudo añadir",
   },
   pl: {
     "welcome": "Witaj",
@@ -683,6 +691,10 @@ export const strings = {
     "nJoinRejected": "Twoja prośba o dołączenie do {list} została odrzucona",
     "nRemoved": "{by} usunął/usunęła cię z {list}",
     "nListDeleted": "{by} usunął/usunęła listę {list}",
+    "addAnother": "Dodaj kolejny produkt…",
+    "added": "dodano",
+    "undo": "Cofnij",
+    "addFailed": "Nie udało się dodać",
   },
 } as const;
 
