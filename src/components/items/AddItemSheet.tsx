@@ -24,7 +24,15 @@ interface AddItemSheetProps {
   onItemAdded: (item: Item | null) => void;
 }
 
-const QUICK_QTYS = ["1", "2", "3", "6", "12"];
+// Quantities people pick most, per unit (shown in the ▾ menu).
+const COMMON_QTYS: Record<string, string[]> = {
+  "": ["1", "2", "3", "4", "5", "6", "8", "10", "12"],
+  x: ["1", "2", "3", "4", "5", "6", "8", "10", "12"],
+  kg: ["0.5", "1", "1.5", "2", "3"],
+  L: ["0.5", "1", "1.5", "2", "3"],
+  g: ["100", "200", "250", "500", "750"],
+  pack: ["1", "2", "3", "4", "6"],
+};
 
 function getUnits(lang: string) {
   return [
@@ -58,6 +66,7 @@ export default function AddItemSheet({
   const [note, setNote] = useState("");
   const [brand, setBrand] = useState("");
   const [showExtra, setShowExtra] = useState(false);
+  const [qtyMenu, setQtyMenu] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [important, setImportant] = useState(false);
@@ -139,6 +148,7 @@ export default function AddItemSheet({
 
   const reset = () => {
     setInput("");
+    setQtyMenu(false);
     setSelected(null);
     setTypedPicked(false);
     setQty("");
@@ -390,20 +400,54 @@ export default function AddItemSheet({
           </div>
         )}
 
-        {/* Quantity and unit, one scrollable row */}
+        {/* Quantity: type any number, or pick a common one from ▾ (per unit).
+            Unit: a select, so the whole row fits without scrolling. */}
         {picked && (
-          <div className="flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar" aria-label={`${t(lang, "qty")} · ${t(lang, "unit")}`}>
-            {QUICK_QTYS.map(q => (
-              <button key={q} type="button" onClick={() => setQty(qty === q ? "" : q)} className={chip(qty === q)} style={chipStyle(qty === q)} aria-pressed={qty === q}>
-                {q}
+          <div className="relative flex items-center gap-2 shrink-0">
+            <label className="flex-1 min-w-0 flex items-center h-11 rounded-xl bg-bg border border-border-light focus-within:border-accent">
+              <span className="sr-only">{t(lang, "quantity")}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={qty}
+                onChange={(e) => setQty(e.target.value.replace(",", ".").replace(/[^0-9.]/g, "").slice(0, 7))}
+                placeholder={t(lang, "quantity")}
+                className="flex-1 min-w-0 h-full px-3 bg-transparent text-text text-[16px] placeholder:text-text-muted outline-none"
+              />
+              {qty && (
+                <button type="button" onClick={() => setQty("")} aria-label={t(lang, "remove")}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted cursor-pointer">✕</button>
+              )}
+              <button type="button" onClick={() => setQtyMenu(v => !v)} aria-expanded={qtyMenu} aria-label={t(lang, "quantity")}
+                className="w-11 h-full shrink-0 flex items-center justify-center text-text-soft cursor-pointer border-l border-border-light">
+                ▾
               </button>
-            ))}
-            <span className="w-px h-6 bg-border-light shrink-0 mx-0.5" aria-hidden="true" />
-            {UNITS.map(u => (
-              <button key={u.value} type="button" onClick={() => setUnit(unit === u.value ? "" : u.value)} className={`${chip(unit === u.value)} shrink-0`} style={chipStyle(unit === u.value)} aria-pressed={unit === u.value}>
-                {u.label}
-              </button>
-            ))}
+            </label>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              aria-label={t(lang, "unit")}
+              className="w-[112px] shrink-0 h-11 px-3 rounded-xl bg-bg border border-border-light text-text text-[16px] cursor-pointer outline-none focus:border-accent"
+            >
+              <option value="">{t(lang, "unit")}</option>
+              {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+            </select>
+            {qtyMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setQtyMenu(false)} />
+                <div role="listbox" aria-label={t(lang, "quantity")}
+                  className="absolute left-0 bottom-full mb-2 z-20 p-2 rounded-2xl bg-card border border-border-light shadow-2xl grid grid-cols-5 gap-1.5"
+                  style={{ width: "min(320px, 100%)" }}>
+                  {(COMMON_QTYS[unit] ?? COMMON_QTYS[""]).map(q => (
+                    <button key={q} type="button" role="option" aria-selected={qty === q}
+                      onClick={() => { setQty(q); setQtyMenu(false); }}
+                      className={chip(qty === q)} style={chipStyle(qty === q)}>
+                      {Number(q).toLocaleString(lang)}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
