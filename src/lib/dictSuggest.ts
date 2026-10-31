@@ -104,28 +104,33 @@ export function invalidateDictionaryCache(): void {
 }
 
 /** Tier of `entry` for the normalized query `q` (lower is better), or -1
- *  when it doesn't match at all:
- *    0. exact match in any language
- *    1. the name in `userLang` starts with the query
- *    2. a name in any language, or one of its words, starts with the query
- *    3. the name in `userLang` contains the query
- *    4. any translation contains the query
- *  e.g. "por" → leek (pl "por", exact) before pork (fr "porc", prefix). */
+ *  when it doesn't match at all. The user's own language comes first:
+ *    0. exact match in `userLang`
+ *    1. exact match in another language ("por" → leek, pl "por")
+ *    2. the name in `userLang` starts with the query
+ *    3. a word of the name in `userLang` starts with the query
+ *    4. the name in `userLang` contains the query
+ *    5. a name in another language, or one of its words, starts with it
+ *    6. any translation contains the query
+ *  so typing "sal" lists sal, salmón, salchicha… before perejil (pt "salsa"). */
 function matchTier(entry: DictSuggestion, q: string, userLang: string): number {
   if (!entry.haystack.includes(q)) return -1;
-  const names = Object.values(entry.translations).map(normalize);
-  if (names.some(n => n === q)) return 0;
   const mine = entry.translations[userLang] ? normalize(entry.translations[userLang]) : "";
-  if (mine.startsWith(q)) return 1;
-  if (names.some(n => n.startsWith(q) || n.split(/[^\p{L}\p{N}]+/u).some(w => w.startsWith(q)))) return 2;
-  if (mine.includes(q)) return 3;
-  return 4;
+  const names = Object.values(entry.translations).map(normalize);
+  const wordStarts = (n: string) => n.split(/[^\p{L}\p{N}]+/u).some(w => w.startsWith(q));
+  if (mine === q) return 0;
+  if (names.some(n => n === q)) return 1;
+  if (mine.startsWith(q)) return 2;
+  if (mine && wordStarts(mine)) return 3;
+  if (mine.includes(q)) return 4;
+  if (names.some(n => n.startsWith(q) || wordStarts(n))) return 5;
+  return 6;
 }
 
 function rank(entries: DictSuggestion[], query: string, userLang: string, limit: number): DictSuggestion[] {
   const q = normalize(query).trim();
   if (q.length < 2) return [];
-  const tiers: DictSuggestion[][] = [[], [], [], [], []];
+  const tiers: DictSuggestion[][] = [[], [], [], [], [], [], []];
   for (const entry of entries) {
     const tier = matchTier(entry, q, userLang);
     if (tier >= 0) tiers[tier].push(entry);

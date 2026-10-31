@@ -285,6 +285,9 @@ export default function AddItemSheet({
   const showSuggestions = input.trim().length >= 2 && !selected && !typedPicked;
   // Quantity, unit, important… appear once a product is chosen.
   const picked = !!selected || typedPicked;
+  // The dictionary has exactly what was typed (in my language): no «as typed» row.
+  const sameText = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const exactMatch = suggestions.some(s => sameText(mineOf(s)) === sameText(input));
   const chip = (active: boolean) =>
     `h-9 min-w-[44px] px-3 shrink-0 rounded-full text-[13px] font-semibold cursor-pointer transition-colors ${
       active ? "text-on-accent" : "text-text"
@@ -313,7 +316,7 @@ export default function AddItemSheet({
             next to it, «as typed» right on top of it); the other controls hide. */}
         {showSuggestions && (
           <div className="flex-1 min-h-0 rounded-[14px] bg-bg overflow-y-auto flex flex-col-reverse" role="listbox">
-            <button
+            {!exactMatch && <button
               type="button"
               role="option"
               aria-selected={highlightedIdx === -1}
@@ -326,7 +329,7 @@ export default function AddItemSheet({
                 <span className="block text-[15px] font-semibold text-text truncate">«{input.trim()}»</span>
                 <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{t(lang, "asTyped")}</span>
               </span>
-            </button>
+            </button>}
             {suggestions.map((s, i) => {
               const shelf = s.translations[shelfLang];
               return (
