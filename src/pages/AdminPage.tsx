@@ -30,6 +30,7 @@ import { DesktopShell, TopBar, type NavGroup } from "../components/admin/desktop
 import UsersDesktop from "../components/admin/desktop/UsersDesktop";
 import ListsDesktop, { type BulkField } from "../components/admin/desktop/ListsDesktop";
 import { loadPeople, matchUsers, EMPTY_PEOPLE, type PeopleData } from "../lib/adminPeople";
+import AdminMessages from "../components/admin/AdminMessages";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
 import {
   ensureStorePhrasesLoaded,
@@ -42,12 +43,12 @@ import {
 } from "../lib/storePhrasesStore";
 import { useStorePhrases } from "../hooks/useStorePhrases";
 
-type Tab = "catalog" | "languages" | "users" | "lists" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
+type Tab = "catalog" | "languages" | "users" | "lists" | "messages" | "stats" | "roadmap" | "changelog" | "themes" | "phrases";
 type Section = Tab | "home";
 
 const SECTION_TITLES: Record<Tab, string> = {
   stats: "Stats", catalog: "Catalog", phrases: "Phrases", languages: "Languages",
-  users: "Users", lists: "Lists", themes: "Themes", changelog: "Versions & status", roadmap: "Roadmap",
+  users: "Users", lists: "Lists", messages: "Messages", themes: "Themes", changelog: "Versions & status", roadmap: "Roadmap",
 };
 
 // #admin → home, #admin/users → that section (so the phone's back works).
@@ -1115,6 +1116,7 @@ export default function AdminPage() {
     { title: "People", entries: [
       { key: "users", icon: "👥", label: "Users", summary: `${users.length} users`, alert: newUsers ? `${newUsers} new this week` : undefined },
       { key: "lists", icon: "📝", label: "Lists", summary: `${lists.length} lists · ${Object.values(listItems).reduce((a, b) => a + b, 0)} items` },
+      { key: "messages", icon: "📣", label: "Messages", summary: "Send a notification to everyone, a language or specific users" },
     ] },
     { title: "Appearance", entries: [
       { key: "themes", icon: "🎨", label: "Themes", summary: THEME_VIEWS.map(v => `${VIEW_LABELS[v]}: ${getPalette(selectedThemes[v]).name}`).join(" · ") },
@@ -2526,6 +2528,8 @@ export default function AdminPage() {
             </div>
           );
         })()}
+
+        {tab === "messages" && <AdminMessages />}
 
         {/* ── Phrases (store-mode helper sentences) ── */}
         {tab === "phrases" && (

@@ -56,7 +56,7 @@ interface AuthContextValue {
   retryAuth: () => void;
   shelfLang: string;
   createUser: (name: string, lang: string, country: string) => Promise<void>;
-  updateUser: (updates: Partial<Pick<User, "name" | "lang" | "country" | "avatar_color">>) => Promise<void>;
+  updateUser: (updates: Partial<Pick<User, "name" | "lang" | "country" | "avatar_color" | "notification_prefs">>) => Promise<void>;
   logout: () => void;
 }
 
@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const updateUser = useCallback(
-    async (updates: Partial<Pick<User, "name" | "lang" | "country" | "avatar_color">>) => {
+    async (updates: Partial<Pick<User, "name" | "lang" | "country" | "avatar_color" | "notification_prefs">>) => {
       if (!user) return;
 
       if (IS_DEMO) {

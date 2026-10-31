@@ -170,6 +170,8 @@ export interface User {
   avatar_color: string;
   /** Public ID ("K7M-2QX"), set by the server, never changes. */
   tag?: string;
+  /** { <notification type>: false } turns a type off (lib/notifications.ts). */
+  notification_prefs?: Record<string, boolean> | null;
   is_admin?: boolean;
   created_at: string;
   last_seen_at: string | null;

@@ -770,6 +770,78 @@ await test("the release route is superuser-only", async () => {
   await rejects(A.pb.send("/api/babelcart/release-unavailable", { method: "POST" }), [403], "user calls release");
 });
 
+section("Notifications");
+{
+  const nl = await A.pb.collection("lists").create({ name: "Notify list", code: "NT" + randomBytes(2).toString("hex").toUpperCase(), created_by: A.id });
+  created.lists.push(nl.id);
+  const mine = (u, type) => u.pb.collection("notifications").getFullList({ filter: u.pb.filter("list_id = {:l} && type = {:t}", { l: nl.id, t: type }) });
+  const tagOf = async (u) => (await u.pb.collection("users").getOne(u.id)).tag;
+
+  await test("join request → the owner is told", async () => {
+    await C.pb.send("/api/babelcart/join", { method: "POST", body: { code: nl.code } });
+    const n = await mine(A, "join_request");
+    eq(n.length, 1, "join_request count");
+    eq(n[0].params.list, "Notify list", "list name");
+    eq(n[0].params.who, C.name, "who");
+  });
+  await test("approved → the requester is told", async () => {
+    const row = await memberRow(A.pb, nl.id, C.id);
+    await A.pb.collection("list_members").update(row.id, { status: "active" });
+    eq((await mine(C, "join_approved")).length, 1, "join_approved");
+  });
+  await test("items from one person are grouped into one notification", async () => {
+    for (const name of ["pan", "leche", "huevos"]) {
+      await C.pb.collection("items").create({ list_id: nl.id, original: name, added_by: C.id, added_by_name: C.name });
+    }
+    const n = await mine(A, "items_added");
+    eq(n.length, 1, "grouped");
+    eq(n[0].params.count, 3, "count");
+    eq(n[0].params.names, ["pan", "leche", "huevos"], "names");
+    eq((await mine(C, "items_added")).length, 0, "the author isn't told");
+  });
+  await test("a type turned off in the preferences isn't sent", async () => {
+    await A.pb.collection("users").update(A.id, { notification_prefs: { items_added: false } });
+    await C.pb.collection("items").create({ list_id: nl.id, original: "sal", added_by: C.id, added_by_name: C.name });
+    eq((await mine(A, "items_added"))[0].params.count, 3, "still 3");
+    await A.pb.collection("users").update(A.id, { notification_prefs: {} });
+  });
+  await test("users only see and change their own notifications, and never create them", async () => {
+    const [n] = await mine(A, "join_request");
+    await rejects(B.pb.collection("notifications").getOne(n.id), [404], "B reads A's");
+    eq((await B.pb.collection("notifications").getFullList({ filter: B.pb.filter("user = {:u}", { u: A.id }) })).length, 0, "B lists A's");
+    await rejects(A.pb.collection("notifications").create({ user: A.id, type: "admin_message", params: {} }), [400, 403], "create");
+    await rejects(A.pb.collection("notifications").update(n.id, { type: "x" }), [400, 403, 404], "change type");
+    const read = await A.pb.collection("notifications").update(n.id, { read_at: new Date().toISOString() });
+    assert(read.read_at, "read_at set");
+    await A.pb.collection("notifications").delete(n.id);
+  });
+  await test("a pending request turned down → the requester is told", async () => {
+    await D.pb.send("/api/babelcart/join", { method: "POST", body: { code: nl.code } });
+    const row = await memberRow(A.pb, nl.id, D.id);
+    await A.pb.collection("list_members").delete(row.id);
+    eq((await mine(D, "join_rejected")).length, 1, "join_rejected");
+  });
+  await test("list deleted → the other members are told", async () => {
+    await A.pb.collection("lists").delete(nl.id);
+    created.lists = created.lists.filter((id) => id !== nl.id);
+    const n = await mine(C, "list_deleted");
+    eq(n.length, 1, "list_deleted");
+    eq(n[0].params.by, A.name, "by");
+  });
+  await test("admin messages: admins only, and they can't be turned off", async () => {
+    await rejects(B.pb.send("/api/babelcart/notify", { method: "POST", body: { target: "all", title: "x" } }), [403], "user sends");
+    if (!su.authStore.isValid) return;
+    await B.pb.collection("users").update(B.id, { notification_prefs: { admin_message: false } });
+    const dry = await su.send("/api/babelcart/notify", { method: "POST", body: { target: "users", tags: [await tagOf(B)], title: "Hola", dry: true } });
+    eq(dry.recipients.length, 1, "dry run recipients");
+    const res = await su.send("/api/babelcart/notify", { method: "POST", body: { target: "users", tags: [(await tagOf(B)).toLowerCase()], title: { en: "Hi", es: "Hola" }, body: "Test" } });
+    eq(res.sent, 1, "sent");
+    const n = await B.pb.collection("notifications").getFullList({ filter: 'type = "admin_message"' });
+    eq(n.length, 1, "B got it despite the preference");
+    eq(n[0].params.title.es, "Hola", "per-language title");
+  });
+}
+
 section("Deleting");
 await test("non-owner can't delete the list", async () => {
   await rejects(B.pb.collection("lists").delete(list.id), [400, 403, 404], "member deletes list");

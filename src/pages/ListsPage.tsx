@@ -7,6 +7,8 @@ import { t } from "../data/i18n";
 import type { Lang } from "../data/i18n";
 import { CHANGELOG } from "../data/changelog";
 import Modal from "../components/ui/Modal";
+import NotificationsSheet from "../components/notifications/NotificationsSheet";
+import { useNotifications } from "../lib/notifications";
 import Avatar from "../components/ui/Avatar";
 import CreateListModal from "../components/lists/CreateListModal";
 import JoinListModal from "../components/lists/JoinListModal";
@@ -14,7 +16,7 @@ import IosInstallHint from "../components/ui/IosInstallHint";
 import { readJoinHash } from "../lib/joinLink";
 import { LANGS } from "../data/langs";
 import { getCountries, getCountryFlag } from "../data/countries";
-import { IconBack, IconChevronRight, IconPlus } from "../components/ui/icons";
+import { IconBack, IconBell, IconChevronRight, IconPlus } from "../components/ui/icons";
 
 interface ListsPageProps {
   onNavigate: (page: string, params?: Record<string, string>) => void;
@@ -39,6 +41,8 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [profileName, setProfileName] = useState(user?.name ?? "");
   const [tagCopied, setTagCopied] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notif = useNotifications(user?.id);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const { overview, reload, setOverview } = useListsOverview(lists, user?.id);
@@ -181,6 +185,17 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
       {/* 2.1 top bar: title, Join, my avatar (opens my settings) */}
       <header className="shrink-0 h-14 flex items-center gap-2 pl-4 pr-2">
         <h1 className="flex-1 min-w-0 truncate text-[22px] font-bold text-text">{t(lang, "myLists")}</h1>
+        <button type="button" onClick={() => setShowNotifications(true)}
+          aria-label={notif.unread ? `${t(lang, "notifications")} (${notif.unread})` : t(lang, "notifications")}
+          className="relative w-11 h-11 rounded-full flex items-center justify-center text-text-soft cursor-pointer active:bg-text/5">
+          <IconBell size={22} />
+          {notif.unread > 0 && (
+            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-bold flex items-center justify-center"
+              style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
+              {notif.unread > 9 ? "9+" : notif.unread}
+            </span>
+          )}
+        </button>
         <button type="button" onClick={() => setShowJoin(true)}
           className="h-10 px-4 rounded-full text-[14px] font-semibold cursor-pointer active:brightness-90"
           style={{ background: "var(--color-accent-soft)", color: "var(--color-accent-ink)" }}>
@@ -305,6 +320,13 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
         onClose={() => setShowJoin(false)}
         onJoined={handleJoined}
       />
+
+      <NotificationsSheet open={showNotifications} onClose={() => setShowNotifications(false)} lang={lang}
+        items={notif.items} prefs={user?.notification_prefs ?? {}}
+        onOpenList={listId => onNavigate("list-detail", { listId })}
+        onMarkRead={ids => { void notif.markRead(ids); }}
+        onRemove={id => { void notif.remove(id); }}
+        onPrefsChange={next => { void updateUser({ notification_prefs: next }); }} />
 
       {/* Settings Modal */}
       <Modal open={showSettings} onClose={() => setShowSettings(false)}>
