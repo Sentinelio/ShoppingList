@@ -14,8 +14,11 @@ import { uploadItemPhoto } from "../../lib/photoUpload";
 import { primaryName, secondaryName } from "../../lib/names";
 import ItemIcon from "./ItemIcon";
 import EmojiImage from "../ui/EmojiImage";
+import { IconBack } from "../ui/icons";
 
 interface ItemDetailProps {
+  /** Shown in the header: the ← goes back to this list. */
+  listName?: string;
   item: Item | null;
   open: boolean;
   onClose: () => void;
@@ -77,6 +80,7 @@ const tabBarStyle: React.CSSProperties = {
   borderRight: "1px solid color-mix(in srgb, var(--color-text) 6%, transparent)",
   flexShrink: 0,
   overflowY: "auto",
+  overflowX: "hidden",
 };
 
 const tabBtnBase: React.CSSProperties = {
@@ -96,6 +100,7 @@ const tabBtnBase: React.CSSProperties = {
 };
 
 export default function ItemDetail({
+  listName,
   item,
   open,
   onClose,
@@ -800,33 +805,23 @@ export default function ItemDetail({
     hist: histPane,
   };
 
-  // ── RENDER: full-screen overlay with side tabs ─────────────────────────
+  // ── RENDER: a full screen (#/list/ID/item/ITEM) — header with ←, side
+  //    tabs and the pane at full size, like every other screen. ──────────
   return (
     <div
       data-theme-view="details"
-      className="fixed inset-0 z-50"
-      style={{ display: "flex", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+      className="fixed inset-0 z-50 bg-bg flex flex-col"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {/* Backdrop tap to close */}
-      <div className="absolute inset-0" onClick={onClose} />
+      <header className="shrink-0 h-14 flex items-center gap-1 px-1.5 border-b border-border">
+        <button type="button" onClick={onClose} aria-label={t(lang, "back")}
+          className="w-11 h-11 flex items-center justify-center rounded-full text-text-soft active:bg-text/5 cursor-pointer">
+          <IconBack />
+        </button>
+        <h1 className="flex-1 min-w-0 truncate text-[18px] font-bold text-text">{listName ?? primary}</h1>
+      </header>
 
-      {/* Panel — phone-like container */}
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          width: "calc(100% - 80px)",
-          maxWidth: 460,
-          height: "calc(100% - 96px)",
-          maxHeight: "calc(100vh - 96px)",
-          margin: "48px auto",
-          background: "var(--color-bg, #0d1017)",
-          overflow: "hidden",
-          zIndex: 1,
-          borderRadius: 20,
-          border: "1px solid color-mix(in srgb, var(--color-text) 10%, transparent)",
-        }}
-      >
+      <div className="flex-1 min-h-0 flex">
         {/* Side tab bar */}
         <div style={tabBarStyle}>
           {TABS.map(tab => (
@@ -863,22 +858,6 @@ export default function ItemDetail({
 
         {/* Content area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t(lang, "close")}
-            style={{
-              position: "absolute", top: 8, right: 10, zIndex: 10,
-              width: 28, height: 28, borderRadius: 9,
-              background: "color-mix(in srgb, var(--color-text) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-text) 10%, transparent)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, color: "var(--color-text-soft)", cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
-
           {/* Scrollable pane */}
           <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
             {paneContent[activeTab]}

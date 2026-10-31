@@ -500,6 +500,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         item={editingItem}
         open={editingItem !== null}
         onClose={closeItem}
+        listName={list?.name}
         userLang={userLang}
         shelfLang={shelfLang}
         countryFlag={countryFlag}
