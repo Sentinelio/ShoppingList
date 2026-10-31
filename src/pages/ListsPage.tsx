@@ -38,6 +38,7 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
   }, [joinCode]);
   const [showSettings, setShowSettings] = useState(false);
   const [profileName, setProfileName] = useState(user?.name ?? "");
+  const [tagCopied, setTagCopied] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const { overview, reload, setOverview } = useListsOverview(lists, user?.id);
@@ -308,6 +309,21 @@ export default function ListsPage({ onNavigate }: ListsPageProps) {
       {/* Settings Modal */}
       <Modal open={showSettings} onClose={() => setShowSettings(false)}>
         <h3 className="text-lg font-bold mb-4">⚙️ {t(lang, "settings")}</h3>
+        {user?.tag && (
+          <div className="mb-4 p-3 rounded-xl bg-bg flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{t(lang, "yourId")}</div>
+              <div className="text-[22px] font-bold text-text tracking-wider font-mono">{user.tag}</div>
+              <div className="text-[11px] text-text-muted">{t(lang, "yourIdHint")}</div>
+            </div>
+            <button type="button"
+              onClick={() => { void navigator.clipboard?.writeText(user.tag ?? "").then(() => { setTagCopied(true); setTimeout(() => setTagCopied(false), 1500); }).catch(() => {}); }}
+              className="shrink-0 h-10 px-3 rounded-xl text-[13px] font-semibold cursor-pointer"
+              style={{ background: "var(--color-accent-soft)", color: "var(--color-accent-ink)" }}>
+              {tagCopied ? t(lang, "copied") : t(lang, "copy")}
+            </button>
+          </div>
+        )}
         <div className="space-y-3">
           <div>
             <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 block">{t(lang, "name")}</label>

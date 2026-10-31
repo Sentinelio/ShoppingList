@@ -29,7 +29,7 @@ import { useIsDesktop } from "../hooks/useIsDesktop";
 import { DesktopShell, TopBar, type NavGroup } from "../components/admin/desktop/DesktopShell";
 import UsersDesktop from "../components/admin/desktop/UsersDesktop";
 import ListsDesktop, { type BulkField } from "../components/admin/desktop/ListsDesktop";
-import { loadPeople, EMPTY_PEOPLE, type PeopleData } from "../lib/adminPeople";
+import { loadPeople, matchUsers, EMPTY_PEOPLE, type PeopleData } from "../lib/adminPeople";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
 import {
   ensureStorePhrasesLoaded,
@@ -72,6 +72,7 @@ interface UserRow {
   country: string;
   created_at: string;
   last_seen_at: string | null;
+  tag?: string;
 }
 
 interface ListRow {
@@ -1090,8 +1091,7 @@ export default function AdminPage() {
   const lastRun = ciRuns[0];
   const norm = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const usersFiltered = useMemo(() => {
-    const q = norm(usersQuery.trim());
-    const rows = users.filter(u => !q || norm(`${u.name} ${u.lang} ${u.country}`).includes(q));
+    const rows = matchUsers(users, usersQuery);
     const time = (v?: string | null) => (v ? new Date(v).getTime() : 0);
     return [...rows].sort((a, b) =>
       usersSort === "name" ? a.name.localeCompare(b.name)
@@ -2123,7 +2123,7 @@ export default function AdminPage() {
               <p className="text-text-muted text-sm py-8 text-center">Connect Supabase to see users</p>
             ) : (
               <>
-                <SearchBox value={usersQuery} onChange={setUsersQuery} placeholder="Search name, language or country" />
+                <SearchBox value={usersQuery} onChange={setUsersQuery} placeholder="Search name, ID, language or country" />
                 <Chips value={usersSort} onChange={setUsersSort} options={[
                   { id: "seen", label: "Recently seen" }, { id: "recent", label: "Newest" }, { id: "name", label: "Name" },
                 ]} />
@@ -2140,7 +2140,7 @@ export default function AdminPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-sm truncate">{u.name}</div>
-                          <div className="text-text-muted text-xs truncate">{langFlag} {u.lang} · {flag} {u.country}</div>
+                          <div className="text-text-muted text-xs truncate"><code className="tracking-wider">{u.tag ?? "—"}</code> · {langFlag} {u.lang} · {flag} {u.country}</div>
                           <div className="text-text-muted text-[10px]">
                             Joined: {new Date(u.created_at).toLocaleDateString()}
                             {u.last_seen_at && <> · Seen: {(() => {

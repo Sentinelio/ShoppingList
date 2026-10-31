@@ -168,6 +168,8 @@ export interface User {
   lang: string;
   country: string;
   avatar_color: string;
+  /** Public ID ("K7M-2QX"), set by the server, never changes. */
+  tag?: string;
   is_admin?: boolean;
   created_at: string;
   last_seen_at: string | null;

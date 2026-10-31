@@ -9,6 +9,7 @@ export interface PUser {
   name: string;
   lang: string;
   country: string;
+  tag?: string;
   is_admin?: boolean;
   avatar_color?: string;
   created_at: string;
@@ -57,7 +58,7 @@ export async function loadPeople(): Promise<PeopleData> {
   if (IS_DEMO) return EMPTY_PEOPLE;
   const fail = (what: string) => (err: unknown) => { reportAdminError(`Load ${what}`, err); return [] as never[]; };
   const [users, lists, members, items] = await Promise.all([
-    pb.collection("users").getFullList<PUser>({ sort: "-created_at", fields: "id,name,lang,country,is_admin,avatar_color,created_at,last_seen_at" }).catch(fail("users")),
+    pb.collection("users").getFullList<PUser>({ sort: "-created_at", fields: "id,name,lang,country,tag,is_admin,avatar_color,created_at,last_seen_at" }).catch(fail("users")),
     pb.collection("lists").getFullList<PList>({ sort: "-created_at" }).catch(fail("lists")),
     pb.collection("list_members").getFullList<PMember>({ fields: "list_id,user_id,role,status" }).catch(fail("members")),
     pb.collection("items").getFullList<{ list_id: string; checked: boolean; unavailable?: boolean; created_at: string }>({
@@ -74,6 +75,26 @@ export async function loadPeople(): Promise<PeopleData> {
     if (!s.lastAdded || i.created_at > s.lastAdded) s.lastAdded = i.created_at;
   }
   return { users, lists, members, itemsByList };
+}
+
+// "k7m2qx", "K7M-2QX", " k7m 2qx " → "K7M2QX" (tags are stored as "K7M-2QX").
+export function normTag(v: string): string {
+  return v.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+// Users matching a free-text query. An exact ID returns only that user.
+export function matchUsers<T extends { name: string; lang: string; country: string; tag?: string }>(users: T[], query: string): T[] {
+  const q = query.trim();
+  if (!q) return users;
+  const asTag = normTag(q);
+  if (asTag.length === 6) {
+    const exact = users.filter(u => u.tag && normTag(u.tag) === asTag);
+    if (exact.length) return exact;
+  }
+  const n = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const nq = n(q);
+  return users.filter(u => n(`${u.name} ${u.lang} ${u.country} ${u.tag ?? ""}`).includes(nq)
+    || (asTag.length >= 3 && !!u.tag && normTag(u.tag).includes(asTag)));
 }
 
 export function timeAgo(iso: string | null | undefined): string {

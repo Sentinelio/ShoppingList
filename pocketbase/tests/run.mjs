@@ -188,6 +188,30 @@ const D = await newUser("Dani (pending)");
 let list, item;
 
 section("Users & admin flag");
+await test("every new user gets a unique public ID (tag)", async () => {
+  const TAG = /^[2-9A-HJ-NP-Z]{3}-[2-9A-HJ-NP-Z]{3}$/;
+  const tags = [];
+  for (const u of [A, B, C, D]) {
+    const r = await u.pb.collection("users").getOne(u.id);
+    assert(TAG.test(r.tag), `bad tag '${r.tag}'`);
+    tags.push(r.tag);
+  }
+  eq(new Set(tags).size, tags.length, "tags unique");
+});
+await test("a tag sent on sign-up is ignored", async () => {
+  const pb = new PocketBase(URL_);
+  const email = `${randomUUID()}@babelcart.test`;
+  const password = randomBytes(24).toString("base64url");
+  const rec = await pb.collection("users").create({ email, password, passwordConfirm: password, name: "Tag forger", lang: "es", country: "ES", tag: "AAA-AAA" });
+  created.users.push({ id: rec.id, email, password });
+  assert(rec.tag && rec.tag !== "AAA-AAA", "client chose its own tag");
+});
+await test("nobody can change a tag", async () => {
+  const before = (await A.pb.collection("users").getOne(A.id)).tag;
+  await rejects(A.pb.collection("users").update(A.id, { tag: "ZZZ-ZZZ" }), [400, 403], "own tag change");
+  if (su.authStore.isValid) await rejects(su.collection("users").update(A.id, { tag: "ZZZ-ZZZ" }), [400, 403], "superuser tag change");
+  eq((await A.pb.collection("users").getOne(A.id)).tag, before, "tag unchanged");
+});
 await test("each user lists only themselves", async () => {
   const rows = await A.pb.collection("users").getFullList();
   eq(rows.map((r) => r.id), [A.id], "users list");

@@ -3,11 +3,10 @@ import DataTable, { type Column } from "./DataTable";
 import { TopBar, TableSearch, FilterSelect, SidePanel, Pill } from "./DesktopShell";
 import { ALL_LANGUAGES } from "../../../data/allLanguages";
 import { getCountries } from "../../../data/countries";
-import { timeAgo, timeValue, type PeopleData, type PMember, type PUser } from "../../../lib/adminPeople";
+import { matchUsers, timeAgo, timeValue, type PeopleData, type PMember, type PUser } from "../../../lib/adminPeople";
 
 const flagOfCountry = (code: string) => getCountries().find(c => c.code === code)?.flag ?? "🌍";
 const flagOfLang = (code: string) => ALL_LANGUAGES.find(l => l.code === code)?.flag ?? "";
-const norm = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export default function UsersDesktop({ data, onDelete, onOpenList }: {
   data: PeopleData;
@@ -29,11 +28,7 @@ export default function UsersDesktop({ data, onDelete, onOpenList }: {
   const activeLists = (u: PUser) => (listsOf[u.id] ?? []).filter(m => m.status === "active").length;
 
   const rows = useMemo(() => {
-    const q = norm(query.trim());
-    return data.users.filter(u =>
-      (!q || norm(`${u.name} ${u.lang} ${u.country}`).includes(q))
-      && (!country || u.country === country)
-      && (!lang || u.lang === lang));
+    return matchUsers(data.users, query).filter(u => (!country || u.country === country) && (!lang || u.lang === lang));
   }, [data.users, query, country, lang]);
 
   const countries = [...new Set(data.users.map(u => u.country).filter(Boolean))].sort();
@@ -51,6 +46,7 @@ export default function UsersDesktop({ data, onDelete, onOpenList }: {
         {timeValue(u.created_at) > weekAgo && <Pill tone="accent">new</Pill>}
       </span>
     ) },
+    { key: "tag", header: "ID", sortValue: u => u.tag ?? "", render: u => <code className="text-[12px] text-text-soft tracking-wider">{u.tag ?? "—"}</code> },
     { key: "lang", header: "Language", sortValue: u => u.lang, render: u => <span>{flagOfLang(u.lang)} {u.lang}</span> },
     { key: "country", header: "Country", sortValue: u => u.country, render: u => <span>{flagOfCountry(u.country)} {u.country}</span> },
     { key: "lists", header: "Lists", align: "right", sortValue: u => activeLists(u), render: u => activeLists(u) },
@@ -64,7 +60,7 @@ export default function UsersDesktop({ data, onDelete, onOpenList }: {
   return (
     <div className={open ? "pr-[400px]" : undefined}>
       <TopBar title="Users" subtitle={rows.length === data.users.length ? `${data.users.length} users` : `${rows.length} of ${data.users.length} users`}>
-        <TableSearch value={query} onChange={setQuery} placeholder="Search name, language or country" />
+        <TableSearch value={query} onChange={setQuery} placeholder="Search name, ID, language or country" />
         <FilterSelect label="Country" value={country} onChange={setCountry}
           options={[{ value: "", label: "All countries" }, ...countries.map(c => ({ value: c, label: `${flagOfCountry(c)} ${c}` }))]} />
         <FilterSelect label="Language" value={lang} onChange={setLang}
@@ -75,7 +71,7 @@ export default function UsersDesktop({ data, onDelete, onOpenList }: {
         initialSort={{ key: "seen", dir: "desc" }} empty="No users match." />
 
       {open && (
-        <SidePanel title={open.name} subtitle={`${flagOfLang(open.lang)} ${open.lang} · ${flagOfCountry(open.country)} ${open.country}`} onClose={() => setOpenId(null)}>
+        <SidePanel title={open.name} subtitle={`ID ${open.tag ?? "—"} · ${flagOfLang(open.lang)} ${open.lang} · ${flagOfCountry(open.country)} ${open.country}`} onClose={() => setOpenId(null)}>
           <dl className="grid grid-cols-[110px_1fr] gap-y-2 text-[13px] mb-5">
             <dt className="text-text-muted">Joined</dt><dd className="text-text">{new Date(open.created_at).toLocaleString()}</dd>
             <dt className="text-text-muted">Last seen</dt><dd className="text-text">{timeAgo(open.last_seen_at)}</dd>

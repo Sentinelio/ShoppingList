@@ -203,6 +203,9 @@ export const strings = {
     "installStep1": "Tap Share in Safari's bar",
     "installStep2": "Choose “Add to Home Screen”",
     "installStep3": "Tap “Add”",
+    "yourId": "Your ID",
+    "yourIdHint": "Give it to someone who needs to find you; it never changes.",
+    "copy": "Copy",
   },
   es: {
     "welcome": "Bienvenido",
@@ -404,6 +407,9 @@ export const strings = {
     "installStep1": "Toca Compartir en la barra de Safari",
     "installStep2": "Elige «Añadir a pantalla de inicio»",
     "installStep3": "Pulsa «Añadir»",
+    "yourId": "Tu ID",
+    "yourIdHint": "Dáselo a quien necesite encontrarte; nunca cambia.",
+    "copy": "Copiar",
   },
   pl: {
     "welcome": "Witaj",
@@ -605,6 +611,9 @@ export const strings = {
     "installStep1": "Dotknij Udostępnij na pasku Safari",
     "installStep2": "Wybierz „Do ekranu początkowego”",
     "installStep3": "Dotknij „Dodaj”",
+    "yourId": "Twój ID",
+    "yourIdHint": "Podaj go komuś, kto musi cię znaleźć; nigdy się nie zmienia.",
+    "copy": "Kopiuj",
   },
 } as const;
 
