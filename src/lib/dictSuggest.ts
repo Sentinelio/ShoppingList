@@ -11,6 +11,8 @@ export interface DictSuggestion {
   key: string;                         // canonical english/original text
   translations: Record<string, string>; // language code → localized name
   category: string;
+  /** Store type of the entry ("grocery", "hardware"…); grocery ranks first. */
+  storeType?: string;
   /** Lowercased, accent-stripped concatenation of all language values — used
    *  for the substring match. Never shown to the user. */
   haystack: string;
@@ -45,6 +47,7 @@ function localEntryToSuggestion(e: DictEntry): DictSuggestion {
     key,
     translations: tr,
     category: e.cat,
+    storeType: "grocery",
     haystack: buildHaystack(tr),
   };
 }
@@ -53,9 +56,9 @@ async function fetchRemoteDict(): Promise<DictSuggestion[]> {
   if (IS_DEMO) return [];
   const all: DictSuggestion[] = [];
   try {
-    const data = await pb.collection("dictionary").getFullList<{ key: string; translations: Record<string, string>; category: string }>({
+    const data = await pb.collection("dictionary").getFullList<{ key: string; translations: Record<string, string>; category: string; store_type?: string }>({
       batch: 1000,
-      fields: "key,translations,category",
+      fields: "key,translations,category,store_type",
     });
     for (const row of data) {
       const translations = row.translations || {};
@@ -63,6 +66,7 @@ async function fetchRemoteDict(): Promise<DictSuggestion[]> {
         key: row.key,
         translations,
         category: row.category,
+        storeType: row.store_type || "grocery",
         haystack: buildHaystack(translations),
       });
     }
@@ -109,15 +113,16 @@ export function invalidateDictionaryCache(): void {
 }
 
 /** Tier of `entry` for the normalized query `q` (lower is better), or -1
- *  when it doesn't match at all. The user's own language comes first:
+ *  when it doesn't match. The user's own language comes first, and only
+ *  names (or words of them) that START with the query count:
  *    0. exact match in `userLang`
  *    1. exact match in another language ("por" → leek, pl "por")
  *    2. the name in `userLang` starts with the query
  *    3. a word of the name in `userLang` starts with the query
- *    4. the name in `userLang` contains the query
- *    5. a name in another language, or one of its words, starts with it
- *    6. any translation contains the query
- *  so typing "sal" lists sal, salmón, salchicha… before perejil (pt "salsa"). */
+ *    4. a name in another language, or one of its words, starts with it
+ *    5. contained mid-word ("tur" in "pintura") — only used when nothing
+ *       else matched and the query has 4+ letters (see rank()).
+ *  So "tur" → turrón, turkey; not pintura or luz nocturna. */
 function matchTier(entry: DictSuggestion, q: string, userLang: string): number {
   if (!entry.haystack.includes(q)) return -1;
   const mine = entry.translations[userLang] ? normalize(entry.translations[userLang]) : "";
@@ -127,9 +132,8 @@ function matchTier(entry: DictSuggestion, q: string, userLang: string): number {
   if (names.some(n => n === q)) return 1;
   if (mine.startsWith(q)) return 2;
   if (mine && wordStarts(mine)) return 3;
-  if (mine.includes(q)) return 4;
-  if (names.some(n => n.startsWith(q) || wordStarts(n))) return 5;
-  return 6;
+  if (names.some(n => n.startsWith(q) || wordStarts(n))) return 4;
+  return 5;
 }
 
 // Which language's name matched `q` best (exact, starts, a word starts,
@@ -153,12 +157,19 @@ function matchedLang(entry: DictSuggestion, q: string, userLang: string): { lang
 function rank(entries: DictSuggestion[], query: string, userLang: string, limit: number): DictSuggestion[] {
   const q = normalize(query).trim();
   if (q.length < 2) return [];
-  const tiers: DictSuggestion[][] = [[], [], [], [], [], [], []];
+  const tiers: DictSuggestion[][] = [[], [], [], [], [], []];
   for (const entry of entries) {
     const tier = matchTier(entry, q, userLang);
     if (tier >= 0) tiers[tier].push(entry);
   }
-  return tiers.flat().slice(0, limit).map(e => {
+  // Within a tier, supermarket products before hardware, pharmacy…
+  // (sort is stable, so the dictionary order is kept otherwise).
+  const nonGrocery = (e: DictSuggestion) => (e.storeType && e.storeType !== "grocery" ? 1 : 0);
+  for (const tier of tiers) tier.sort((a, b) => nonGrocery(a) - nonGrocery(b));
+  // Mid-word matches are noise unless nothing starts with the query.
+  const starts = tiers.slice(0, 5).flat();
+  const pool = starts.length > 0 || q.length < 4 ? starts : tiers[5];
+  return pool.slice(0, limit).map(e => {
     const m = matchedLang(e, q, userLang);
     return { ...e, matchLang: m.lang, exact: m.exact };
   });
