@@ -3,7 +3,8 @@ import { t } from "../../data/i18n";
 import { LANGS } from "../../data/langs";
 import { getCountries } from "../../data/countries";
 import { ALWAYS_ON_PREFS, OPTIONAL_PREFS } from "../../lib/notifications";
-import type { User } from "../../lib/pocketbase";
+import { IS_DEMO, IS_SERVER_COPY, SERVER_APP_URL, type User } from "../../lib/pocketbase";
+import { openOnServer } from "../../lib/sessionTransfer";
 import { IconBack } from "../ui/icons";
 
 type Updates = Partial<Pick<User, "name" | "lang" | "country" | "notification_prefs">>;
@@ -19,6 +20,7 @@ export default function ProfilePage({ lang, user, onBack, onUpdate, onLogout }: 
 }) {
   const [name, setName] = useState(user.name ?? "");
   const [copied, setCopied] = useState(false);
+  const [moving, setMoving] = useState<"idle" | "busy" | "error">("idle");
   const prefs = user.notification_prefs ?? {};
   const label = "text-[11px] font-bold text-text-muted uppercase tracking-widest mb-1.5 block";
   const field = "w-full py-3 px-4 bg-card border border-border-light rounded-xl text-text text-[16px] outline-none focus:border-accent";
@@ -100,6 +102,25 @@ export default function ProfilePage({ lang, user, onBack, onUpdate, onLogout }: 
             ))}
           </div>
         </section>
+
+        {/* GitHub Pages → the server's own copy, which works with Tailscale on. */}
+        {!IS_DEMO && !IS_SERVER_COPY && SERVER_APP_URL && (
+          <section>
+            <h2 className={label}>{t(lang, "openOnServer")}</h2>
+            <p className="text-[13px] text-text-muted mb-2">{t(lang, "openOnServerHint")}</p>
+            <button type="button" disabled={moving === "busy"}
+              onClick={async () => {
+                setMoving("busy");
+                try { await openOnServer(); } catch (err) { console.error("[openOnServer]", err); setMoving("error"); }
+              }}
+              className="w-full h-12 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--color-accent-soft)", color: "var(--color-accent-ink)" }}>
+              {moving === "busy" ? "…" : `↗ ${t(lang, "openOnServer")}`}
+            </button>
+            {moving === "error" && <p className="text-[12px] mt-2" style={{ color: "var(--color-danger)" }}>{t(lang, "openOnServerError")}</p>}
+            <p className="text-[11px] text-text-muted mt-2 break-all">{SERVER_APP_URL}</p>
+          </section>
+        )}
 
         <section className="p-3 rounded-xl" style={{ background: "color-mix(in srgb, var(--color-danger) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-danger) 15%, transparent)" }}>
           <button onClick={onLogout}

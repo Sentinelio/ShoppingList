@@ -23,3 +23,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Server copy of the app (pocketbase/deploy-app.ps1)
+dist-server

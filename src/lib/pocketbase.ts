@@ -1,6 +1,18 @@
 import PocketBase, { ClientResponseError, type RecordModel, type RecordSubscription } from 'pocketbase';
 
-const pbUrl = (import.meta.env.VITE_PB_URL as string | undefined) ?? '';
+// VITE_PB_URL: the server's address, or "same-origin" for the copy of the
+// app the server serves itself (pb_public/ShoppingList, deploy-app.ps1):
+// app and API on one address, which browsers don't block when Tailscale is
+// on (the server then has a private 100.x address).
+const rawPbUrl = (import.meta.env.VITE_PB_URL as string | undefined) ?? '';
+export const IS_SERVER_COPY = rawPbUrl === 'same-origin';
+const pbUrl = IS_SERVER_COPY ? window.location.origin : rawPbUrl;
+
+/** Where the server serves the app (e.g. https://server…/ShoppingList/). */
+export const SERVER_APP_URL = pbUrl ? `${pbUrl.replace(/\/$/, '')}${import.meta.env.BASE_URL}` : '';
+
+/** This device's saved credentials (random, app-generated). */
+export const CREDS_KEY = 'babelcart_pb_credentials';
 
 // Demo mode: no real backend connection
 export const IS_DEMO = !pbUrl || pbUrl.includes('placeholder');

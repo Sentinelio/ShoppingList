@@ -235,6 +235,12 @@ export const strings = {
     "addFailed": "Couldn't add it",
     "listsLoadFailed": "Couldn't load your lists",
     "listsLoadFailedHint": "They're still there: check your connection and try again.",
+    "openOnServer": "Open on the server",
+    "openOnServerHint": "The same app, served by the server itself: it works with Tailscale on. You keep your account and lists (nothing new is created). Bookmark or add the new address to the Home Screen.",
+    "openOnServerError": "Couldn't reach the server. Try again in a moment.",
+    "transferFailed": "This link no longer works.",
+    "transferFailedHint": "It works once and only for 5 minutes. Open the app at the address you used before, go to Settings and tap “Open on the server” again.",
+    "transferContinue": "Continue without an account",
   },
   es: {
     "welcome": "Bienvenido",
@@ -468,6 +474,12 @@ export const strings = {
     "addFailed": "No se pudo añadir",
     "listsLoadFailed": "No se pudieron cargar tus listas",
     "listsLoadFailedHint": "Siguen ahí: revisa la conexión y vuelve a intentarlo.",
+    "openOnServer": "Abrir en el servidor",
+    "openOnServerHint": "La misma app, servida por el propio servidor: funciona con Tailscale encendido. Mantienes tu cuenta y tus listas (no se crea nada nuevo). Guarda la nueva dirección en marcadores o añádela a la pantalla de inicio.",
+    "openOnServerError": "No se pudo contactar con el servidor. Inténtalo de nuevo en un momento.",
+    "transferFailed": "Este enlace ya no funciona.",
+    "transferFailedHint": "Sirve una sola vez y durante 5 minutos. Abre la app en la dirección que usabas, ve a Ajustes y pulsa otra vez «Abrir en el servidor».",
+    "transferContinue": "Continuar sin cuenta",
   },
   pl: {
     "welcome": "Witaj",
@@ -701,6 +713,12 @@ export const strings = {
     "addFailed": "Nie udało się dodać",
     "listsLoadFailed": "Nie udało się wczytać twoich list",
     "listsLoadFailedHint": "Nadal tam są: sprawdź połączenie i spróbuj ponownie.",
+    "openOnServer": "Otwórz na serwerze",
+    "openOnServerHint": "Ta sama aplikacja, serwowana przez sam serwer: działa z włączonym Tailscale. Zachowujesz konto i listy (nic nowego nie powstaje). Dodaj nowy adres do zakładek lub ekranu początkowego.",
+    "openOnServerError": "Nie udało się połączyć z serwerem. Spróbuj za chwilę.",
+    "transferFailed": "Ten link już nie działa.",
+    "transferFailedHint": "Działa raz i tylko przez 5 minut. Otwórz aplikację pod adresem, którego używałeś, wejdź w Ustawienia i ponownie dotknij „Otwórz na serwerze”.",
+    "transferContinue": "Kontynuuj bez konta",
   },
 } as const;
 

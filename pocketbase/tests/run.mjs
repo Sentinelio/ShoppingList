@@ -842,6 +842,44 @@ section("Notifications");
   });
 }
 
+section("Session transfer (one-time code)");
+{
+  const credsOf = (u) => created.users.find((c) => c.id === u.id);
+  const anon = new PocketBase(URL_);
+  await test("creating a code needs a session and this account's own credentials", async () => {
+    const a = credsOf(A);
+    await rejects(anon.send("/api/babelcart/transfer/create", { method: "POST", body: a }), [401], "anonymous");
+    await rejects(A.pb.send("/api/babelcart/transfer/create", { method: "POST", body: { email: a.email, password: "wrong" } }), [400], "wrong password");
+    await rejects(B.pb.send("/api/babelcart/transfer/create", { method: "POST", body: { email: a.email, password: a.password } }), [400], "someone else's credentials");
+  });
+  await test("a code gives back the credentials once", async () => {
+    const a = credsOf(A);
+    const { code } = await A.pb.send("/api/babelcart/transfer/create", { method: "POST", body: { email: a.email, password: a.password } });
+    assert(/^[2-9A-HJ-NP-Z]{8}$/.test(code), `bad code '${code}'`);
+    const got = await anon.send("/api/babelcart/transfer/redeem", { method: "POST", body: { code: code.toLowerCase() } });
+    eq([got.email, got.password], [a.email, a.password], "credentials");
+    await rejects(anon.send("/api/babelcart/transfer/redeem", { method: "POST", body: { code } }), [404], "second use");
+  });
+  await test("a new code replaces the pending one; nobody can read the table", async () => {
+    const a = credsOf(A);
+    const first = await A.pb.send("/api/babelcart/transfer/create", { method: "POST", body: { email: a.email, password: a.password } });
+    const second = await A.pb.send("/api/babelcart/transfer/create", { method: "POST", body: { email: a.email, password: a.password } });
+    await rejects(anon.send("/api/babelcart/transfer/redeem", { method: "POST", body: { code: first.code } }), [404], "replaced code");
+    await rejects(A.pb.collection("session_transfers").getFullList(), [400, 403, 404], "list transfers");
+    await anon.send("/api/babelcart/transfer/redeem", { method: "POST", body: { code: second.code } });
+  });
+  if (su.authStore.isValid) {
+    await test("an expired code doesn't work (and is gone)", async () => {
+      const a = credsOf(A);
+      const { code } = await A.pb.send("/api/babelcart/transfer/create", { method: "POST", body: { email: a.email, password: a.password } });
+      const row = await su.collection("session_transfers").getFirstListItem(su.filter("code = {:c}", { c: code }));
+      await su.collection("session_transfers").update(row.id, { expires_at: "2020-01-01 00:00:00.000Z" });
+      await rejects(anon.send("/api/babelcart/transfer/redeem", { method: "POST", body: { code } }), [400], "expired");
+      await rejects(anon.send("/api/babelcart/transfer/redeem", { method: "POST", body: { code } }), [404], "deleted after");
+    });
+  }
+}
+
 section("Deleting");
 await test("non-owner can't delete the list", async () => {
   await rejects(B.pb.collection("lists").delete(list.id), [400, 403, 404], "member deletes list");

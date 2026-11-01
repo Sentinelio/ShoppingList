@@ -9,7 +9,7 @@ import {
 } from "react";
 import { createElement } from "react";
 import { isTokenExpired } from "pocketbase";
-import { pb, IS_DEMO, type User } from "../lib/pocketbase";
+import { pb, IS_DEMO, CREDS_KEY, type User } from "../lib/pocketbase";
 import { demoCreateUser, demoGetUser, demoUpdateUser } from "../lib/demoStore";
 import { getCountryLang } from "../data/countries";
 import { isNetworkError, isRejectedCredentials } from "../lib/netError";
@@ -20,7 +20,6 @@ const STORAGE_KEY = "polyglot_user_id";
 // Real mode: invisible PocketBase account. The first launch creates a user
 // with a random email/password; both stay in localStorage and are reused to
 // sign in on every later launch. The person never sees any of it.
-const CREDS_KEY = "babelcart_pb_credentials";
 
 interface Credentials { email: string; password: string }
 

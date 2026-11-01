@@ -6,6 +6,8 @@ import { AuthProvider } from './hooks/useAuth'
 import { initThemes } from './lib/themeStore'
 import { loadRemoteConfig } from './lib/appConfigStore'
 import { startLiveConfig } from './lib/liveConfig'
+import { redeemTransferFromUrl } from './lib/sessionTransfer'
+import TransferFailed from './components/setup/TransferFailed'
 import { polyfillCountryFlagEmojis } from 'country-flag-emoji-polyfill'
 import flagFontUrl from 'country-flag-emoji-polyfill/dist/TwemojiCountryFlags.woff2?url'
 
@@ -29,17 +31,24 @@ const remoteConfig = Promise.race([
   new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2000)),
 ])
 
-remoteConfig.finally(() => {
+// Arriving from "Open on the server" (#transfer=CODE): take this device's
+// session over before signing in, so no second account gets created.
+const transfer = redeemTransferFromUrl()
+
+Promise.all([remoteConfig.catch(() => false), transfer]).then(([, transferResult]) => {
   // Inject per-view theme CSS variables onto <html> before first render so
   // the initial paint already uses the admin's chosen themes.
   initThemes()
-  createRoot(document.getElementById('root')!).render(
+  const root = createRoot(document.getElementById('root')!)
+  const startApp = () => root.render(
     <StrictMode>
       <AuthProvider>
         <App />
       </AuthProvider>
     </StrictMode>,
   )
+  if (transferResult === 'failed') root.render(<TransferFailed onContinue={startApp} />)
+  else startApp()
   // From here on, admin changes arrive by realtime / when the tab returns.
   startLiveConfig()
 })
