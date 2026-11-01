@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { pb, IS_DEMO, callRoute, subscribe, toError, type List, type ListMember, type Item, type User } from "../lib/pocketbase";
 import { getAllLocallyImportant } from "../lib/importantStore";
+import { useRefreshOnReturn } from "./useRefreshOnReturn";
 import {
   demoGetLists, demoCreateList, demoGetList, demoJoinList,
   demoDeleteList, demoLeaveList, demoGetMembers, demoGetItems, onDemoChange,
@@ -63,6 +64,9 @@ async function deleteMemberRow(listId: string, userId: string): Promise<void> {
 export function useLists(userId: string | undefined) {
   const [lists, setLists] = useState<List[]>([]);
   const [loading, setLoading] = useState(true);
+  // A failed load keeps the lists already shown; with none, the page says
+  // it couldn't load them (it used to say "you have no lists").
+  const [error, setError] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!userId) {
@@ -84,13 +88,19 @@ export function useLists(userId: string | undefined) {
     // admin's home showed everyone's lists, where adding items then failed
     // (items' create rule needs membership).
     try {
+      // Without a valid session the server answers as a guest: zero lists,
+      // no error. Don't take that as "no lists" (useAuth renews the session
+      // and this reloads on the new token).
+      if (!pb.authStore.isValid) throw new Error("session expired");
       const fetched = await pb.collection("lists").getFullList<List>({
         sort: "created_at",
         filter: pb.filter("active_members.id ?= {:user}", { user: userId }),
       });
       setLists(fetched);
+      setError(false);
     } catch (err) {
       console.error("[useLists]", err);
+      setError(true);
     }
 
     setLoading(false);
@@ -106,7 +116,9 @@ export function useLists(userId: string | undefined) {
     return onDemoChange(refresh);
   }, [refresh]);
 
-  return { lists, loading, refresh };
+  useRefreshOnReturn(refresh);
+
+  return { lists, loading, error, refresh };
 }
 
 // ── useMyPendingRequests ────────────────────────────────
@@ -271,6 +283,8 @@ export function useListDetail(listId: string | undefined) {
       },
     );
   }, [listId]);
+
+  useRefreshOnReturn(refresh);
 
   return { list, setList, members, setMembers, items, setItems, loading, refresh };
 }

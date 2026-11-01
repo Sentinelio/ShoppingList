@@ -36,9 +36,14 @@ const newest = (a: string | null, b: string | null | undefined) => (!b ? a : !a 
 // where I'm an active member).
 export function useListsOverview(lists: List[], userId: string | undefined) {
   const [overview, setOverview] = useState<ListOverview[]>([]);
+  // Which lists the overview was built for: until it matches the current
+  // lists, "Mis listas" keeps showing "loading" (it used to flash "you
+  // have no lists" while members and items were still loading).
+  const [builtFor, setBuiltFor] = useState<string | null>(null);
+  const listsKey = lists.map(l => l.id).join(",");
 
   const load = useCallback(async () => {
-    if (!userId) { setOverview([]); return; }
+    if (!userId) { setOverview([]); setBuiltFor(listsKey); return; }
     if (IS_DEMO) {
       setOverview(lists.map(list => {
         const items = demoGetItems(list.id);
@@ -51,9 +56,10 @@ export function useListsOverview(lists: List[], userId: string | undefined) {
           lastUsed: items.reduce<string | null>((acc, i) => newest(acc, i.created_at), null),
         };
       }));
+      setBuiltFor(listsKey);
       return;
     }
-    if (lists.length === 0) { setOverview([]); return; }
+    if (lists.length === 0) { setOverview([]); setBuiltFor(listsKey); return; }
 
     const [membersRes, itemsRes] = await Promise.allSettled([
       pb.collection("list_members").getFullList<MemberRow>({
@@ -84,11 +90,12 @@ export function useListsOverview(lists: List[], userId: string | undefined) {
         lastUsed,
       };
     }));
-  }, [lists, userId]);
+    setBuiltFor(listsKey);
+  }, [lists, userId, listsKey]);
 
   useEffect(() => { void load(); }, [load]);
 
-  return { overview, reload: load, setOverview };
+  return { overview, ready: builtFor === listsKey, reload: load, setOverview };
 }
 
 /** "hace 2 h" / "2 hours ago" / "2 godziny temu", in the person's language. */

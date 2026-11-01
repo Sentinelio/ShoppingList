@@ -233,6 +233,8 @@ export const strings = {
     "added": "added",
     "undo": "Undo",
     "addFailed": "Couldn't add it",
+    "listsLoadFailed": "Couldn't load your lists",
+    "listsLoadFailedHint": "They're still there: check your connection and try again.",
   },
   es: {
     "welcome": "Bienvenido",
@@ -464,6 +466,8 @@ export const strings = {
     "added": "añadido",
     "undo": "Deshacer",
     "addFailed": "No se pudo añadir",
+    "listsLoadFailed": "No se pudieron cargar tus listas",
+    "listsLoadFailedHint": "Siguen ahí: revisa la conexión y vuelve a intentarlo.",
   },
   pl: {
     "welcome": "Witaj",
@@ -695,6 +699,8 @@ export const strings = {
     "added": "dodano",
     "undo": "Cofnij",
     "addFailed": "Nie udało się dodać",
+    "listsLoadFailed": "Nie udało się wczytać twoich list",
+    "listsLoadFailedHint": "Nadal tam są: sprawdź połączenie i spróbuj ponownie.",
   },
 } as const;
 

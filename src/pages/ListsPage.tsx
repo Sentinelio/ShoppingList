@@ -28,7 +28,7 @@ export default function ListsPage({ view, onNavigate }: ListsPageProps) {
   const { user, updateUser, logout } = useAuth();
   const lang = (user?.lang ?? "en") as Lang;
   useThemeView("lists");
-  const { lists, loading, refresh } = useLists(user?.id);
+  const { lists, loading, error: listsError, refresh } = useLists(user?.id);
   const { requests: pendingRequests, refresh: refreshPending } = useMyPendingRequests(user?.id);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -43,7 +43,7 @@ export default function ListsPage({ view, onNavigate }: ListsPageProps) {
   const notif = useNotifications(user?.id);
   const home = { page: "lists" as const, view: "home" as const };
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const { overview, reload, setOverview } = useListsOverview(lists, user?.id);
+  const { overview, ready: overviewReady, reload, setOverview } = useListsOverview(lists, user?.id);
 
   const handleCreated = (listId: string) => {
     refresh();
@@ -226,7 +226,18 @@ export default function ListsPage({ view, onNavigate }: ListsPageProps) {
       </header>
 
       <main className="flex-1 overflow-y-auto px-3 pb-28">
-        {loading ? (
+        {listsError && lists.length === 0 && !loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+            <div className="text-[44px] opacity-60 mb-3">📡</div>
+            <p className="text-text font-semibold text-lg mb-1">{t(lang, "listsLoadFailed")}</p>
+            <p className="text-text-muted text-sm max-w-[280px] mb-4">{t(lang, "listsLoadFailedHint")}</p>
+            <button type="button" onClick={() => refresh()}
+              className="h-11 px-5 rounded-xl text-[14px] font-bold cursor-pointer"
+              style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
+              {t(lang, "retry")}
+            </button>
+          </div>
+        ) : (loading && lists.length === 0) || !overviewReady ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-8 w-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
           </div>

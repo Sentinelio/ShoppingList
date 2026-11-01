@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createElement } from "react";
+import { isTokenExpired } from "pocketbase";
 import { pb, IS_DEMO, type User } from "../lib/pocketbase";
 import { demoCreateUser, demoGetUser, demoUpdateUser } from "../lib/demoStore";
 import { getCountryLang } from "../data/countries";
@@ -178,6 +179,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [user],
   );
+
+  // Keep the session alive. The token lasts 5 days and the app only signed
+  // in when it started: a phone keeps the page open for days, and with an
+  // expired token the server answers as a guest — "no lists", silently.
+  // Renew it when it has less than a day left (back to the app, back
+  // online, every 30 min); if it already expired, sign in again with the
+  // credentials saved on this device. Screens reload on the new token
+  // (useRefreshOnReturn).
+  useEffect(() => {
+    if (IS_DEMO || !user) return;
+    let busy = false;
+    const keepAlive = async () => {
+      const creds = readCreds();
+      if (busy || !creds || (pb.authStore.token && !isTokenExpired(pb.authStore.token, 24 * 3600))) return;
+      busy = true;
+      try {
+        if (pb.authStore.isValid) await pb.collection("users").authRefresh();
+        else await pb.collection("users").authWithPassword(creds.email, creds.password);
+      } catch (err) {
+        try {
+          await pb.collection("users").authWithPassword(creds.email, creds.password);
+        } catch (err2) {
+          console.error("[auth] could not renew the session", err, err2);
+        }
+      } finally {
+        busy = false;
+      }
+    };
+    void keepAlive();
+    const onVisible = () => { if (document.visibilityState === "visible") void keepAlive(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", keepAlive);
+    const timer = setInterval(keepAlive, 30 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", keepAlive);
+      clearInterval(timer);
+    };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- re-arm per account, not per profile edit
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
