@@ -4,16 +4,17 @@
 // list must satisfy the rules in src/lib/suggestRank.ts.
 //
 // Usage: npm run check:suggest -- [path/to/data.db]
-//   (default C:/pocketbase/pb_data/data.db, opened read-only)
+//   (default <repo>/Servidor/pb_data/data.db, the live server, opened read-only)
 
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 import {
   normalize, rankSuggestions, matchTier, exactSuggestion, shownName, otherNames,
   localToEntry, remoteToEntry, mergeEntries,
 } from "../src/lib/suggestRank.ts";
 import { LOCAL_DICTIONARY } from "../src/data/localDictionary.ts";
 
-const DB = process.argv[2] || "C:/pocketbase/pb_data/data.db";
+const DB = process.argv[2] || fileURLToPath(new URL("../Servidor/pb_data/data.db", import.meta.url));
 const USER_LANGS = ["es", "en", "pl"];
 const LIMIT = 8; // what the add sheet asks for
 

@@ -19,10 +19,10 @@ The frontend reaches it at `VITE_PB_URL` (`.env.production`:
 
 | What | Where |
 |---|---|
-| Binary | `C:\pocketbase\pocketbase.exe` (latest stable) |
+| Binary | `C:\MyProjects\ShoppingList\Servidor\pocketbase.exe` (latest stable). Moved from `C:\pocketbase` on 2026-11-02 (peticion 030); backups moved from `C:\BabelCart-backups` to `C:\MyProjects\ShoppingList\Copias`. Both folders are git-ignored. |
 | Service | NSSM service `PocketBase`, listening on `127.0.0.1:8090` |
-| Data | `C:\pocketbase\pb_data` (SQLite + uploaded files) |
-| Migrations / hooks | `C:\pocketbase\pb_migrations`, `C:\pocketbase\pb_hooks` (copied from this folder) |
+| Data | `C:\MyProjects\ShoppingList\Servidor\pb_data` (SQLite + uploaded files) |
+| Migrations / hooks | `C:\MyProjects\ShoppingList\Servidor\pb_migrations`, `C:\MyProjects\ShoppingList\Servidor\pb_hooks` (copied from this folder) |
 | Public API | Tailscale Funnel → `https://server-pc.tail3b4002.ts.net/api/` |
 | Dashboard | `https://server-pc.tail3b4002.ts.net:8445/_/` (Tailscale only) or `http://127.0.0.1:8090/_/` on the server |
 
@@ -179,14 +179,14 @@ error with `console.error`. The header dot pings `/api/health` every 30 s.
 
 1. Download the latest PocketBase for Windows (amd64) from
    <https://github.com/pocketbase/pocketbase/releases> and unzip
-   `pocketbase.exe` into `C:\pocketbase`.
+   `pocketbase.exe` into `C:\MyProjects\ShoppingList\Servidor`.
 2. Create the service (elevated PowerShell):
    ```powershell
-   nssm install PocketBase C:\pocketbase\pocketbase.exe serve --http=127.0.0.1:8090 --origins=https://sentinelio.github.io,http://localhost:5173
-   nssm set PocketBase AppDirectory C:\pocketbase
+   nssm install PocketBase C:\MyProjects\ShoppingList\Servidor\pocketbase.exe serve --http=127.0.0.1:8090 --origins=https://sentinelio.github.io,http://localhost:5173
+   nssm set PocketBase AppDirectory C:\MyProjects\ShoppingList\Servidor
    nssm set PocketBase AppEnvironmentExtra ANTHROPIC_API_KEY=sk-ant-...
-   nssm set PocketBase AppStdout C:\pocketbase\service.log
-   nssm set PocketBase AppStderr C:\pocketbase\service.log
+   nssm set PocketBase AppStdout C:\MyProjects\ShoppingList\Servidor\service.log
+   nssm set PocketBase AppStderr C:\MyProjects\ShoppingList\Servidor\service.log
    ```
 3. Publish only the API through the Funnel, next to the existing `/webhook`
    and `/health/public` handlers, and the dashboard on port 8445 for the
@@ -215,9 +215,9 @@ git pull
 .\pocketbase\deploy-server.ps1 -Reset     # first install / wipe all data
 ```
 
-The script stops the service, replaces `C:\pocketbase\pb_migrations` and
-`C:\pocketbase\pb_hooks` with the repo copies, (with `-Reset`) deletes
-`C:\pocketbase\pb_data`, starts the service and checks
+The script stops the service, replaces `C:\MyProjects\ShoppingList\Servidor\pb_migrations` and
+`C:\MyProjects\ShoppingList\Servidor\pb_hooks` with the repo copies, (with `-Reset`) deletes
+`C:\MyProjects\ShoppingList\Servidor\pb_data`, starts the service and checks
 `http://127.0.0.1:8090/api/health`. Pending migrations run on start.
 
 The first deploy **must** use `-Reset`: the earlier prototype
@@ -227,7 +227,7 @@ a different shape. The script refuses to deploy over it without `-Reset`.
 After `-Reset`, recreate the superuser:
 
 ```powershell
-C:\pocketbase\pocketbase.exe superuser upsert you@example.com "a-long-password" --dir C:\pocketbase\pb_data
+C:\MyProjects\ShoppingList\Servidor\pocketbase.exe superuser upsert you@example.com "a-long-password" --dir C:\MyProjects\ShoppingList\Servidor\pb_data
 ```
 
 ### Deploying without risking the data
@@ -236,19 +236,19 @@ The server holds real lists: **never** use `-Reset` on it, and migrations
 only **add** (new fields with defaults, new collections). For every backend
 change:
 
-1. Test on a **copy** first: copy `C:\pocketbase\pb_data` to a temp folder and
+1. Test on a **copy** first: copy `C:\MyProjects\ShoppingList\Servidor\pb_data` to a temp folder and
    run a second `pocketbase.exe` on `:8092` with this folder's migrations and
    hooks (`--dir`, `--migrationsDir`, `--hooksDir`, `BABELCART_DRY_RUN=1`).
    Compare record counts with the service and run
    `npm run test:pb -- --url http://127.0.0.1:8092 --dry-run --admin-email <a superuser of the copy>`.
 2. `nssm stop PocketBase`, copy `pb_data` to
-   `C:\BabelCart-backups\pb_data-YYYYMMDD-HHMM`, `nssm start PocketBase`,
+   `C:\MyProjects\ShoppingList\Copias\pb_data-YYYYMMDD-HHMM`, `nssm start PocketBase`,
    check `/api/health`.
 3. `.\pocketbase\deploy-server.ps1` (no `-Reset`), check `/api/health` and
    compare the counts of `users`, `lists`, `list_members`, `items` with step 2.
 4. Only then push the frontend (GitHub Actions publishes it to Pages).
 
-Restore a backup: stop the service, replace `C:\pocketbase\pb_data` with the
+Restore a backup: stop the service, replace `C:\MyProjects\ShoppingList\Servidor\pb_data` with the
 backup folder, start it. Backups taken so far:
 `pb_data-20261029-2202` (before 1792540002), `-2217` (before 1792540003),
 `-2305` (before 1792540004).
@@ -281,7 +281,7 @@ backup folder, start it. Backups taken so far:
 
 ```powershell
 # fresh local instance on :8091 with this folder's migrations/hooks, no Claude calls
-mkdir $env:TEMP\pbtest; copy C:\pocketbase\pocketbase.exe $env:TEMP\pbtest\
+mkdir $env:TEMP\pbtest; copy C:\MyProjects\ShoppingList\Servidor\pocketbase.exe $env:TEMP\pbtest\
 cd $env:TEMP\pbtest
 .\pocketbase.exe superuser upsert admin@test.local Test-Password-123 --dir .\pb_data
 $env:BABELCART_DRY_RUN = "1"

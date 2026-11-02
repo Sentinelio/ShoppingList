@@ -14,7 +14,7 @@
 
   Steps:
     1. npm run build with VITE_PB_URL=same-origin, into dist-server\
-    2. Mirror dist-server\ into C:\pocketbase\pb_public\ShoppingList\
+    2. Mirror dist-server\ into <repo>\Servidor\pb_public\ShoppingList\
        (only that folder; pb_data, hooks and migrations are not touched)
   PocketBase serves pb_public as it is: no restart, no Tailscale change.
 
@@ -23,7 +23,7 @@
 #>
 param(
   [switch]$SkipBuild,
-  [string]$PublicDir = "C:\pocketbase\pb_public",
+  [string]$PublicDir = (Join-Path (Split-Path $PSScriptRoot -Parent) "Servidor\pb_public"),
   [string]$AppUrl = "http://127.0.0.1:8090/ShoppingList/"
 )
 

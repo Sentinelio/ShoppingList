@@ -26,3 +26,10 @@ dist-ssr
 
 # Server copy of the app (pocketbase/deploy-app.ps1)
 dist-server
+
+# Local tests: tools, screenshots and a copy of real data (never commit)
+Pruebas/
+
+# Production PocketBase (service "PocketBase") and its backups: real data, never commit
+Servidor/
+Copias/

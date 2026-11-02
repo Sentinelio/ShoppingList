@@ -12,9 +12,9 @@
 
   Steps:
     1. nssm stop PocketBase
-    2. Replace C:\pocketbase\pb_migrations and C:\pocketbase\pb_hooks with
+    2. Replace <repo>\Servidor\pb_migrations and <repo>\Servidor\pb_hooks with
        the repo copies (both folders are emptied first)
-    3. -Reset only: delete C:\pocketbase\pb_data
+    3. -Reset only: delete <repo>\Servidor\pb_data
     4. nssm start PocketBase and wait for http://127.0.0.1:8090/api/health
   PocketBase applies pending migrations automatically when it starts.
 
@@ -28,7 +28,8 @@
 param(
   [switch]$Reset,
   [switch]$Force,
-  [string]$PbDir = "C:\pocketbase",
+  # The server lives in the project: <repo>\Servidor (moved from C:\pocketbase, peticion 030).
+  [string]$PbDir = (Join-Path (Split-Path $PSScriptRoot -Parent) "Servidor"),
   [string]$Service = "PocketBase",
   [string]$HealthUrl = "http://127.0.0.1:8090/api/health"
 )
