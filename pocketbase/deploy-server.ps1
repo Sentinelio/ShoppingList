@@ -47,8 +47,12 @@ $exe = Join-Path $PbDir "pocketbase.exe"
 function Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 
 # -- Sanity checks ----------------------------------------------------------
+# nssm: from PATH, else the copy next to the server (<PbDir>\nssm.exe, the one
+# the service runs from since the WinGet Links folder disappeared, 2026-11-09).
 if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {
-  throw "nssm not found in PATH."
+  $localNssm = Join-Path $PbDir "nssm.exe"
+  if (-not (Test-Path $localNssm)) { throw "nssm not found in PATH nor at $localNssm." }
+  Set-Alias -Name nssm -Value $localNssm -Scope Script
 }
 if (-not (Test-Path $exe)) { throw "$exe not found." }
 if (-not (Test-Path $srcMigrations) -or -not (Test-Path $srcHooks)) {
