@@ -22,9 +22,10 @@ Deadline for the mobile redesign: 2026-11-08.
   Tailscale route). Other NSSM services (Bazarr, bw-api, bw-ingress) point to existing nssm.exe files: not broken.
 
 ## Pendiente
-1. **Tailscale route** `/ShoppingList` → `http://127.0.0.1:8090/ShoppingList` (Manu runs it; never run Tailscale
-   commands). Live config differs from `C:\pocketbase\tailscale-serve-backup.json` (only /api is proxied).
-   Then push 87ef90a + e48e8f9 + the nssm/HANDOFF commit (all three together, not before) and test "Abrir en el servidor" with Tailscale on.
+1. Done 2026-11-10: Manu added the Tailscale route `/ShoppingList` → `http://127.0.0.1:8090/ShoppingList`.
+   Lesson: `tailscale serve ...` REMOVES Funnel on that port; always give Manu `tailscale funnel --bg ...` instead
+   (he restored it that way; all 443 paths public again). Commits 87ef90a, e48e8f9, 1609c07 pushed. Still to
+   check from outside the tailnet (phone on mobile data, Tailscale off) and to test "Abrir en el servidor" with Tailscale on.
 2. **iPhone (Marta) shows the app without CSS** — waiting for her tests (wait for load, reload, private tab,
    iOS version, content blockers). If it's a stale cache: add a self-reload when the stylesheet is missing.
 3. Proposed, waiting for Manu: Ajustes de la lista + Importar tique as pages; "Para otro momento"; habituales
