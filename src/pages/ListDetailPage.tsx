@@ -285,6 +285,10 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
 
   const showInStore = (item: Item) => {
     setStoreStartId(item.id);
+    // Leave the product's page first (back to the list entry), then swap that
+    // entry for the Store tab. go() waits for the back to land; doing it the
+    // other way round, the back undid the Store tab right after opening it.
+    goBack(listRoute);
     go({ page: "list", listId, tab: "store" }, { replace: true });
   };
 

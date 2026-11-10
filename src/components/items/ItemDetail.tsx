@@ -378,7 +378,7 @@ export default function ItemDetail({
         </button>
         <button
           type="button"
-          onClick={() => { onShowStore(item); onClose(); }}
+          onClick={() => onShowStore(item) /* the parent closes the detail itself */}
           style={{
             minHeight: 44, borderRadius: 12, cursor: "pointer", fontFamily: "inherit",
             fontSize: 14, fontWeight: 700, background: "var(--color-accent-soft)", color: "var(--color-accent-ink)",
