@@ -16,6 +16,34 @@ interface StoreTabProps {
   userLang: string;
 }
 
+// What the staff needs to find the right product: how many and in what
+// (units, packs, kg…), the brand and my note. Labels and units in the
+// country's language, with mine small next to them.
+function StoreDetails({ item, listLang, userLang }: { item: Item; listLang: string; userLang: string }) {
+  const label = (key: "quantity" | "brand" | "note") => {
+    const theirs = t(listLang, key), mine = t(userLang, key);
+    return theirs === mine ? theirs : `${theirs} · ${mine}`;
+  };
+  const qtyTheirs = formatQtyUnit(item.qty, item.unit, listLang);
+  const qtyMine = formatQtyUnit(item.qty, item.unit, userLang);
+  const rows: Array<{ key: string; label: string; value: string; sub?: string }> = [];
+  if (qtyTheirs) rows.push({ key: "qty", label: label("quantity"), value: qtyTheirs, sub: qtyMine !== qtyTheirs ? qtyMine : undefined });
+  if (item.brand?.trim()) rows.push({ key: "brand", label: label("brand"), value: item.brand.trim() });
+  if (item.note?.trim()) rows.push({ key: "note", label: label("note"), value: item.note.trim() });
+  if (!rows.length) return null;
+  return (
+    <div className="mt-5 w-full max-w-[420px] rounded-[14px] bg-card divide-y divide-border text-left overflow-hidden">
+      {rows.map(r => (
+        <div key={r.key} className="px-4 py-2.5">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{r.label}</div>
+          <div className={`${r.key === "note" ? "text-[18px] font-semibold" : "text-[24px] font-extrabold"} text-text leading-tight break-words`}>{r.value}</div>
+          {r.sub && <div className="text-[13px] text-text-soft">{r.sub}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // 3.7 — one pending product at a time, big, in the list country's language,
 // to show at the counter. Phrases for the staff fold at the bottom; the
 // chosen one shows full width on top until tapped.
@@ -57,7 +85,7 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
         </button>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center text-center px-5 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center-safe text-center px-5 py-4 *:shrink-0">
         {item ? (
           <>
             <ItemIcon name={item.original} category={item.category} photo={item.photo} size={170} />
@@ -70,14 +98,7 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
                 {secondaryName(item, listLang, userLang)}
               </div>
             )}
-            {item.qty && (
-              <div className="mt-4 rounded-full px-5 py-1.5 text-[22px] font-bold text-text" style={{ background: "color-mix(in srgb, var(--color-text) 8%, transparent)" }}>
-                {formatQtyUnit(item.qty, item.unit, lang)}
-              </div>
-            )}
-            {(item.brand || item.note) && (
-              <div className="mt-2 text-[13px] text-text-muted">{[item.brand, item.note].filter(Boolean).join(" · ")}</div>
-            )}
+            <StoreDetails item={item} listLang={listLang} userLang={userLang} />
           </>
         ) : (
           <div className="text-text-soft">
@@ -118,13 +139,13 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
                   onClick={() => { setPhraseKey(p.key); setShowPhrases(false); void incrementPhraseUsage(p.key); }}
                   className="w-full min-h-[48px] flex items-center gap-3 px-4 py-1.5 text-left cursor-pointer active:bg-text/5">
                   <span className="text-lg" aria-hidden="true">{p.emoji}</span>
-                  {/* Picked in my language; the country's one small below. */}
+                  {/* In the country's language, as it will be shown; mine small below. */}
                   <span className="flex-1 min-w-0">
                     <span className="block text-[14px] font-semibold text-text truncate">
-                      {capitalize(p.translations[userLang] || p.translations[listLang] || p.translations.en || p.key)}
+                      {capitalize(p.translations[listLang] || p.translations.en || p.translations[userLang] || p.key)}
                     </span>
-                    {listLang !== userLang && p.translations[listLang] && p.translations[listLang] !== p.translations[userLang] && (
-                      <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{p.translations[listLang]}</span>
+                    {listLang !== userLang && p.translations[userLang] && p.translations[userLang] !== p.translations[listLang] && (
+                      <span className="block text-[12px] truncate" style={{ color: "var(--color-secondary-name)" }}>{p.translations[userLang]}</span>
                     )}
                   </span>
                 </button>

@@ -582,7 +582,7 @@ export default function ItemDetail({
       <div style={{ display: "flex", gap: 8, width: "100%", marginTop: 8 }}>
         <button type="button" onClick={() => setActiveTab("show")}
           style={{ flex: 1, padding: 13, borderRadius: 12, background: "var(--color-card)", border: "1px solid color-mix(in srgb, var(--color-text) 10%, transparent)", color: "var(--color-text-soft)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{t(lang, "cancel")}</button>
-        <button type="button" onClick={() => { onDelete(item.id); onClose(); }}
+        <button type="button" onClick={() => onDelete(item.id) /* the parent leaves the detail itself */}
           style={{ flex: 1, padding: 13, borderRadius: 12, background: "var(--color-danger)", border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Eliminar</button>
       </div>
     </div>
