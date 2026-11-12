@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { pb, IS_DEMO, callRoute, subscribe, toError, type List, type ListMember, type Item, type User } from "../lib/pocketbase";
 import { getAllLocallyImportant } from "../lib/importantStore";
 import { useRefreshOnReturn } from "./useRefreshOnReturn";
+import { readCache, writeCache } from "../lib/deviceCache";
 import {
   demoGetLists, demoCreateList, demoGetList, demoJoinList,
   demoDeleteList, demoLeaveList, demoGetMembers, demoGetItems, onDemoChange,
@@ -62,7 +63,9 @@ async function deleteMemberRow(listId: string, userId: string): Promise<void> {
 // ── useLists ────────────────────────────────────────────
 
 export function useLists(userId: string | undefined) {
-  const [lists, setLists] = useState<List[]>([]);
+  // Shown at once from this device's last copy; the server's answer replaces it.
+  const cacheKey = `lists:${userId ?? ""}`;
+  const [lists, setLists] = useState<List[]>(() => (userId && !IS_DEMO ? readCache<List[]>(cacheKey) ?? [] : []));
   const [loading, setLoading] = useState(true);
   // A failed load keeps the lists already shown; with none, the page says
   // it couldn't load them (it used to say "you have no lists").
@@ -97,6 +100,7 @@ export function useLists(userId: string | undefined) {
         filter: pb.filter("active_members.id ?= {:user}", { user: userId }),
       });
       setLists(fetched);
+      writeCache(cacheKey, fetched);
       setError(false);
     } catch (err) {
       console.error("[useLists]", err);
@@ -104,7 +108,7 @@ export function useLists(userId: string | undefined) {
     }
 
     setLoading(false);
-  }, [userId]);
+  }, [userId, cacheKey]);
 
   useEffect(() => {
     refresh();
@@ -187,11 +191,15 @@ export async function cancelJoinRequest(listId: string, userId: string): Promise
 
 // ── useListDetail ───────────────────────────────────────
 
+type ListDetailCache = { list: List; members: ListMember[]; items: Item[] };
+
 export function useListDetail(listId: string | undefined) {
-  const [list, setList] = useState<List | null>(null);
-  const [members, setMembers] = useState<ListMember[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Shown at once from this device's last copy; the server's answer replaces it.
+  const [cached] = useState(() => (listId && !IS_DEMO ? readCache<ListDetailCache>(`list:${listId}`) : null));
+  const [list, setList] = useState<List | null>(cached?.list ?? null);
+  const [members, setMembers] = useState<ListMember[]>(cached?.members ?? []);
+  const [items, setItems] = useState<Item[]>(cached?.items ?? []);
+  const [loading, setLoading] = useState(!cached);
 
   const refresh = useCallback(async () => {
     if (!listId) {
@@ -202,7 +210,9 @@ export function useListDetail(listId: string | undefined) {
       return;
     }
 
-    setLoading(true);
+    // Keep showing what's there (the cached copy, or the list before a
+    // refresh) instead of going back to "loading".
+    if (IS_DEMO) setLoading(true);
 
     if (IS_DEMO) {
       setList(demoGetList(listId));
@@ -248,6 +258,13 @@ export function useListDetail(listId: string | undefined) {
         ...i,
         important: i.important || localImportant.has(i.id),
       })));
+    }
+    if (listRes.status === "fulfilled" && membersRes.status === "fulfilled" && itemsRes.status === "fulfilled") {
+      writeCache(`list:${listId}`, {
+        list: listRes.value,
+        members: membersRes.value.map(({ expand, ...m }) => ({ ...m, user_name: expand?.user_id?.name, user_lang: expand?.user_id?.lang, user_country: expand?.user_id?.country, user_last_seen_at: expand?.user_id?.last_seen_at ?? undefined })),
+        items: itemsRes.value,
+      } satisfies ListDetailCache);
     }
 
     setLoading(false);

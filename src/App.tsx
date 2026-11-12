@@ -82,7 +82,7 @@ function App() {
   // Remount the page when the admin config changes, so everything that reads
   // it while rendering (languages, UI strings, themes, detail lab) refreshes.
   const page = route.page === 'list' ? (
-    <ListDetailPage listId={route.listId} tab={route.tab} itemId={route.itemId ?? null} />
+    <ListDetailPage key={route.listId} listId={route.listId} tab={route.tab} itemId={route.itemId ?? null} />
   ) : (
     <>
       <ListsPage view={route.page === 'lists' ? route.view : 'home'} onNavigate={navigate} />

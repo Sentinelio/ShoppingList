@@ -13,6 +13,7 @@ import { pb, IS_DEMO, CREDS_KEY, type User } from "../lib/pocketbase";
 import { demoCreateUser, demoGetUser, demoUpdateUser } from "../lib/demoStore";
 import { getCountryLang } from "../data/countries";
 import { isNetworkError, isRejectedCredentials } from "../lib/netError";
+import { clearCache } from "../lib/deviceCache";
 
 // Demo mode keeps the old local-only user id.
 const STORAGE_KEY = "polyglot_user_id";
@@ -92,6 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setAuthError(null);
+    // A session still valid on this device opens the app at once; signing in
+    // again goes on in the background (over mobile data / Tailscale it can
+    // take many seconds, and the app used to wait for it on a splash screen).
+    const cachedAtStart = currentUser();
+    if (cachedAtStart) {
+      setUser(cachedAtStart);
+      setLoading(false);
+    }
     pb.collection("users")
       .authWithPassword(creds.email, creds.password)
       .then(({ record }) => {
@@ -105,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Account gone (e.g. server reset): start over with the setup wizard.
           localStorage.removeItem(CREDS_KEY);
           pb.authStore.clear();
+          clearCache();
+          setUser(null);
           return;
         }
         // Network or server trouble: keep the credentials. Go on with the
@@ -223,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!IS_DEMO) {
       localStorage.removeItem(CREDS_KEY);
       pb.authStore.clear();
+      clearCache();
     }
     setUser(null);
   }, []);

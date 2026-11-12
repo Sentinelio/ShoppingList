@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { pb, IS_DEMO, type List } from "../lib/pocketbase";
 import { demoGetItems, demoGetMembers } from "../lib/demoStore";
+import { readCache, writeCache } from "../lib/deviceCache";
 
 export interface ListOverview {
   list: List;
@@ -35,11 +36,14 @@ const newest = (a: string | null, b: string | null | undefined) => (!b ? a : !a 
 // members and one of their items (the rules already limit both to lists
 // where I'm an active member).
 export function useListsOverview(lists: List[], userId: string | undefined) {
-  const [overview, setOverview] = useState<ListOverview[]>([]);
+  // Shown at once from this device's last copy; the server's answer replaces it.
+  const cacheKey = `overview:${userId ?? ""}`;
+  const [cached] = useState(() => (userId && !IS_DEMO ? readCache<{ key: string; overview: ListOverview[] }>(cacheKey) : null));
+  const [overview, setOverview] = useState<ListOverview[]>(cached?.overview ?? []);
   // Which lists the overview was built for: until it matches the current
   // lists, "Mis listas" keeps showing "loading" (it used to flash "you
   // have no lists" while members and items were still loading).
-  const [builtFor, setBuiltFor] = useState<string | null>(null);
+  const [builtFor, setBuiltFor] = useState<string | null>(cached?.key ?? null);
   const listsKey = lists.map(l => l.id).join(",");
 
   const load = useCallback(async () => {
@@ -76,7 +80,7 @@ export function useListsOverview(lists: List[], userId: string | undefined) {
     const members = membersRes.status === "fulfilled" ? membersRes.value : [];
     const items = itemsRes.status === "fulfilled" ? itemsRes.value : [];
 
-    setOverview(lists.map(list => {
+    const built = lists.map(list => {
       const rows = members.filter(m => m.list_id === list.id);
       const its = items.filter(i => i.list_id === list.id);
       let lastUsed: string | null = list.last_checked_at ?? null;
@@ -89,9 +93,11 @@ export function useListsOverview(lists: List[], userId: string | undefined) {
         total: its.length,
         lastUsed,
       };
-    }));
+    });
+    setOverview(built);
+    if (membersRes.status === "fulfilled" && itemsRes.status === "fulfilled") writeCache(cacheKey, { key: listsKey, overview: built });
     setBuiltFor(listsKey);
-  }, [lists, userId, listsKey]);
+  }, [lists, userId, listsKey, cacheKey]);
 
   useEffect(() => { void load(); }, [load]);
 
