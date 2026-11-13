@@ -1,6 +1,6 @@
 # HANDOFF — BabelCart (ShoppingList)
 
-Updated 2026-11-09. Branch `claude/polyglot-shopping-cart-doquB` (also the main branch).
+Updated 2026-11-13. Branch `claude/polyglot-shopping-cart-doquB` (also the main branch).
 Deadline for the mobile redesign: 2026-11-08.
 
 ## Hecho (published unless noted)
@@ -20,6 +20,24 @@ Deadline for the mobile redesign: 2026-11-08.
   /api/health 200 local + Funnel. `deploy-server.ps1` now falls back to `<PbDir>\nssm.exe` when nssm isn't in PATH
   (committed with HANDOFF.md, **not pushed**: it goes up together with 87ef90a + e48e8f9 once Manu has set the
   Tailscale route). Other NSSM services (Bazarr, bw-api, bw-ingress) point to existing nssm.exe files: not broken.
+
+- 2026-11-13 published (Pages + server copy): "Mostrar en la tienda" (also from search), delete product/list
+  stays/goes home correctly, Store shows qty/brand/note + phrases in the country's language, instant open from a
+  device cache (`src/lib/deviceCache.ts`). Router: `closeThenGo()` (flushSync) for "close overlay + navigate".
+
+## Auditoría 2026-11-12 (pendiente, por prioridad)
+1. **CRITICAL, confirmed**: superuser auth reachable publicly via `/api/collections/pbc_3142635823/...` and
+   `_SUPERUSERS` (Funnel only blocks exact `_superusers`). Plan: hook rejecting superuser requests that arrive
+   with X-Forwarded-For (via Tailscale), check logs for attempts; Manu: enable MFA at http://127.0.0.1:8090/_/.
+2. Anthropic cost abuse: free unlimited accounts + translate/translate-ui/parse-receipt without quota/size caps.
+3. No automatic/off-machine backups (newest Copias 2026-11-02); C: only ~9.5 GB free.
+4. deploy-server.ps1: empties hooks/migrations before copy, no auto-backup/rollback, -Force skips -Reset prompt.
+5. Failed writes look successful (`catch { /* realtime will sync */ }` in ListDetailPage); cache not cleared on
+   404/403 of a list; list_members update rule lets an approver reject the owner; 6-char invite codes, /join
+   without rate limit; brand dictionary key taken from model output.
+6. Perf: dictionary re-downloaded on every return (liveConfig.ts:55); overview fetches all items; raw photos.
+7. Minor: no service stdout/stderr logs; Pages workflow without lint; hardcoded Spanish in ItemDetail and item
+   history; tap targets < 44 px; changelog in main chunk.
 
 ## Pendiente
 1. Done 2026-11-10: Manu added the Tailscale route `/ShoppingList` → `http://127.0.0.1:8090/ShoppingList`.
