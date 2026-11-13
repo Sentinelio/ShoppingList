@@ -42,27 +42,55 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
   // ~25 output tokens per product (only the differences come back) plus the prompt.
   const estimate = (todo.length * 25 * 0.5 + todo.length * 12 * 0.1) / 1e6 * 4;
 
-  const start = async () => {
+  // Batches that still failed after their retries: "Retry the failed ones"
+  // runs just these.
+  const [failedKeys, setFailedKeys] = useState<string[]>([]);
+  const [lastError, setLastError] = useState("");
+
+  // One batch, retried twice (3 s, 10 s) before it counts as failed: over
+  // mobile data / Funnel a request is sometimes lost on the way and never
+  // reaches the server.
+  type Res = { processed: number; updated: number; variants: number; usage?: { input: number; output: number }; model?: string; dry_run?: boolean };
+  const runBatch = async (keys: string[]): Promise<Res> => {
+    let err: unknown = null;
+    for (const wait of [0, 3000, 10000]) {
+      if (wait) await new Promise(ok => setTimeout(ok, wait));
+      if (stopRef.current) break;
+      try {
+        return await callRoute<Res>("regional-variants", { lang: lang.code, langName: lang.name, countries: lang.countries.map(c => ({ code: c.code, name: c.name })), keys });
+      } catch (e) {
+        err = e;
+      }
+    }
+    throw err ?? new Error("Stopped");
+  };
+
+  const start = async (only?: string[]) => {
     setPhase("running");
     stopRef.current = false;
-    const p = { done: 0, total: todo.length, updated: 0, variants: 0, spent: 0, errors: 0 };
+    const list = only ?? todo.map(e => e.key);
+    const p = { done: 0, total: list.length, updated: 0, variants: 0, spent: 0, errors: 0 };
     setProgress({ ...p });
+    const failed: string[] = [];
     let end = "Finished";
-    for (let i = 0; i < todo.length; i += BATCH) {
+    for (let i = 0; i < list.length; i += BATCH) {
       if (stopRef.current) { end = "Stopped"; break; }
       if (p.spent >= budget) { end = "Spend cap reached"; break; }
-      const keys = todo.slice(i, i + BATCH).map(e => e.key);
+      const keys = list.slice(i, i + BATCH);
       try {
-        const res = await callRoute<{ processed: number; updated: number; variants: number; usage?: { input: number; output: number }; model?: string; dry_run?: boolean }>(
-          "regional-variants", { lang: lang.code, langName: lang.name, countries: lang.countries.map(c => ({ code: c.code, name: c.name })), keys });
+        const res = await runBatch(keys);
         if (res.dry_run) { end = "Dry run: nothing saved"; break; }
         p.updated += res.updated; p.variants += res.variants; p.spent += costOf(res.usage, res.model);
-      } catch {
+      } catch (e) {
+        if (stopRef.current) { end = "Stopped"; break; }
         p.errors++;
+        failed.push(...keys);
+        setLastError(e instanceof Error ? e.message : String(e));
       }
-      p.done = Math.min(todo.length, i + BATCH);
+      p.done = Math.min(list.length, i + BATCH);
       setProgress({ ...p });
     }
+    setFailedKeys(failed);
     setWhy(end);
     setPhase("done");
     setStopping(false);
@@ -110,6 +138,12 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
                 <div className="h-full bg-accent transition-[width]" style={{ width: `${progress.total ? (100 * progress.done) / progress.total : 0}%` }} />
               </div>
               {phase === "done" && <div className="text-[12px] text-text-soft mt-2">{why}.</div>}
+              {phase === "done" && failedKeys.length > 0 && (
+                <div className="text-[12px] text-text-soft mt-1">
+                  {failedKeys.length.toLocaleString()} entries were not checked (each batch was tried 3 times)
+                  {lastError ? <> · last error: <span className="text-danger">{lastError}</span></> : null}. They stay pending: retry them now or later.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -118,7 +152,7 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
             <>
               <button type="button" onClick={() => onClose(false)}
                 className="flex-1 py-2.5 rounded-xl border border-border-light text-text-soft text-[13px] font-semibold cursor-pointer">Cancel</button>
-              <button type="button" onClick={start} disabled={!todo.length || lang.countries.length < 2}
+              <button type="button" onClick={() => void start()} disabled={!todo.length || lang.countries.length < 2}
                 className="flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold cursor-pointer disabled:opacity-40"
                 style={{ background: "linear-gradient(135deg, #3dd68c, #1f9e63)" }}>
                 Check {todo.length.toLocaleString()}
@@ -132,8 +166,17 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
             </button>
           )}
           {phase === "done" && (
-            <button type="button" onClick={() => onClose(true)}
-              className="flex-1 py-2.5 rounded-xl border border-border-light text-text text-[13px] font-semibold cursor-pointer">Close</button>
+            <>
+              <button type="button" onClick={() => onClose(true)}
+                className="flex-1 py-2.5 rounded-xl border border-border-light text-text text-[13px] font-semibold cursor-pointer">Close</button>
+              {failedKeys.length > 0 && (
+                <button type="button" onClick={() => void start(failedKeys)}
+                  className="flex-1 py-2.5 rounded-xl text-white text-[13px] font-bold cursor-pointer"
+                  style={{ background: "linear-gradient(135deg, #3dd68c, #1f9e63)" }}>
+                  Retry the {failedKeys.length.toLocaleString()} failed
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
