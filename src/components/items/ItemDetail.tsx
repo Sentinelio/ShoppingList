@@ -540,26 +540,33 @@ export default function ItemDetail({
             </button>
             {isOpen && (
               <div style={{ padding: "0 12px 8px 34px", display: "flex", flexDirection: "column" }}>
-                {!row.varies ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 13 }}>
-                    <span style={{ flex: 1, color: "var(--color-text-soft)" }}>{row.countries.map(c => c.flag).join(" ")} · {t(lang, "sameEverywhere")}</span>
-                    <span style={{ color: "var(--color-text-muted)" }}>{capitalize(row.word)}</span>
-                  </div>
-                ) : row.countries.map((c, i) => {
-                  const diff = c.word.toLowerCase() !== row.word.toLowerCase();
-                  const tag = row.code === userLang && c.code === myCountry ? t(lang, "you").toLowerCase()
-                    : row.code === shelfLang && c.code === listCountry ? t(lang, "listCountryTag") : "";
-                  return (
-                    <div key={c.code} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 13, borderTop: i ? "1px dashed color-mix(in srgb, var(--color-text) 8%, transparent)" : "none" }}>
-                      <span>{c.flag}</span>
-                      <span style={{ flex: 1, minWidth: 0, color: "var(--color-text-soft)" }}>
-                        {c.name}
-                        {tag && <span style={{ marginLeft: 6, fontSize: 9, color: "var(--color-secondary-name)", border: "1px solid color-mix(in srgb, var(--color-secondary-name) 50%, transparent)", borderRadius: 6, padding: "0 5px" }}>{tag}</span>}
-                      </span>
-                      <span style={{ fontWeight: diff ? 700 : 500, color: diff ? "var(--color-shelf)" : "var(--color-text-muted)" }}>{capitalize(c.word)}</span>
-                    </div>
-                  );
-                })}
+                {/* One line per word, with the flags (and names) of the
+                    countries that say it; the language's usual word first. */}
+                {(() => {
+                  const groups: Array<{ word: string; countries: typeof row.countries }> = [];
+                  for (const c of row.countries) {
+                    const g = groups.find(x => x.word.toLowerCase() === c.word.toLowerCase());
+                    if (g) g.countries.push(c); else groups.push({ word: c.word, countries: [c] });
+                  }
+                  groups.sort((a, b) => Number(b.word.toLowerCase() === row.word.toLowerCase()) - Number(a.word.toLowerCase() === row.word.toLowerCase()) || b.countries.length - a.countries.length);
+                  return groups.map((g, i) => {
+                    const diff = g.word.toLowerCase() !== row.word.toLowerCase();
+                    const tags = [
+                      row.code === userLang && g.countries.some(c => c.code === myCountry) ? t(lang, "you").toLowerCase() : "",
+                      row.code === shelfLang && g.countries.some(c => c.code === listCountry) ? t(lang, "listCountryTag") : "",
+                    ].filter(Boolean);
+                    return (
+                      <div key={g.word} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, borderTop: i ? "1px dashed color-mix(in srgb, var(--color-text) 8%, transparent)" : "none" }}>
+                        <span style={{ flex: 1, minWidth: 0, color: "var(--color-text-soft)", lineHeight: 1.35 }}>
+                          <span style={{ marginRight: 6 }}>{g.countries.map(c => c.flag).join(" ")}</span>
+                          {row.varies && g.countries.length <= 3 && <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{g.countries.map(c => c.name).join(" · ")}</span>}
+                          {tags.map(tag => <span key={tag} style={{ marginLeft: 6, fontSize: 9, color: "var(--color-secondary-name)", border: "1px solid color-mix(in srgb, var(--color-secondary-name) 50%, transparent)", borderRadius: 6, padding: "0 5px" }}>{tag}</span>)}
+                        </span>
+                        <span style={{ fontWeight: diff ? 700 : 500, color: diff ? "var(--color-shelf)" : "var(--color-text-muted)", textAlign: "right" }}>{capitalize(g.word)}</span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
