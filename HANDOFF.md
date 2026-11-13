@@ -54,7 +54,10 @@ Deadline for the mobile redesign: 2026-11-08.
   babelcart_product_memory.pb.js); migration 1792540012 (login alerts off: no SMTP; item_photos.uploaded_by no
   cascade); Regional spend counts cut replies. Tested on Pruebas\pbcopy5 (copy of today's data, :8095):
   fixes2-test 14/14, test:pb 93/93. App published (Pages + server copy).
-  **Backend NOT active yet**: new hooks/migration are copied into Servidor\ but the service was never restarted —
+  ACTIVE since Manu's admin restart ~19:30 (backup Copias\pb_data-20261113-reinicio, integrity ok): migration 0012
+  applied, alerts off, superuser 403 from outside, counts vs Copias 1846 identical except dictionary +203 (Manu's
+  generation). NOTE: counts.mjs needs the data.db path as argument (counts2.mjs = the other tables).
+  (Before:) new hooks/migration were copied into Servidor\ but the service was never restarted —
   `nssm stop/start` needs Administrator (fails with exit 3 "Access is denied"; deploy-server.ps1 #Requires admin).
   Manu: restart from an Administrator PowerShell (stop, backup, start); then check with
   `node Pruebas\babelcart-tools\check-0012.mjs` (last migration must be 1792540012, alerts 0).
