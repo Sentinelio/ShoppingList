@@ -37,6 +37,10 @@ Deadline for the mobile redesign: 2026-11-08.
   Anthropic retry budget (25 s), price book kept when bought items are cleared, category order uses days before
   today, deploy-server.ps1 nssm stderr. Backup Copias\pb_data-20261113-1502.
 
+- 2026-11-13 evening: product memory (migration 1792540011, babelcart_product_memory.pb.js): comments / history /
+  prices belong to list + product_key and survive the clearing of bought items; a product added again gets its
+  last photo and brand back (purchases.photo/brand). Backup Copias\pb_data-20261113-1603.
+
 ## Auditoría 2026-11-13 — still open (decide with Manu)
 - AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
   strings and receipt images. Set a monthly limit in console.anthropic.com meanwhile.
