@@ -55,19 +55,16 @@ onRecordAfterCreateSuccess((e) => {
 
 // ── trg_delete_product_prices_for_item_price ───────────────────────────────
 
-onRecordAfterDeleteSuccess((e) => {
+// Only when someone deletes that price (a request). When an item goes away
+// — the hourly clearing of bought items, or deleting the product — its
+// prices go with it by cascade, but the price book keeps them.
+onRecordDeleteRequest((e) => {
+  const id = e.record.id
+  e.next()
   try {
-    const rows = e.app.findRecordsByFilter(
-      "product_prices",
-      "source_item_price_id = {:id}",
-      "",
-      0,
-      0,
-      { id: e.record.id },
-    )
+    const rows = e.app.findRecordsByFilter("product_prices", "source_item_price_id = {:id}", "", 0, 0, { id: id })
     for (const row of rows) e.app.delete(row)
   } catch (err) {
-    console.error(`[babelcart/item_prices] could not delete product_prices for ${e.record.id}:`, err)
+    console.error(`[babelcart/item_prices] could not delete product_prices for ${id}:`, err)
   }
-  e.next()
 }, "item_prices")

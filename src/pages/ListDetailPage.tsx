@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useThemeView } from "../lib/themeStore";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, exitList, approveMember, rejectMember, removeMember, updateList, archiveList } from "../hooks/useList";
@@ -13,7 +13,7 @@ import { CATEGORY_ORDER } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
 import { listLangOf, categoryNames, primaryName, secondaryName } from "../lib/names";
 import { matchesSearch } from "../lib/highlight";
-import { dictionaryReady, dictionaryVariantsSync } from "../lib/dictSuggest";
+import { dictionaryReady, dictionaryVariantsSync, onDictionaryUpdated } from "../lib/dictSuggest";
 
 // Regional words an item already carries ("es-AR": "palta").
 const pickVariants = (tr: Record<string, string> | null | undefined) =>
@@ -75,7 +75,9 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
   useEffect(() => {
     let alive = true;
     void dictionaryReady().then(() => { if (alive) setDictLoaded(n => n + 1); });
-    return () => { alive = false; };
+    // A newer catalog copy arrived (background refresh): recompute names.
+    const off = onDictionaryUpdated(() => { if (alive) setDictLoaded(n => n + 1); });
+    return () => { alive = false; off(); };
   }, []);
   const shown = useMemo(() => items.map(i => {
     const variants = { ...dictionaryVariantsSync(i.translations), ...pickVariants(i.translations) };
@@ -93,15 +95,21 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
   // history under "Bought", "Most bought", and the order of the categories.
   const { purchases: listPurchases, reload: reloadPurchases } = usePurchases({ listId, days: 120 });
   const [showTop, setShowTop] = useState(false);
+  const purchaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Categories bought most often in the last 90 days first; the usual
   // supermarket order breaks ties and places the never-bought ones.
   const byBuying = useMemo(() => {
     const since = new Date(Date.now() - 90 * 86400000).toISOString().replace("T", " ");
+    // Only days before today: ticking things while shopping must not move
+    // the categories under your finger.
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    const today = midnight.toISOString().replace("T", " ");
     const count: Record<string, number> = {};
-    for (const p of listPurchases) if (p.bought_at >= since) count[p.category || "other"] = (count[p.category || "other"] ?? 0) + 1;
+    for (const p of listPurchases) if (p.bought_at >= since && p.bought_at < today) count[p.category || "other"] = (count[p.category || "other"] ?? 0) + 1;
     const base = (c: string) => { const i = CATEGORY_ORDER.indexOf(c); return i < 0 ? CATEGORY_ORDER.length : i; };
     return (a: string, b: string) => (count[b] ?? 0) - (count[a] ?? 0) || base(a) - base(b);
   }, [listPurchases]);
+  const listedItemIds = useMemo(() => new Set(items.map(i => i.id)), [items]);
   const pendingKeys = useMemo(() => new Set(items.filter(i => !i.checked && !i.unavailable).map(productKeyOf)), [items]);
   // "Add again" from the history or "Most bought".
   const addAgain = async (p: Purchase) => {
@@ -221,13 +229,15 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
   }, [shown, searchQuery, shelfLang, userLang]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
-    // The server logs (or undoes) the purchase; read the log again after it.
-    setTimeout(() => { void reloadPurchases(); }, 1200);
     // Buying a "No hay" item takes it out of "No hay" (the server does the same).
     setItems(prev => prev.map(i => i.id === itemId
       ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null, ...(checked ? { unavailable: false, unavailable_at: null } : {}) }
       : i));
     try { await toggleItem(itemId, checked); } catch { /* realtime will sync */ }
+    // The server has logged (or undone) the purchase: read the log again,
+    // once for a burst of ticks.
+    if (purchaseTimer.current) clearTimeout(purchaseTimer.current);
+    purchaseTimer.current = setTimeout(() => { void reloadPurchases(); }, 2000);
     if (user) {
       // Log history event
       logItemHistory({
@@ -557,7 +567,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
             )}
             {filter === "bought" && !loading && (
               <BoughtHistory purchases={listPurchases} listLang={shelfLang} userLang={userLang} lang={lang}
-                pendingKeys={pendingKeys} onAddAgain={p => void addAgain(p)} />
+                pendingKeys={pendingKeys} listedItemIds={listedItemIds} onAddAgain={p => void addAgain(p)} />
             )}
           </main>
         </>

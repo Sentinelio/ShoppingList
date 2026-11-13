@@ -12,30 +12,82 @@ import { localToEntry, mergeEntries, normalize, rankSuggestions, remoteToEntry, 
 /** A ranked suggestion (see suggestRank.ts). */
 export type DictSuggestion = RankedSuggestion;
 
-let CACHE: SuggestEntry[] | null = null;
-let loadingPromise: Promise<SuggestEntry[]> | null = null;
+// The catalog is ~2,500 entries (~600 KB): downloading it on every start or
+// every return from standby cost a phone on mobile data many seconds. It is
+// kept on the device and refreshed in the background (at most every few
+// hours, or when the admin changes it — realtime); the copy in use is only
+// swapped once the new one has arrived, so names never flicker.
 
-async function fetchRemoteDict(): Promise<SuggestEntry[]> {
-  if (IS_DEMO) return [];
+type RemoteRow = { key: string; translations: Record<string, string>; category: string; store_type?: string };
+const DEVICE_KEY = "bc_dictionary_v1";
+const STALE_MS = 6 * 60 * 60 * 1000;
+
+let CACHE: SuggestEntry[] | null = null;
+/** English name (normalized) → entry, for the regional-word lookups. */
+let BY_EN = new Map<string, SuggestEntry>();
+let loadedAt = 0;
+let remoteOk = false;
+let loadingPromise: Promise<SuggestEntry[]> | null = null;
+const listeners = new Set<() => void>();
+
+function setCache(rows: RemoteRow[] | null) {
+  CACHE = mergeEntries(LOCAL_DICTIONARY.map(localToEntry), (rows ?? []).map(remoteToEntry));
+  BY_EN = new Map();
+  for (const e of CACHE) {
+    for (const k of [normalize(e.key).trim(), normalize(e.translations.en ?? "").trim()]) if (k && !BY_EN.has(k)) BY_EN.set(k, e);
+  }
+  listeners.forEach(fn => fn());
+}
+
+function readDevice(): { at: number; rows: RemoteRow[] } | null {
   try {
-    const data = await pb.collection("dictionary").getFullList<{ key: string; translations: Record<string, string>; category: string; store_type?: string }>({
-      batch: 1000,
-      fields: "key,translations,category,store_type",
-    });
-    return data.map(remoteToEntry);
+    const raw = localStorage.getItem(DEVICE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return []; // offline: no remote suggestions
+    return null;
   }
 }
 
+async function fetchRemoteDict(): Promise<RemoteRow[] | null> {
+  if (IS_DEMO) return [];
+  try {
+    const rows = await pb.collection("dictionary").getFullList<RemoteRow>({
+      batch: 1000,
+      fields: "key,translations,category,store_type",
+      requestKey: "dictionary-full",
+    });
+    try { localStorage.setItem(DEVICE_KEY, JSON.stringify({ at: Date.now(), rows })); } catch { /* full: memory only */ }
+    return rows;
+  } catch {
+    return null; // offline: keep what we have, try again later
+  }
+}
+
+/** Downloads the catalog again and swaps it in when it arrives. */
+async function refreshRemote(): Promise<void> {
+  const rows = await fetchRemoteDict();
+  if (rows) { remoteOk = true; loadedAt = Date.now(); setCache(rows); }
+}
+
 async function ensureLoaded(): Promise<SuggestEntry[]> {
-  if (CACHE) return CACHE;
+  if (CACHE && (remoteOk || Date.now() - loadedAt < 60000)) return CACHE;
   if (loadingPromise) return loadingPromise;
   loadingPromise = (async () => {
-    // LOCAL_DICTIONARY seeds autocomplete even before the remote load
-    // completes on slow networks (see mergeEntries).
-    CACHE = mergeEntries(LOCAL_DICTIONARY.map(localToEntry), await fetchRemoteDict());
-    return CACHE;
+    // 1. The copy on this device, at once (no network).
+    const saved = !CACHE ? readDevice() : null;
+    if (saved?.rows?.length) {
+      remoteOk = true;
+      loadedAt = saved.at;
+      setCache(saved.rows);
+      if (Date.now() - saved.at > STALE_MS) void refreshRemote();
+      return CACHE!;
+    }
+    // 2. First time on this device (or after an offline start): download.
+    const rows = await fetchRemoteDict();
+    remoteOk = !!rows;
+    loadedAt = Date.now();
+    setCache(rows);
+    return CACHE!;
   })();
   try {
     return await loadingPromise;
@@ -49,9 +101,22 @@ export function preloadDictionary(): void {
   void ensureLoaded();
 }
 
-/** Drop the cache so the next suggestion call re-fetches. */
+/** The admin changed the catalog (realtime): download it again in the
+ *  background; the current copy stays in use until then. */
 export function invalidateDictionaryCache(): void {
-  CACHE = null;
+  void refreshRemote();
+}
+
+/** Back from standby: refresh only when the copy is old. */
+export function refreshDictionaryIfStale(): void {
+  if (!CACHE) { preloadDictionary(); return; }
+  if (Date.now() - loadedAt > STALE_MS || !remoteOk) void refreshRemote();
+}
+
+/** Called whenever a (new) catalog copy is in use. */
+export function onDictionaryUpdated(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
 }
 
 // Plural of a regional word, for languages that add an ending: Spanish /
@@ -103,7 +168,7 @@ export function dictionaryReady(): Promise<void> {
 function variantsFrom(entries: SuggestEntry[], translations: Record<string, string> | null | undefined): Record<string, string> {
   const en = normalize(translations?.en ?? "").trim();
   if (!en) return {};
-  const entry = entries.find(e => normalize(e.key).trim() === en || normalize(e.translations.en ?? "").trim() === en);
+  const entry = entries === CACHE ? BY_EN.get(en) : entries.find(e => normalize(e.key).trim() === en || normalize(e.translations.en ?? "").trim() === en);
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(entry?.translations ?? {})) {
     if (!k.includes("-") || !v) continue;

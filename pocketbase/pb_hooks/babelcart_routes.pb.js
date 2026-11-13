@@ -136,29 +136,40 @@ routerAdd("POST", "/api/babelcart/translate", (e) => {
   const c = typeof parsed.c === "string" && parsed.c ? parsed.c : "other"
   const b = parsed.b === true
 
-  // Save for future lookups. Brands are keyed by their canonical English
-  // form with punctuation collapsed so variants share a row (as translate.ts did).
+  // Save for future lookups — what the user typed is the key (never a name
+  // the model chose: a crafted text could otherwise make it answer "milk"
+  // and overwrite that shared entry). Brands collapse punctuation so
+  // "Coca Cola" / "coca-cola" share a row. An entry that already exists
+  // only gets the languages it lacks; its names, category and brand flag
+  // (admin edits included) are never changed from here.
   try {
     const normalizeKey = (s) => s.toLowerCase().trim().replace(/[\s\-_.·'"]+/g, "")
-    const key = b ? normalizeKey(String(t.en || text)) : text.toLowerCase().trim()
+    const key = b ? normalizeKey(text) : text.toLowerCase().trim()
     let rec = null
     try { rec = $app.findFirstRecordByData("dictionary", "key", key) } catch (_) { /* new */ }
-    if (!rec) {
+    const isNew = !rec
+    if (isNew) {
       rec = new Record($app.findCollectionByNameOrId("dictionary"))
       rec.set("key", key)
       rec.set("store_type", "grocery")
+      rec.set("category", c)
+      rec.set("is_brand", b)
     }
     let existing = {}
     try { existing = JSON.parse(rec.getString("translations") || "{}") || {} } catch (_) { existing = {} }
-    const merged = Object.assign({}, existing, t)
-    if (b) {
-      const canonical = t.en || Object.values(t)[0] || text
-      for (const l of langs) if (!merged[l]) merged[l] = canonical
+    const merged = Object.assign({}, existing)
+    let added = 0
+    for (const [l, v] of Object.entries(t)) {
+      if (typeof v === "string" && v.trim() && !merged[l]) { merged[l] = v.trim(); added++ }
     }
-    rec.set("translations", merged)
-    rec.set("category", c)
-    rec.set("is_brand", b)
-    $app.save(rec)
+    if (b && isNew) {
+      const canonical = t.en || Object.values(t)[0] || text
+      for (const l of langs) if (!merged[l]) { merged[l] = canonical; added++ }
+    }
+    if (isNew || added) {
+      rec.set("translations", merged)
+      $app.save(rec)
+    }
   } catch (err) {
     console.error("[babelcart/translate] could not save to dictionary:", err)
   }

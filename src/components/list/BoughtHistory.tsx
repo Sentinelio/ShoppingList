@@ -12,6 +12,8 @@ interface Props {
   lang: string;
   /** product_keys already waiting in the list (no "add again" for them). */
   pendingKeys: Set<string>;
+  /** Items still in the list (today's bought ones show there, not here). */
+  listedItemIds: Set<string>;
   onAddAgain: (p: Purchase) => void;
 }
 
@@ -23,7 +25,7 @@ const dayKey = (iso: string) => {
 // Under "Bought": what was bought on earlier days (the list clears its
 // bought items; the purchase log keeps them), one folded block per day,
 // each product with "add again".
-export default function BoughtHistory({ purchases, listLang, userLang, lang, pendingKeys, onAddAgain }: Props) {
+export default function BoughtHistory({ purchases, listLang, userLang, lang, pendingKeys, listedItemIds, onAddAgain }: Props) {
   // Fixed for the life of the screen (impure clock reads stay out of render).
   const [{ today, yesterday }] = useState(() => ({
     today: dayKey(new Date().toISOString()),
@@ -33,17 +35,19 @@ export default function BoughtHistory({ purchases, listLang, userLang, lang, pen
     const map = new Map<string, Purchase[]>();
     for (const p of purchases) {
       const k = dayKey(p.bought_at);
-      if (k === today) continue;
+      // Today's purchases show in the list itself, unless already cleared.
+      if (k === today && listedItemIds.has(p.item_id)) continue;
       (map.get(k) ?? map.set(k, []).get(k)!).push(p);
     }
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  }, [purchases, today]);
+  }, [purchases, today, listedItemIds]);
   const [open, setOpen] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
   if (!days.length) return null;
 
   const fmt = new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long" });
   const title = (k: string) => {
+    if (k === today) return new Intl.RelativeTimeFormat(lang, { numeric: "auto" }).format(0, "day");
     if (k === yesterday) return new Intl.RelativeTimeFormat(lang, { numeric: "auto" }).format(-1, "day");
     const [y, m, d] = k.split("-").map(Number);
     return fmt.format(new Date(y, m - 1, d));

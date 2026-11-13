@@ -9,7 +9,7 @@
 import { IS_DEMO, subscribe } from "./pocketbase";
 import { applyConfigRow, loadRemoteConfig } from "./appConfigStore";
 import { reloadThemes } from "./themeStore";
-import { invalidateDictionaryCache, preloadDictionary } from "./dictSuggest";
+import { invalidateDictionaryCache, refreshDictionaryIfStale } from "./dictSuggest";
 import { refreshStorePhrases } from "./storePhrasesStore";
 
 let version = 0;
@@ -32,10 +32,10 @@ function configChanged() {
 
 let dictTimer: ReturnType<typeof setTimeout> | null = null;
 function dictionaryChanged() {
-  // A seed run sends dozens of events: reload once they calm down.
-  invalidateDictionaryCache();
+  // A seed run sends dozens of events: reload once they calm down (the
+  // current copy stays in use meanwhile).
   if (dictTimer) clearTimeout(dictTimer);
-  dictTimer = setTimeout(() => { dictTimer = null; preloadDictionary(); }, 1500);
+  dictTimer = setTimeout(() => { dictTimer = null; invalidateDictionaryCache(); }, 3000);
 }
 
 let started = false;
@@ -56,6 +56,7 @@ export function startLiveConfig(): void {
     if (document.visibilityState !== "visible") return;
     loadRemoteConfig().then(changed => { if (changed) configChanged(); });
     void refreshStorePhrases();
-    dictionaryChanged();
+    // The catalog is big (~600 KB): only when the device copy is old.
+    refreshDictionaryIfStale();
   });
 }

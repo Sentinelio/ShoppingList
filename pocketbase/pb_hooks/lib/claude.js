@@ -66,12 +66,18 @@ function callClaude(tag, kind, maxTokens, content, timeoutSec) {
 
   // Anthropic answers 429 / 5xx / 529 when it is busy for a moment: retry a
   // few times, waiting longer each time (or what retry-after says), instead
-  // of failing the user's action at the first hiccup.
+  // of failing the user's action at the first hiccup. Only quick answers
+  // are retried: a call that failed after a long time (timeout, or 25 s
+  // gone in total) is not repeated — the browser has stopped waiting, and
+  // repeating it would only cost again.
   const RETRYABLE = [408, 409, 429, 500, 502, 503, 504, 529]
   const WAITS = [2000, 5000, 12000]
+  const started = Date.now()
   let res
   for (let attempt = 0; ; attempt++) {
     let netErr = null
+    res = null
+    const t0 = Date.now()
     try {
       res = $http.send({
         url: "https://api.anthropic.com/v1/messages",
@@ -87,8 +93,9 @@ function callClaude(tag, kind, maxTokens, content, timeoutSec) {
     } catch (err) {
       netErr = err
     }
-    const retryable = netErr || RETRYABLE.includes(res.statusCode)
-    if (!retryable || attempt >= WAITS.length) break
+    const quick = Date.now() - t0 < 15000
+    const retryable = quick && (netErr || RETRYABLE.includes(res.statusCode))
+    if (!retryable || attempt >= WAITS.length || Date.now() - started > 25000) break
     let wait = WAITS[attempt]
     try {
       const ra = Number(res && res.headers && (res.headers["Retry-After"] || res.headers["retry-after"]))

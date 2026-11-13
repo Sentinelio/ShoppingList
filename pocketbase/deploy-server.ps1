@@ -54,6 +54,17 @@ if (-not (Get-Command nssm -ErrorAction SilentlyContinue)) {
   if (-not (Test-Path $localNssm)) { throw "nssm not found in PATH nor at $localNssm." }
   Set-Alias -Name nssm -Value $localNssm -Scope Script
 }
+
+# nssm prints progress (e.g. "SERVICE_START_PENDING") on stderr. Under
+# PowerShell 5.1 with ErrorActionPreference=Stop that text becomes a
+# terminating error and used to stop the script half way, after the hooks
+# were replaced and before the health check. Run it with Continue and show
+# its output as plain text; the health check below says whether it worked.
+function Invoke-Nssm {
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try { & nssm @args 2>&1 | ForEach-Object { "$_" } | Out-Host } finally { $ErrorActionPreference = $prev }
+}
 if (-not (Test-Path $exe)) { throw "$exe not found." }
 if (-not (Test-Path $srcMigrations) -or -not (Test-Path $srcHooks)) {
   throw "Run this script from a clone of the repo (expected $srcMigrations and $srcHooks)."
@@ -73,7 +84,7 @@ if ($Reset -and -not $Force) {
 
 # -- 1. Stop ----------------------------------------------------------------
 Step "Stopping service $Service"
-& nssm stop $Service 2>&1 | Out-Host
+Invoke-Nssm stop $Service
 $deadline = (Get-Date).AddSeconds(30)
 while ((Get-Service $Service).Status -ne "Stopped") {
   if ((Get-Date) -gt $deadline) { throw "Service $Service did not stop within 30s." }
@@ -97,7 +108,7 @@ if ($Reset) {
 
 # -- 4. Start + health check ------------------------------------------------
 Step "Starting service $Service"
-& nssm start $Service 2>&1 | Out-Host
+Invoke-Nssm start $Service
 
 $deadline = (Get-Date).AddSeconds(60)
 $healthy = $false
