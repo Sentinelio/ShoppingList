@@ -69,11 +69,23 @@ export async function deleteItemPrice(priceId: string): Promise<void> {
   await pb.collection("item_prices").delete(priceId);
 }
 
-export async function getItemPrices(itemId: string): Promise<ItemPrice[]> {
+// ── Product memory ─────────────────────────────────────────────────────
+// Prices, comments and history belong to the product in its list (every
+// "Mleko" ever added there), so they outlive each item: the scope is the
+// list + product key, plus the item itself for rows written before.
+export interface ProductScope { itemId: string; listId?: string; productKey?: string }
+export function scopeFilter(s: ProductScope): string {
+  return s.listId && s.productKey
+    ? pb.filter("(list_id = {:list} && product_key = {:key}) || item_id = {:item}", { list: s.listId, key: s.productKey, item: s.itemId })
+    : pb.filter("item_id = {:item}", { item: s.itemId });
+}
+const asScope = (s: string | ProductScope): ProductScope => (typeof s === "string" ? { itemId: s } : s);
+
+export async function getItemPrices(scope: string | ProductScope): Promise<ItemPrice[]> {
   if (IS_DEMO) return [];
   try {
     return await pb.collection("item_prices").getFullList<ItemPrice>({
-      filter: pb.filter("item_id = {:itemId}", { itemId }),
+      filter: scopeFilter(asScope(scope)),
       sort: "-created_at",
     });
   } catch {
@@ -105,11 +117,11 @@ export async function deleteItemComment(commentId: string): Promise<void> {
   await pb.collection("item_comments").delete(commentId);
 }
 
-export async function getItemComments(itemId: string): Promise<ItemComment[]> {
+export async function getItemComments(scope: string | ProductScope): Promise<ItemComment[]> {
   if (IS_DEMO) return [];
   try {
     return await pb.collection("item_comments").getFullList<ItemComment>({
-      filter: pb.filter("item_id = {:itemId}", { itemId }),
+      filter: scopeFilter(asScope(scope)),
       sort: "created_at",
     });
   } catch {
@@ -138,11 +150,11 @@ export async function logItemHistory(params: {
   });
 }
 
-export async function getItemHistory(itemId: string): Promise<ItemHistoryEvent[]> {
+export async function getItemHistory(scope: string | ProductScope): Promise<ItemHistoryEvent[]> {
   if (IS_DEMO) return [];
   try {
     return await pb.collection("item_history").getFullList<ItemHistoryEvent>({
-      filter: pb.filter("item_id = {:itemId}", { itemId }),
+      filter: scopeFilter(asScope(scope)),
       sort: "-created_at",
     });
   } catch {

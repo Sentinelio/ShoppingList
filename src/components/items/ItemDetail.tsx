@@ -148,9 +148,12 @@ export default function ItemDetail({
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read when the names change, not on every new object
   }, [itemId, itemTrKey]);
-  const prices = useItemPrices(itemId);
-  const comments = useItemComments(itemId);
-  const history = useItemHistory(itemId);
+  // The product's memory in this list: every time it was added, also
+  // the ones already cleared from the list.
+  const memoryKey = item ? productKeyOf(item) : "";
+  const prices = useItemPrices(itemId, item?.list_id, memoryKey);
+  const comments = useItemComments(itemId, item?.list_id, memoryKey);
+  const history = useItemHistory(itemId, item?.list_id, memoryKey);
   // Statistics come from the purchase log, by product (every "Mleko" is the
   // same product), in this list or in all my lists. Store details still
   // come from the prices entered for this item.

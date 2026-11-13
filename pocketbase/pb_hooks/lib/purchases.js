@@ -28,6 +28,9 @@ function logPurchase(app, item, userId) {
   row.set("category", item.getString("category") || "other")
   row.set("qty", item.getString("qty"))
   row.set("unit", item.getString("unit"))
+  // Remembered for the next time the product is added (migration 1792540011).
+  row.set("photo", item.getString("photo"))
+  row.set("brand", item.getString("brand"))
   row.set("bought_at", item.getString("checked_at") || pbDate(new Date()))
   app.save(row)
 }
