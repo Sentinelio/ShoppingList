@@ -35,6 +35,10 @@ interface ItemDetailProps {
   /** "No hay" ↔ to buy (also takes the item out of the cart). */
   onSetUnavailable: (itemId: string, unavailable: boolean) => void;
   lang?: string;
+  /** Admin mode without editing: prices and comments can't be added or removed. */
+  readOnly?: boolean;
+  /** Called instead when readOnly blocks an action (the list shows why). */
+  onReadOnly?: () => void;
 }
 
 function getUnits(lang: string) {
@@ -115,6 +119,8 @@ export default function ItemDetail({
   onDelete,
   onShowStore,
   onSetUnavailable,
+  readOnly,
+  onReadOnly,
 }: ItemDetailProps) {
   const lang = userLang;
   const UNITS = getUnits(lang);
@@ -208,6 +214,7 @@ export default function ItemDetail({
   };
 
   const handleAddPrice = async () => {
+    if (readOnly) { onReadOnly?.(); return; }
     if (!user || !item || !newPriceStore.trim() || !newPriceValue.trim()) return;
     const value = parseFloat(newPriceValue.replace(",", "."));
     if (isNaN(value)) return;
@@ -232,10 +239,12 @@ export default function ItemDetail({
   };
 
   const handleDeletePrice = async (priceId: string) => {
+    if (readOnly) { onReadOnly?.(); return; }
     try { await deleteItemPrice(priceId); } catch (err) { console.error("[deleteItemPrice]", err); }
   };
 
   const handleAddComment = async () => {
+    if (readOnly) { onReadOnly?.(); return; }
     if (!user || !item || !newCommentText.trim()) return;
     try {
       await addItemComment({
@@ -253,6 +262,7 @@ export default function ItemDetail({
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (readOnly) { onReadOnly?.(); return; }
     try { await deleteItemComment(commentId); } catch (err) { console.error("[deleteItemComment]", err); }
   };
 

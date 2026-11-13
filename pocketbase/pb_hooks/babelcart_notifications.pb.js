@@ -58,18 +58,22 @@ onRecordUpdate((e) => {
 
 // Removed by someone else (or a pending request turned down by deleting it).
 onRecordDeleteRequest((e) => {
-  const { notify, userName } = require(`${__hooks}/lib/notify.js`)
+  const { notify, actorName } = require(`${__hooks}/lib/notify.js`)
   const uid = e.record.getString("user_id")
   const status = e.record.getString("status")
   const listId = e.record.getString("list_id")
   const actor = e.auth ? e.auth.id : ""
-  let listName = ""
-  try { listName = e.app.findRecordById("lists", listId).getString("name") } catch (_) { /* gone */ }
+  let listName = "", memberIds = []
+  try {
+    const list = e.app.findRecordById("lists", listId)
+    listName = list.getString("name")
+    memberIds = list.getStringSlice("active_members")
+  } catch (_) { /* gone */ }
   e.next()
   if (!actor || actor === uid || !listName) return
   try {
     if (status === "pending") notify(e.app, uid, "join_rejected", { list: listName }, { listId: listId })
-    else if (status === "active") notify(e.app, uid, "removed_from_list", { list: listName, by: userName(e.app, actor) }, { listId: listId })
+    else if (status === "active") notify(e.app, uid, "removed_from_list", { list: listName, by: actorName(e.app, actor, memberIds) }, { listId: listId })
   } catch (err) {
     console.error("[babelcart/notify] member delete:", err)
   }
@@ -77,14 +81,14 @@ onRecordDeleteRequest((e) => {
 
 // ── A list is deleted → its other members ──────────────────────────────────
 onRecordDeleteRequest((e) => {
-  const { notify, userName } = require(`${__hooks}/lib/notify.js`)
+  const { notify, actorName } = require(`${__hooks}/lib/notify.js`)
   const members = e.record.getStringSlice("active_members")
   const listName = e.record.getString("name")
   const listId = e.record.id
   const actor = e.auth ? e.auth.id : ""
   e.next()
   try {
-    const byName = actor ? userName(e.app, actor) : ""
+    const byName = actor ? actorName(e.app, actor, members) : ""
     for (const uid of members) {
       if (uid !== actor) notify(e.app, uid, "list_deleted", { list: listName, by: byName }, { listId: listId })
     }

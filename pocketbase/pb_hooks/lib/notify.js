@@ -75,6 +75,18 @@ function userName(app, userId) {
   }
 }
 
+// Name shown for whoever did something in a list: an admin who is not one
+// of its members (admin mode) shows as "Admin".
+function actorName(app, userId, memberIds) {
+  try {
+    const u = app.findRecordById("users", userId)
+    if (u.getBool("is_admin") && (memberIds || []).indexOf(userId) < 0) return "Admin"
+    return u.getString("name")
+  } catch (_) {
+    return ""
+  }
+}
+
 // Members who may approve join requests: owners, or every active member
 // when the list says who_can_approve = any_member.
 function approvers(list) {
@@ -112,4 +124,4 @@ function memberStatusChanged(app, member, before) {
   }
 }
 
-module.exports = { notify, userName, approvers, memberStatusChanged, readJson, MANDATORY, dbDate }
+module.exports = { notify, userName, actorName, approvers, memberStatusChanged, readJson, MANDATORY, dbDate }

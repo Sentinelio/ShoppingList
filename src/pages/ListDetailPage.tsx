@@ -180,6 +180,24 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
 
   const isOwner = !!user && !!list?.owners?.includes(user.id);
 
+  // Admin mode (an admin in a list they are not a member of): read-only
+  // unless "Edit lists I'm not a member of" is on in the profile. The
+  // server enforces it (migration 1792540013); here a blocked change does
+  // nothing and the admin banner says why.
+  const adminMode = !!user?.is_admin && !!list && !(list.active_members ?? []).includes(user.id);
+  const readOnly = adminMode && !user?.admin_edit;
+  const [roNudge, setRoNudge] = useState(false);
+  useEffect(() => {
+    if (!roNudge) return;
+    const id = setTimeout(() => setRoNudge(false), 4000);
+    return () => clearTimeout(id);
+  }, [roNudge]);
+  const nudge = useCallback(() => setRoNudge(true), []);
+  const ro = <A extends unknown[]>(fn: (...args: A) => unknown) => (...args: A) => {
+    if (readOnly) { nudge(); return; }
+    void fn(...args);
+  };
+
   const pendingMembers = members.filter(m => m.status === "pending");
 
   // Counts per status. "No hay" items don't count in the progress total, so
@@ -435,17 +453,18 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
             <button onClick={() => (tab === "list" ? goBack({ page: "lists", view: "home" }) : openTab("list"))} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
             <h1 className="flex-1 min-w-0 truncate text-[20px] font-bold text-text px-1">{list?.name ?? "…"}</h1>
             <button onClick={() => setSearching(true)} className={iconBtn} aria-label={t(lang, "search")}><IconSearch size={22} /></button>
-            <button onClick={() => setShowImportReceipt(true)} className={iconBtn} aria-label={t(lang, "importReceipt")}><IconCamera size={22} /></button>
+            <button onClick={ro(() => setShowImportReceipt(true))} className={iconBtn} aria-label={t(lang, "importReceipt")}><IconCamera size={22} /></button>
             <button onClick={() => setShowShare(true)} className={iconBtn} aria-label={t(lang, "share")}><IconShare size={22} /></button>
             <button onClick={() => setShowMenu(true)} className={iconBtn} aria-label={t(lang, "more")} aria-haspopup="menu"><IconMore size={22} /></button>
           </>
         )}
       </header>
       {/* Admin mode: an admin working in a list they are not a member of. */}
-      {user?.is_admin && list && !(list.active_members ?? []).includes(user.id) && (
+      {adminMode && (
         <div className="shrink-0 mx-3 mb-1 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-center"
           style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}>
-          🛡️ {t(lang, "adminModeBanner")}
+          🛡️ {t(lang, readOnly ? "adminReadOnlyBanner" : "adminModeBanner")}
+          {roNudge && <div className="font-normal mt-0.5">{t(lang, "adminReadOnlyHint")}</div>}
         </div>
       )}
 
@@ -461,7 +480,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
           {searchResults.length > 0 && (
             <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
               {searchResults.map(item => (
-                <ItemRow key={item.id} item={item} listLang={shelfLang} userLang={userLang} query={searchQuery} onToggle={handleToggle} onOpen={openItem} />
+                <ItemRow key={item.id} item={item} listLang={shelfLang} userLang={userLang} query={searchQuery} onToggle={ro(handleToggle)} onOpen={openItem} />
               ))}
             </div>
           )}
@@ -557,7 +576,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
                     {(!collapsed || group.key === "all") && (
                       <div className="rounded-[14px] bg-card divide-y divide-border overflow-hidden">
                         {group.items.map(item => (
-                          <ItemRow key={item.id} item={item} listLang={shelfLang} userLang={userLang} onToggle={handleToggle} onOpen={openItem} />
+                          <ItemRow key={item.id} item={item} listLang={shelfLang} userLang={userLang} onToggle={ro(handleToggle)} onOpen={openItem} />
                         ))}
                       </div>
                     )}
@@ -573,7 +592,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         </>
       )}
 
-      <BottomNav tab={tab} onTab={openTab} onAdd={() => setShowAdd(true)} lang={lang} pendingCount={pendingMembers.length} />
+      <BottomNav tab={tab} onTab={openTab} onAdd={ro(() => setShowAdd(true))} lang={lang} pendingCount={pendingMembers.length} />
 
       {user && (
         <AddItemSheet
@@ -609,10 +628,12 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         shelfLang={shelfLang}
         countryFlag={countryFlag}
         listCountry={list?.country || user?.country || ""}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
+        onUpdate={ro(handleUpdate)}
+        onDelete={ro(handleDelete)}
         onShowStore={showInStore}
-        onSetUnavailable={handleSetUnavailable}
+        onSetUnavailable={ro(handleSetUnavailable)}
+        readOnly={readOnly}
+        onReadOnly={nudge}
       />
 
       <ListMenu
@@ -622,7 +643,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         sortByCategory={sortByCategory}
         onToggleSort={toggleSort}
         boughtCount={counts.bought}
-        onClearBought={clearBought}
+        onClearBought={ro(clearBought)}
         onArchive={async () => {
           // Personal: hides the list from my home only.
           try { await archiveList(listId, true); } catch (err) { console.error("[archiveList]", err); }
@@ -634,7 +655,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
 
       {user && (
         <TopProductsSheet open={showTop} onClose={() => setShowTop(false)} listId={listId} userId={user.id}
-          listLang={shelfLang} userLang={userLang} lang={lang} pendingKeys={pendingKeys} onAdd={addAgain} />
+          listLang={shelfLang} userLang={userLang} lang={lang} pendingKeys={pendingKeys} onAdd={ro(addAgain)} />
       )}
 
       <ShareSheet

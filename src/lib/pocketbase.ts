@@ -185,6 +185,8 @@ export interface User {
   /** { <notification type>: false } turns a type off (lib/notifications.ts). */
   notification_prefs?: Record<string, boolean> | null;
   is_admin?: boolean;
+  /** Admins: may write in lists they are not a member of (off = read-only; migration 1792540013). */
+  admin_edit?: boolean;
   created_at: string;
   last_seen_at: string | null;
 }

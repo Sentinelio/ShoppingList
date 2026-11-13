@@ -6,8 +6,9 @@ import { ALWAYS_ON_PREFS, OPTIONAL_PREFS } from "../../lib/notifications";
 import { IS_DEMO, IS_SERVER_COPY, SERVER_APP_URL, type User } from "../../lib/pocketbase";
 import { openOnServer } from "../../lib/sessionTransfer";
 import { IconBack } from "../ui/icons";
+import AdminProfileSection from "./AdminProfileSection";
 
-type Updates = Partial<Pick<User, "name" | "lang" | "country" | "notification_prefs">>;
+type Updates = Partial<Pick<User, "name" | "lang" | "country" | "notification_prefs" | "admin_edit">>;
 
 // #/settings — my profile: public ID, name, language, country, which
 // notifications I get, and sign out. A screen of its own (Back returns).
@@ -102,6 +103,8 @@ export default function ProfilePage({ lang, user, onBack, onUpdate, onLogout }: 
             ))}
           </div>
         </section>
+
+        {user.is_admin && !IS_DEMO && <AdminProfileSection user={user} onEditChange={on => onUpdate({ admin_edit: on })} />}
 
         {/* GitHub Pages → the server's own copy, which works with Tailscale on. */}
         {!IS_DEMO && !IS_SERVER_COPY && SERVER_APP_URL && (
