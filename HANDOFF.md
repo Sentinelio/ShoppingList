@@ -25,10 +25,16 @@ Deadline for the mobile redesign: 2026-11-08.
   stays/goes home correctly, Store shows qty/brand/note + phrases in the country's language, instant open from a
   device cache (`src/lib/deviceCache.ts`). Router: `closeThenGo()` (flushSync) for "close overlay + navigate".
 
+- 2026-11-13 (server + app published): superuser blocked through the proxy (babelcart_security.pb.js); Anthropic
+  retries; batch catalog generation; catalog import/export (admin ⋯ menu); photo picker (file/URL/paste);
+  singular/plural search; regional words (`<lang>-<CC>` keys, admin "Regional" button, dictionary.regional_checked);
+  purchase log `purchases` (migration 1792540008) + `lists.clear_bought` (hourly sweep, default daily) → history in
+  Bought, "Most bought", stats by product, category order by buying; admin mode (1792540009: admins work in any list
+  without being members). Backups of the day: Copias\pb_data-20261113-1103, -1332, -1413.
+
 ## Auditoría 2026-11-12 (pendiente, por prioridad)
-1. **CRITICAL, confirmed**: superuser auth reachable publicly via `/api/collections/pbc_3142635823/...` and
-   `_SUPERUSERS` (Funnel only blocks exact `_superusers`). Plan: hook rejecting superuser requests that arrive
-   with X-Forwarded-For (via Tailscale), check logs for attempts; Manu: enable MFA at http://127.0.0.1:8090/_/.
+1. DONE 2026-11-13 (superuser block, verified 403 from outside). Manu: still enable MFA at http://127.0.0.1:8090/_/.
+   Italian is NOT in the server's enabled_langs (en es pl de fr pt nl): enabling it in the admin did not save.
 2. Anthropic cost abuse: free unlimited accounts + translate/translate-ui/parse-receipt without quota/size caps.
 3. No automatic/off-machine backups (newest Copias 2026-11-02); C: only ~9.5 GB free.
 4. deploy-server.ps1: empties hooks/migrations before copy, no auto-backup/rollback, -Force skips -Reset prompt.
