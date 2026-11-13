@@ -79,12 +79,13 @@ Deadline for the mobile redesign: 2026-11-08.
 - 20:05 "Salir de la lista" left on the server but the app stayed in the list (one goBack landed on another entry of the
   same list; admins can still read it). router goBackOut() backs past every entry of the list (leave-setup.mjs +
   leave-extra.mjs: old build stays, new goes home; mobile + desktop). Published.
-- Admin options (Manu OK 2026-11-13, commit 69f444f, NOT pushed yet): Ajustes → Admin (admin panel button, search/open
+- Admin options (Manu OK 2026-11-13, commit 69f444f, ACTIVE + published): Ajustes → Admin (admin panel button, search/open
   any list, "Edit lists I'm not a member of" = users.admin_edit). Migration 1792540013 (admin_edit + item-level write
   rules need it for non-member admins; default read-only), babelcart_admin.pb.js (non-member admin shows as "Admin",
   also in notifications). Tested on pbcopy5: admin-ro-test 21/21, test:pb 93/93, admin-ui-setup headless ok.
-  Live rules == tested rules (rules-compare.mjs). Files copied into Servidor\. WAITING: Manu admin restart, then
-  check-0012-style check (last migration 1792540013), then push + deploy-app (frontend after backend).
+  Live rules == tested rules (rules-compare.mjs). Files copied into Servidor\. Manu restarted as admin (backup Copias\pb_data-20261113-admin,
+  integrity ok): last migration 1792540013, live rules == tested copy, counts identical to the backup, Pages + server copy
+  have the new app. Manu's admin_edit starts OFF (read-only in lists he is not a member of).
 
 ## Auditoría 2026-11-13 — still open (decide with Manu)
 - AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
