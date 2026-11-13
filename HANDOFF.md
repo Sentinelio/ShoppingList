@@ -76,6 +76,11 @@ Deadline for the mobile redesign: 2026-11-08.
   by no item/purchase and older than 30 days (photos-test.mjs 4/4 on pbcopy5). Today 2 orphans (5 MB). Copied into
   Servidor\pb_hooks, active after the admin restart.
 
+- 20:05 "Salir de la lista" left on the server but the app stayed in the list (one goBack landed on another entry of the
+  same list; admins can still read it). router goBackOut() backs past every entry of the list (leave-setup.mjs +
+  leave-extra.mjs: old build stays, new goes home; mobile + desktop). Published.
+- Proposed, waiting for Manu: admin options in Ajustes (enter any list, invisible, read-only/edit, admin panel button).
+
 ## Auditoría 2026-11-13 — still open (decide with Manu)
 - AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
   strings and receipt images. Set a monthly limit in console.anthropic.com meanwhile.
