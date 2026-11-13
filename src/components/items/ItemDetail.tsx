@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import { useState, useEffect } from "react";
 import type { Item } from "../../lib/pocketbase";
 import { getLangFlag } from "../../data/langs";
 import { t, formatQtyUnit } from "../../data/i18n";
@@ -8,7 +8,7 @@ import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, compu
 import { useAuth } from "../../hooks/useAuth";
 import { translateProduct } from "../../lib/translate";
 import { getEnabledLangs } from "../../lib/langConfig";
-import { uploadItemPhoto } from "../../lib/photoUpload";
+import PhotoPicker from "./PhotoPicker";
 import { primaryName, secondaryName } from "../../lib/names";
 import ItemIcon from "./ItemIcon";
 import EmojiImage from "../ui/EmojiImage";
@@ -117,24 +117,6 @@ export default function ItemDetail({
   const [note, setNote] = useState("");
   const [editName, setEditName] = useState("");
   const [brand, setBrand] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [editingPhoto, setEditingPhoto] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const detailFileRef = useRef<HTMLInputElement>(null);
-
-  const handlePhotoFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPhoto(true);
-    try {
-      const url = await uploadItemPhoto(file);
-      if (url && item) onUpdate(item.id, { photo: url });
-    } catch (err) {
-      console.error("[photo upload]", err);
-    }
-    setUploadingPhoto(false);
-    if (detailFileRef.current) detailFileRef.current.value = "";
-  };
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
@@ -234,11 +216,8 @@ export default function ItemDetail({
       setNote(item.note || "");
       setEditName(item.original || "");
       setBrand(item.brand || "");
-      setEditingPhoto(false);
-      setPhotoUrl("");
       setDeleteStep(0);
       setActiveTab("show");
-      setEditingPhoto(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, open]);
@@ -290,13 +269,6 @@ export default function ItemDetail({
     }
   };
 
-  const savePhotoUrl = () => {
-    const url = photoUrl.trim();
-    if (!url) return;
-    onUpdate(item.id, { photo: url });
-    setPhotoUrl("");
-    setEditingPhoto(false);
-  };
 
 
   // ── SHOW PANE ──────────────────────────────────────────────────────────
@@ -405,28 +377,8 @@ export default function ItemDetail({
           onKeyDown={e => { if (e.key === "Enter") handleSave(); }}
           style={{ ...labInput, flex: 1, fontSize: 16, fontWeight: 700, padding: "6px 10px" }} />
       </div>
-      {/* Photo: file upload + URL */}
-      <input ref={detailFileRef} type="file" accept="image/*" onChange={handlePhotoFile} style={{ display: "none" }} />
-      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <button type="button" onClick={() => detailFileRef.current?.click()} disabled={uploadingPhoto}
-          style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid color-mix(in srgb, var(--color-text) 10%, transparent)", color: "var(--color-text-soft)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-          {uploadingPhoto ? "⏳..." : `📷 ${t(lang, "addPhotoUrl")}`}
-        </button>
-        {!editingPhoto ? (
-          <button type="button" onClick={() => setEditingPhoto(true)}
-            style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "transparent", border: "1.5px solid color-mix(in srgb, var(--color-text) 10%, transparent)", color: "var(--color-text-soft)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-            🔗 URL
-          </button>
-        ) : (
-          <>
-            <input type="text" value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="https://..."
-              onKeyDown={e => { if (e.key === "Enter") savePhotoUrl(); if (e.key === "Escape") setEditingPhoto(false); }}
-              style={{ ...labInput, flex: 2, fontSize: 11, padding: "8px 10px" }} />
-            <button type="button" onClick={savePhotoUrl} style={{ padding: "8px 12px", borderRadius: 10, background: "linear-gradient(135deg,color-mix(in srgb, var(--color-accent) 85%, #fff),color-mix(in srgb, var(--color-accent) 85%, #000))", color: "#fff", border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>OK</button>
-          </>
-        )}
-      </div>
-      {item.photo && <img src={item.photo} style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--color-text) 10%, transparent)", marginBottom: 6 }} alt="" />}
+      {/* Photo: file / camera, link, or paste */}
+      <PhotoPicker photo={item.photo} lang={lang} onChange={url => onUpdate(item.id, { photo: url })} />
       <div style={labLabel}>{t(lang, "brand")}</div>
       <input type="text" value={brand} onChange={e => setBrand(e.target.value)}
         placeholder="Ej: Hacendado, Lidl, Himalaya..."
