@@ -73,23 +73,27 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      {/* Read top to bottom by the staff: the question, right on top of the
-          product it is about, its details, and the picture last. */}
+      {/* Read top to bottom by the staff: the question (with the product's
+          icon on its left) right on top of the product's name, its photo if
+          it has one, then its details. */}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center-safe text-center px-5 py-4 *:shrink-0">
         {item ? (
           <>
-            {phrase && (
-              <button type="button" onClick={() => setPhraseKey(null)} aria-label={t(lang, "tapToClose")}
-                className="w-full max-w-[420px] mb-3 px-4 py-3 rounded-[18px] text-center cursor-pointer"
-                style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
-                <div className="text-[26px] font-extrabold leading-tight">
-                  {phrase.emoji} {phrase.translations[listLang] || phrase.translations.en || phrase.key}
-                </div>
-                {listLang !== userLang && phrase.translations[userLang] && (
-                  <div className="text-[13px] mt-1 opacity-75">{phrase.translations[userLang]}</div>
-                )}
-              </button>
-            )}
+            <div className="w-full max-w-[420px] mb-3 flex items-center justify-center gap-3">
+              <ItemIcon name={item.original} category={item.category} size={phrase ? 64 : 72} />
+              {phrase && (
+                <button type="button" onClick={() => setPhraseKey(null)} aria-label={t(lang, "tapToClose")}
+                  className="flex-1 min-w-0 px-4 py-3 rounded-[18px] text-center cursor-pointer"
+                  style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
+                  <div className="text-[24px] font-extrabold leading-tight">
+                    {phrase.emoji} {phrase.translations[listLang] || phrase.translations.en || phrase.key}
+                  </div>
+                  {listLang !== userLang && phrase.translations[userLang] && (
+                    <div className="text-[13px] mt-1 opacity-75">{phrase.translations[userLang]}</div>
+                  )}
+                </button>
+              )}
+            </div>
             <div className="text-[52px] font-extrabold leading-[1.05] break-words max-w-full"
               style={{ color: item.important ? "var(--color-important)" : "var(--color-primary-name)" }}>
               {primaryName(item, listLang)}
@@ -99,11 +103,12 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
                 {secondaryName(item, listLang, userLang)}
               </div>
             )}
+            {item.photo && (
+              <img src={item.photo} alt="" className="mt-4 max-w-full max-h-[36dvh] w-auto object-contain rounded-[16px]" />
+            )}
             <StoreDetails item={item} listLang={listLang} userLang={userLang} />
-            <div className="mt-5">
-              <ItemIcon name={item.original} category={item.category} photo={item.photo} size={phrase ? 130 : 160} />
-            </div>
           </>
+
         ) : (
           <div className="text-text-soft">
             <div className="text-5xl mb-3 opacity-40">🎉</div>

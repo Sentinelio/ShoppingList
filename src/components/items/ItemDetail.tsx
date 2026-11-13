@@ -2,8 +2,6 @@ import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import type { Item } from "../../lib/pocketbase";
 import { getLangFlag } from "../../data/langs";
 import { t, formatQtyUnit } from "../../data/i18n";
-import { useStorePhrases } from "../../hooks/useStorePhrases";
-import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
 import { matchProductEmoji } from "../../lib/emojiMatcher";
 import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useItemData";
 import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
@@ -140,9 +138,6 @@ export default function ItemDetail({
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
-  const [activePhrase, setActivePhrase] = useState<string | null>(null);
-  const [showPhraseList, setShowPhraseList] = useState(false);
-  const phrases = useStorePhrases();
   const sv = SHOW_STYLE;
 
   // ── Real per-item data (prices, comments, history) ───────────────────
@@ -243,8 +238,6 @@ export default function ItemDetail({
       setPhotoUrl("");
       setDeleteStep(0);
       setActiveTab("show");
-      setActivePhrase(null);
-      setShowPhraseList(false);
       setEditingPhoto(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -261,14 +254,6 @@ export default function ItemDetail({
   const mine = secondaryName(item, shelfLang, userLang);
   const isUnavailable = !!item.unavailable;
   const emojiChar = matchProductEmoji(item.original).emoji || "🛒";
-  const activePhraseObj = activePhrase ? phrases.find(p => p.key === activePhrase) : null;
-  const activePhraseShelf = activePhraseObj
-    ? (activePhraseObj.translations[shelfLang] || activePhraseObj.translations.en)
-    : null;
-  // Under the chosen phrase: my language, when it says something different.
-  const activePhraseMine = activePhraseObj && shelfLang !== userLang
-    ? activePhraseObj.translations[userLang] || null
-    : null;
 
   // Check if any edit field has changed
   const nameChanged = editName.trim() !== "" && editName.trim() !== item.original;
@@ -317,18 +302,6 @@ export default function ItemDetail({
   // ── SHOW PANE ──────────────────────────────────────────────────────────
   const showPane = (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0, background: sv.bodyBg }}>
-      {/* Active phrase banner */}
-      {activePhraseShelf && (
-        <div onClick={() => setActivePhrase(null)}
-          style={{ textAlign: "center", padding: "16px 16px 12px", background: "linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 85%, #fff), color-mix(in srgb, var(--color-accent) 85%, #000))", cursor: "pointer", flexShrink: 0 }}>
-          <span style={{ fontSize: 24, display: "block", marginBottom: 4 }}>{activePhraseObj?.emoji}</span>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{activePhraseShelf}</div>
-          {activePhraseMine && activePhraseMine !== activePhraseShelf && (
-            <div style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 80%, transparent)", marginTop: 4 }}>{activePhraseMine}</div>
-          )}
-          <div style={{ fontSize: 9, color: "color-mix(in srgb, var(--color-text) 50%, transparent)", marginTop: 6 }}>tap para ocultar</div>
-        </div>
-      )}
       {/* Shelf name */}
       <div style={{ textAlign: "center", padding: "2px 16px 0", flexShrink: 0 }}>
         <div style={{ fontSize: sv.shelfFontSize, fontWeight: sv.shelfFontWeight, color: "var(--color-primary-name)", marginTop: 10, letterSpacing: sv.shelfLetterSpacing, textShadow: sv.shelfTextShadow }}>
@@ -388,33 +361,8 @@ export default function ItemDetail({
           🛍️ {t(lang, "showInStoreFull")}
         </button>
       </div>
-      {/* Collapsible phrases */}
+      {/* Google Images (the staff phrases live in the Store tab) */}
       <div style={{ flexShrink: 0, paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
-        <div onClick={() => setShowPhraseList(v => !v)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, cursor: "pointer", borderTop: sv.toggleBorderTop, background: sv.toggleBg, borderRadius: sv.toggleBorderRadius, border: !sv.toggleBorderTop ? sv.toggleBorder : undefined, ...(sv.toggleBorderRadius ? { margin: "0 12px" } : {}) }}>
-          <span style={{ fontSize: sv.toggleLabelSize, fontWeight: sv.toggleLabelWeight, color: sv.toggleLabelColor }}>Preguntas para el dependiente</span>
-          <span style={{ fontSize: sv.toggleLabelSize - 1, color: sv.toggleLabelColor }}>{showPhraseList ? "▲" : "▼"}</span>
-        </div>
-        {showPhraseList && (
-          <div style={{ maxHeight: 220, overflowY: "auto", borderRadius: sv.listBorderRadius, border: sv.listBorder, margin: sv.listMargin }}>
-            {phrases.map(phrase => {
-              const phraseShelf = phrase.translations[shelfLang] || phrase.translations.en || phrase.key;
-              const phraseMine = phrase.translations[userLang] || phraseShelf;
-              return (
-                <div key={phrase.key} onClick={() => { setActivePhrase(phrase.key); setShowPhraseList(false); void incrementPhraseUsage(phrase.key); }}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", cursor: "pointer", borderBottom: "1px solid color-mix(in srgb, var(--color-text) 6%, transparent)" }}>
-                  <span style={{ fontSize: 18 }}>{phrase.emoji}</span>
-                  <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{phraseMine}</span>
-                    {phraseMine !== phraseShelf && (
-                      <span style={{ fontSize: 11, color: "var(--color-secondary-name)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{phraseShelf}</span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
         {/* Google Images button */}
         <a
           href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent((shelfName || displayName) + (item.brand ? " " + item.brand : ""))}`}
