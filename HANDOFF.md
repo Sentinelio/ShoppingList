@@ -49,13 +49,19 @@ Deadline for the mobile redesign: 2026-11-08.
   (hooks from Pruebas\hooks-test, synced), memory-test 13/13, live log 8 h: no slow non-AI requests.
   Read-only log tools: Pruebas\babelcart-tools\audit-logs.mjs, regional-log.mjs.
 
-## Auditoría 2026-11-13 18:30 — new, not fixed (minor)
-- Product memory restores the latest purchase WITH a photo/brand → a photo the user removed comes back
-  (babelcart_product_memory.pb.js: take the latest purchase, not the latest non-empty one). Backend deploy.
-- "Failed to send login alert: no sendmail" in the log: no SMTP. Configure SMTP or turn off login alerts (superuser UI).
-- item_photos: uploaded raw (≤15 MB), never cleaned up; uploaded_by cascade → if the uploader deletes their account,
-  photos used by other members' items/purchases disappear.
-- Regional spend cap counts only successful batches; renaming a product (new English name) hides its older memory.
+- 2026-11-13 18:50 audit fixes (commit "fix: audit 18:30"): photos shrunk to 1280 px WebP before upload; removed
+  photo stays removed; memory + purchases follow a rename / late translation (SQL rekey in
+  babelcart_product_memory.pb.js); migration 1792540012 (login alerts off: no SMTP; item_photos.uploaded_by no
+  cascade); Regional spend counts cut replies. Tested on Pruebas\pbcopy5 (copy of today's data, :8095):
+  fixes2-test 14/14, test:pb 93/93. App published (Pages + server copy).
+  **Backend NOT active yet**: new hooks/migration are copied into Servidor\ but the service was never restarted —
+  `nssm stop/start` needs Administrator (fails with exit 3 "Access is denied"; deploy-server.ps1 #Requires admin).
+  Manu: restart from an Administrator PowerShell (stop, backup, start); then check with
+  `node Pruebas\babelcart-tools\check-0012.mjs` (last migration must be 1792540012, alerts 0).
+  LESSON: without admin, Get-Process shows Path empty, so a `Path -like "*Servidor*"` "is it stopped?" check passes
+  falsely. Use `nssm status PocketBase` (must say SERVICE_STOPPED) and check nssm's exit code. Backups 18:42 and 18:46
+  were copied with the service running; check-backups.mjs (PRAGMA integrity_check) says all Copias are ok.
+- Not done (needs Manu's OK, deletes files): cleanup of orphan item_photos (not referenced by any items/purchases).
 
 ## Auditoría 2026-11-13 — still open (decide with Manu)
 - AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
