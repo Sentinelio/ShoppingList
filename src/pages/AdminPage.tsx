@@ -33,6 +33,9 @@ import ListsDesktop, { type BulkField } from "../components/admin/desktop/ListsD
 import { loadPeople, matchUsers, EMPTY_PEOPLE, type PeopleData } from "../lib/adminPeople";
 import AdminMessages from "../components/admin/AdminMessages";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
+import ImportCatalogDialog from "../components/admin/ImportCatalogDialog";
+import { exportJson, exportCsv, download, parseCatalogFile, type ParsedCatalog } from "../lib/catalogIO";
+import { getCustomStoreTypes, getCustomCategories } from "../lib/customStoreConfig";
 import {
   ensureStorePhrasesLoaded,
   upsertStorePhrase,
@@ -63,6 +66,7 @@ interface DictRow {
   key: string;
   translations: Record<string, string>;
   category: string;
+  store_type?: string;
   is_brand?: boolean;
   created_at: string;
 }
@@ -717,6 +721,28 @@ export default function AdminPage() {
   // Catalog filters: entries missing a language, one store type.
   const [catMissingLang, setCatMissingLang] = useState("");
   const [catStore, setCatStore] = useState("");
+  // Catalog import / export.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState<{ filename: string; parsed: ParsedCatalog } | null>(null);
+  const exportRows = () => dictRows.filter(r => !catStore || (r.store_type || "grocery") === catStore)
+    .map(r => ({ ...r, store_type: r.store_type || "grocery", is_brand: !!r.is_brand }));
+  const exportName = (ext: string) => `babelcart-catalog${catStore ? "-" + catStore : ""}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  const exportCatalog = (kind: "json" | "csv") => {
+    const rows = exportRows();
+    if (kind === "json") download(exportName("json"), exportJson(rows, getEnabledLangs(), getCustomStoreTypes(), getCustomCategories()), "application/json");
+    else download(exportName("csv"), exportCsv(rows, getEnabledLangs()), "text/csv;charset=utf-8");
+    showToast(`Exported ${rows.length} entries`);
+  };
+  const onImportFile = async (file: File | undefined) => {
+    if (importInputRef.current) importInputRef.current.value = "";
+    if (!file) return;
+    try {
+      const parsed = parseCatalogFile(await file.text(), file.name);
+      setImporting({ filename: file.name, parsed });
+    } catch (err) {
+      showToast(`Can't read ${file.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
   const [editingEntry, setEditingEntry] = useState<DictRow | null>(null);
   useBackToClose(!!editingEntry, () => setEditingEntry(null));
   const [, setNewEntry] = useState(false);
@@ -1149,6 +1175,14 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={isDesktop ? undefined : { maxWidth: 960, margin: "0 auto" }}>
+      {importing && (
+        <ImportCatalogDialog
+          filename={importing.filename}
+          parsed={importing.parsed}
+          existing={dictRows.filter(r => r.id).map(r => ({ id: r.id, key: r.key, translations: r.translations ?? {}, category: r.category, store_type: r.store_type || "grocery", is_brand: !!r.is_brand }))}
+          onClose={(changed) => { setImporting(null); if (changed) { fetchDictionary(); forceUpdate(n => n + 1); } }}
+        />
+      )}
       {generating && (
         <GenerateDialog
           mode={generating.mode}
@@ -1463,6 +1497,27 @@ export default function AdminPage() {
                 })}
               </select>
             </div>
+            {!IS_DEMO && (
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => exportCatalog("json")} disabled={!dictRows.length}
+                  className="flex-1 min-w-0 h-10 rounded-xl bg-card border border-border-light text-[12px] font-semibold text-text cursor-pointer disabled:opacity-40"
+                  title="Everything: entries, custom store types and categories">
+                  ⬇️ Export JSON{catStore ? " (this store)" : ""}
+                </button>
+                <button type="button" onClick={() => exportCatalog("csv")} disabled={!dictRows.length}
+                  className="flex-1 min-w-0 h-10 rounded-xl bg-card border border-border-light text-[12px] font-semibold text-text cursor-pointer disabled:opacity-40"
+                  title="Entries only, one column per language (opens in Excel)">
+                  ⬇️ Export CSV{catStore ? " (this store)" : ""}
+                </button>
+                <button type="button" onClick={() => importInputRef.current?.click()}
+                  className="flex-1 min-w-0 h-10 rounded-xl text-[12px] font-bold cursor-pointer"
+                  style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}>
+                  ⬆️ Import
+                </button>
+                <input ref={importInputRef} type="file" accept=".json,.csv,application/json,text/csv" className="hidden"
+                  onChange={e => void onImportFile(e.target.files?.[0])} />
+              </div>
+            )}
             {catMissingLang && !IS_DEMO && filteredDict.length > 0 && (
               <button type="button" onClick={() => fillLanguageTranslations(catMissingLang)} disabled={!!bulkRunning}
                 className="w-full mb-3 h-11 rounded-xl text-[13px] font-bold cursor-pointer disabled:opacity-40"
