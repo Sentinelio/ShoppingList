@@ -62,6 +62,7 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
     usage: { input: (a.usage?.input ?? 0) + (b.usage?.input ?? 0), output: (a.usage?.output ?? 0) + (b.usage?.output ?? 0) },
     model: a.model || b.model, dry_run: a.dry_run || b.dry_run,
   });
+  const wastedRef = useRef(0);
   const runBatch = async (keys: string[]): Promise<Res> => {
     let err: unknown = null;
     for (const wait of [0, 3000, 10000]) {
@@ -71,6 +72,8 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
         return await callRoute<Res>("regional-variants", { lang: lang.code, langName: lang.name, countries: lang.countries.map(c => ({ code: c.code, name: c.name })), keys });
       } catch (e) {
         err = e;
+        // A cut reply was paid in full (the whole output limit).
+        if (isCutReply(e)) wastedRef.current += costOf({ input: keys.length * 12, output: 8000 }, "claude-haiku-5-5");
         if (isCutReply(e) && keys.length > 1) {
           const half = Math.ceil(keys.length / 2);
           const a = await runBatch(keys.slice(0, half));
@@ -104,6 +107,8 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
         failed.push(...keys);
         setLastError(e instanceof Error ? e.message : String(e));
       }
+      p.spent += wastedRef.current;
+      wastedRef.current = 0;
       p.done = Math.min(list.length, i + BATCH);
       setProgress({ ...p });
     }
