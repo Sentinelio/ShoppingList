@@ -15,6 +15,7 @@
 // goBack() knows whether the previous entry is still inside the app.
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 
 export type ListTab = "list" | "store" | "members";
 export type HomeView = "home" | "archived" | "notifications" | "settings";
@@ -85,11 +86,33 @@ export function go(route: AppRoute, opts: { replace?: boolean } = {}) {
   });
 }
 
+/** To close a sheet / the search AND navigate in the same tap, close it
+ *  with closeThenGo(() => close(), () => go(...)): the sheet's own back
+ *  (useBackToClose cleanup) must be registered before navigating, or that
+ *  back lands after the navigation and undoes it. flushSync commits the
+ *  close (and runs that cleanup) right away; go()/goBack() then wait for
+ *  the back to land. */
+export function closeThenGo(close: () => void, navigate: () => void) {
+  flushSync(close);
+  navigate();
+}
+
+/** Back `steps` entries at once (e.g. a product opened from the search). */
+export function backSteps(steps: number) {
+  if (steps <= 0) return;
+  pendingBacks++;
+  history.go(-steps);
+}
+
 /** The app's own ← : back in history when the previous entry is ours,
  *  else (opened from a link or a reload) straight to `parent`. */
 export function goBack(parent: AppRoute) {
-  if (depth() > 0) programmaticBack();
-  else go(parent, { replace: true });
+  // Waits for a back already on its way (e.g. a sheet just closed), so it
+  // goes back from where that one lands instead of racing it.
+  whenSettled(() => {
+    if (depth() > 0) programmaticBack();
+    else go(parent, { replace: true });
+  });
 }
 
 let cached: { hash: string; route: AppRoute } | null = null;

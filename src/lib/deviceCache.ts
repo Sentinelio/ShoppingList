@@ -22,6 +22,14 @@ export function writeCache(key: string, value: unknown): void {
   }
 }
 
+export function removeCache(key: string): void {
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch {
+    // ignore
+  }
+}
+
 /** On logout: nothing of this person stays on the device. */
 export function clearCache(): void {
   try {

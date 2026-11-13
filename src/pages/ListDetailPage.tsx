@@ -15,7 +15,8 @@ import ItemRow from "../components/items/ItemRow";
 import AddItemSheet from "../components/items/AddItemSheet";
 import ItemDetail from "../components/items/ItemDetail";
 import BottomNav, { type ListTab } from "../components/list/BottomNav";
-import { go, goBack, useBackToClose } from "../lib/router";
+import { go, goBack, closeThenGo, backSteps, useBackToClose } from "../lib/router";
+import { removeCache } from "../lib/deviceCache";
 import StoreTab from "../components/list/StoreTab";
 import MembersTab from "../components/list/MembersTab";
 import ShareSheet from "../components/list/ShareSheet";
@@ -278,17 +279,25 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
 
   const openTab = (next: ListTab) => {
     if (next !== "store") setStoreStartId(null);
-    closeSearch();
     // Tabs replace each other in the history: Back leaves the list.
-    go({ page: "list", listId, tab: next }, { replace: true });
+    // Closing the search goes back one entry; switch tab once it has.
+    const toTab = () => go({ page: "list", listId, tab: next }, { replace: true });
+    if (searching) closeThenGo(closeSearch, toTab);
+    else toTab();
   };
 
   const showInStore = (item: Item) => {
     setStoreStartId(item.id);
-    // Leave the product's page first (back to the list entry), then swap that
-    // entry for the Store tab. go() waits for the back to land; doing it the
-    // other way round, the back undid the Store tab right after opening it.
-    goBack(listRoute);
+    // Leave the product's page first (and the search it was opened from),
+    // back to the list entry, then swap that entry for the Store tab. go()
+    // waits for the back to land; the other way round, the back undid the
+    // Store tab right after opening it.
+    if (searching) {
+      closeSearch();
+      backSteps(2);
+    } else {
+      goBack(listRoute);
+    }
     go({ page: "list", listId, tab: "store" }, { replace: true });
   };
 
@@ -551,8 +560,10 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         onChange={changeList}
         onDeleteOrLeave={async () => {
           try { if (user) await exitList(listId, user.id); } catch { /* realtime will sync */ }
-          setShowSettings(false);
-          go({ page: "lists", view: "home" }, { replace: true });
+          removeCache(`list:${listId}`);
+          // Closing the sheet goes back one entry; leave for home once it has
+          // (navigating at once, that back returned to the deleted list).
+          closeThenGo(() => setShowSettings(false), () => goBack({ page: "lists", view: "home" }));
         }}
       />
 
