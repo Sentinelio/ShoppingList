@@ -10,6 +10,11 @@ import { CATEGORY_ORDER } from "../data/categories";
 import { getCountryFlag } from "../data/countries";
 import { listLangOf, categoryNames, primaryName, secondaryName } from "../lib/names";
 import { matchesSearch } from "../lib/highlight";
+import { dictionaryReady, dictionaryVariantsSync } from "../lib/dictSuggest";
+
+// Regional words an item already carries ("es-AR": "palta").
+const pickVariants = (tr: Record<string, string> | null | undefined) =>
+  Object.fromEntries(Object.entries(tr ?? {}).filter(([k, v]) => k.includes("-") && v));
 import type { Item } from "../lib/pocketbase";
 import ItemRow from "../components/items/ItemRow";
 import AddItemSheet from "../components/items/AddItemSheet";
@@ -56,6 +61,30 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
   const { list, setList, members, setMembers, items, setItems, loading, refresh } = useListDetail(listId);
   // Primary language of every name in this list: the list country's.
   const shelfLang = listLangOf(list, user?.country);
+  const listCountry = list?.country || user?.country || "";
+  const myCountry = user?.country || "";
+
+  // Names as shown: where the list's country (or mine) has its own word for
+  // a product (es-AR "palta", en-GB "sweets"), it replaces the language's
+  // one — for display only; the items keep their data. Re-done once the
+  // dictionary (where those words live) has loaded.
+  const [dictLoaded, setDictLoaded] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    void dictionaryReady().then(() => { if (alive) setDictLoaded(n => n + 1); });
+    return () => { alive = false; };
+  }, []);
+  const shown = useMemo(() => items.map(i => {
+    const variants = { ...dictionaryVariantsSync(i.translations), ...pickVariants(i.translations) };
+    const shelfWord = variants[`${shelfLang}-${listCountry}`];
+    const myWord = variants[`${userLang}-${myCountry}`];
+    if (!shelfWord && !myWord) return i;
+    const translations = { ...i.translations };
+    if (shelfWord) translations[shelfLang] = shelfWord;
+    if (myWord) translations[userLang] = myWord;
+    return { ...i, translations };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dictLoaded: re-run when the dictionary arrives
+  }), [items, shelfLang, userLang, listCountry, myCountry, dictLoaded]);
 
   const editingItem = itemId ? items.find(i => i.id === itemId) ?? null : null;
   const listRoute = { page: "list" as const, listId, tab: "list" as const };
@@ -124,11 +153,11 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
 
   const categoryGroups = useMemo<CategoryGroup[]>(() => {
     if (!sortByCategory) {
-      const all = sortByImportance(items.filter(i => statusOf(i) === filter));
+      const all = sortByImportance(shown.filter(i => statusOf(i) === filter));
       return all.length ? [{ key: "all", name: "", nameMine: "", items: all }] : [];
     }
     const grouped: Record<string, Item[]> = {};
-    for (const item of items) {
+    for (const item of shown) {
       if (statusOf(item) !== filter) continue;
       const cat = item.category || "other";
       (grouped[cat] ??= []).push(item);
@@ -138,26 +167,26 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
       const names = categoryNames(cat, shelfLang, userLang);
       return { key: cat, name: names.primary, nameMine: names.secondary, items: sortByImportance(grouped[cat]) };
     });
-  }, [items, filter, shelfLang, userLang, sortByCategory]);
+  }, [shown, filter, shelfLang, userLang, sortByCategory]);
 
   // Store tab (3.7): pending items in the same order as the list.
   const storeItems = useMemo(() => {
-    const pending = sortByImportance(items.filter(i => statusOf(i) === "pending"));
+    const pending = sortByImportance(shown.filter(i => statusOf(i) === "pending"));
     if (!sortByCategory) return pending;
     const rank = (c: string) => { const i = CATEGORY_ORDER.indexOf(c || "other"); return i < 0 ? CATEGORY_ORDER.length : i; };
     return [...pending].sort((a, b) => rank(a.category) - rank(b.category));
-  }, [items, sortByCategory]);
+  }, [shown, sortByCategory]);
 
   // 3.1.1 — search matches either of the two names shown (or the original).
   const searchResults = useMemo(() => {
     const q = searchQuery.trim();
     if (!q) return [];
-    return items.filter(i =>
+    return shown.filter(i =>
       matchesSearch(primaryName(i, shelfLang), q) ||
       matchesSearch(secondaryName(i, shelfLang, userLang), q) ||
       matchesSearch(i.original, q),
     );
-  }, [items, searchQuery, shelfLang, userLang]);
+  }, [shown, searchQuery, shelfLang, userLang]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
     // Buying a "No hay" item takes it out of "No hay" (the server does the same).

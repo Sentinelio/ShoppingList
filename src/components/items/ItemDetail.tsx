@@ -138,13 +138,15 @@ export default function ItemDetail({
   // don't carry them) and which languages are unfolded in the languages tab.
   const [regional, setRegional] = useState<Record<string, string>>({});
   const [openLangs, setOpenLangs] = useState<string[]>([]);
-  const itemEn = item?.translations?.en ?? "";
+  const itemTr = item?.translations;
+  const itemTrKey = JSON.stringify(itemTr ?? {});
   useEffect(() => {
     let alive = true;
     setOpenLangs([]);
-    dictionaryVariants({ en: itemEn }).then(v => { if (alive) setRegional(v); }).catch(() => { if (alive) setRegional({}); });
+    dictionaryVariants(itemTr).then(v => { if (alive) setRegional(v); }).catch(() => { if (alive) setRegional({}); });
     return () => { alive = false; };
-  }, [itemId, itemEn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read when the names change, not on every new object
+  }, [itemId, itemTrKey]);
   const prices = useItemPrices(itemId);
   const comments = useItemComments(itemId);
   const history = useItemHistory(itemId);

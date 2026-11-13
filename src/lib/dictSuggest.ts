@@ -54,15 +54,63 @@ export function invalidateDictionaryCache(): void {
   CACHE = null;
 }
 
+// Plural of a regional word, for languages that add an ending: Spanish /
+// Portuguese / French (+s, or +es after a consonant in Spanish) and English
+// (+s, +es after s/x/z/ch/sh, -y → -ies). Other languages: unchanged.
+function pluralize(word: string, lang: string): string {
+  const w = word.trim();
+  if (!w) return w;
+  const parts = w.split(" ");
+  const last = parts[parts.length - 1];
+  let p = last;
+  if (lang === "en") {
+    if (/(s|x|z|ch|sh)$/i.test(last)) p = last + "es";
+    else if (/[^aeiou]y$/i.test(last)) p = last.slice(0, -1) + "ies";
+    else p = last + "s";
+  } else if (lang === "es") {
+    p = /[aeiouáéó]$/i.test(last) ? last + "s" : /z$/i.test(last) ? last.slice(0, -1) + "ces" : last + "es";
+  } else if (lang === "pt" || lang === "fr") {
+    p = /s$/i.test(last) ? last : last + "s";
+  } else return w;
+  parts[parts.length - 1] = p;
+  return parts.join(" ");
+}
+// The product's name in `lang` is the dictionary's plus a plural ending.
+const isPluralOf = (mine: string, dict: string) => {
+  const a = normalize(mine).trim(), b = normalize(dict).trim();
+  return !!b && a !== b && (a === b + "s" || a === b + "es" || (b.endsWith("y") && a === b.slice(0, -1) + "ies"));
+};
+
 /** Regional names ("en-GB": "sweets", "es-AR": "palta") the dictionary has
  *  for a product, found by its English name. Items copied their names from
- *  the dictionary before it had these, so the product page asks here. */
+ *  the dictionary before it had these, so they are looked up here. When the
+ *  product is named in the plural ("patatas", dictionary "patata"), the
+ *  regional word comes in the plural too ("papas"). */
 export async function dictionaryVariants(translations: Record<string, string> | null | undefined): Promise<Record<string, string>> {
+  return variantsFrom(await ensureLoaded(), translations);
+}
+
+/** Same, synchronous: empty until the dictionary has loaded. */
+export function dictionaryVariantsSync(translations: Record<string, string> | null | undefined): Record<string, string> {
+  return CACHE ? variantsFrom(CACHE, translations) : {};
+}
+
+/** Resolves once the dictionary is loaded (for screens that then re-read it). */
+export function dictionaryReady(): Promise<void> {
+  return ensureLoaded().then(() => undefined);
+}
+
+function variantsFrom(entries: SuggestEntry[], translations: Record<string, string> | null | undefined): Record<string, string> {
   const en = normalize(translations?.en ?? "").trim();
   if (!en) return {};
-  const entry = (await ensureLoaded()).find(e => normalize(e.key).trim() === en || normalize(e.translations.en ?? "").trim() === en);
+  const entry = entries.find(e => normalize(e.key).trim() === en || normalize(e.translations.en ?? "").trim() === en);
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(entry?.translations ?? {})) if (k.includes("-") && v) out[k] = v;
+  for (const [k, v] of Object.entries(entry?.translations ?? {})) {
+    if (!k.includes("-") || !v) continue;
+    const lang = k.split("-")[0];
+    const mine = translations?.[lang] ?? "";
+    out[k] = mine && isPluralOf(mine, entry!.translations[lang] ?? "") ? pluralize(v, lang) : v;
+  }
   return out;
 }
 
