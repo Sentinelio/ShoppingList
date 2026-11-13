@@ -115,6 +115,20 @@ export function goBack(parent: AppRoute) {
   });
 }
 
+/** Leaves a screen that no longer exists for me (a list just left or
+ *  deleted): back until the route is no longer `stillHere`, skipping any
+ *  other entries of it on the way (a tab, a product, a stale overlay); with
+ *  no app entry left, replaces it with `parent`. A single goBack() could
+ *  land on another entry of the same list and leave the user inside it. */
+export function goBackOut(stillHere: (r: AppRoute) => boolean, parent: AppRoute) {
+  const step = () => {
+    if (!stillHere(snapshot())) return;
+    if (depth() > 0) { programmaticBack(); afterBacks.push(step); }
+    else go(parent, { replace: true });
+  };
+  whenSettled(step);
+}
+
 let cached: { hash: string; route: AppRoute } | null = null;
 function snapshot(): AppRoute {
   const hash = window.location.hash;

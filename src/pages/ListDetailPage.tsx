@@ -23,7 +23,7 @@ import ItemRow from "../components/items/ItemRow";
 import AddItemSheet from "../components/items/AddItemSheet";
 import ItemDetail from "../components/items/ItemDetail";
 import BottomNav, { type ListTab } from "../components/list/BottomNav";
-import { go, goBack, closeThenGo, backSteps, useBackToClose } from "../lib/router";
+import { go, goBack, goBackOut, closeThenGo, backSteps, useBackToClose } from "../lib/router";
 import { removeCache } from "../lib/deviceCache";
 import StoreTab from "../components/list/StoreTab";
 import MembersTab from "../components/list/MembersTab";
@@ -661,7 +661,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
           removeCache(`list:${listId}`);
           // Closing the sheet goes back one entry; leave for home once it has
           // (navigating at once, that back returned to the deleted list).
-          closeThenGo(() => setShowSettings(false), () => goBack({ page: "lists", view: "home" }));
+          closeThenGo(() => setShowSettings(false), () => goBackOut(r => r.page === "list" && r.listId === listId, { page: "lists", view: "home" }));
         }}
       />
 
