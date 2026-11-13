@@ -61,6 +61,13 @@ Deadline for the mobile redesign: 2026-11-08.
   LESSON: without admin, Get-Process shows Path empty, so a `Path -like "*Servidor*"` "is it stopped?" check passes
   falsely. Use `nssm status PocketBase` (must say SERVICE_STOPPED) and check nssm's exit code. Backups 18:42 and 18:46
   were copied with the service running; check-backups.mjs (PRAGMA integrity_check) says all Copias are ok.
+- 19:10 Generate items: "cut by the token limit before any complete entry" (4 batches, ~73 s = full 16000 tokens;
+  60×7 langs needs ~4000 → the model wrote notes before the JSON). seed-dictionary now sends a JSON schema
+  (output_config.format, fallback without it on a 400); cut replies log their head via $app.logger(). Dry-run tested
+  only — the real call is verified after the admin restart (look in the log for "structured output refused").
+  Hooks copied into Servidor\pb_hooks, waiting for that restart too.
+- Ollama on the server (11434): glm-5.3-flash:cloud and gpt-oss:120b-cloud (run on ollama.com, free tier limits)
+  + llama3.2:3b local (CPU only, Intel HD 530). Idea from Manu: use them to translate — proposed, not built.
 - Not done (needs Manu's OK, deletes files): cleanup of orphan item_photos (not referenced by any items/purchases).
 
 ## Auditoría 2026-11-13 — still open (decide with Manu)
