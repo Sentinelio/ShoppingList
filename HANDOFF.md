@@ -41,6 +41,22 @@ Deadline for the mobile redesign: 2026-11-08.
   prices belong to list + product_key and survive the clearing of bought items; a product added again gets its
   last photo and brand back (purchases.photo/brand). Backup Copias\pb_data-20261113-1603.
 
+- 2026-11-13 18:30 audit (app only, published): Regional failed 18× in the live log with "invalid JSON" at ~30 s =
+  reply cut at 8000 output tokens (Spanish, 10 countries × 40 products); retrying the same batch failed again.
+  RegionalDialog: batch = 200 / countries (8..40) + a cut reply is retried as two halves (headless test with faked
+  cut replies: 878/878, 0 failed). Also retries ×3 + "Retry the N failed" (d344e33). eslint ignores Pruebas/Servidor/
+  Copias (`eslint .` hung on the Chrome profiles). Verified: tsc, eslint, npm audit 0, test:pb 93/93 on pbcopy4
+  (hooks from Pruebas\hooks-test, synced), memory-test 13/13, live log 8 h: no slow non-AI requests.
+  Read-only log tools: Pruebas\babelcart-tools\audit-logs.mjs, regional-log.mjs.
+
+## Auditoría 2026-11-13 18:30 — new, not fixed (minor)
+- Product memory restores the latest purchase WITH a photo/brand → a photo the user removed comes back
+  (babelcart_product_memory.pb.js: take the latest purchase, not the latest non-empty one). Backend deploy.
+- "Failed to send login alert: no sendmail" in the log: no SMTP. Configure SMTP or turn off login alerts (superuser UI).
+- item_photos: uploaded raw (≤15 MB), never cleaned up; uploaded_by cascade → if the uploader deletes their account,
+  photos used by other members' items/purchases disappear.
+- Regional spend cap counts only successful batches; renaming a product (new English name) hides its older memory.
+
 ## Auditoría 2026-11-13 — still open (decide with Manu)
 - AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
   strings and receipt images. Set a monthly limit in console.anthropic.com meanwhile.
