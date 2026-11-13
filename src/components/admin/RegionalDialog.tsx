@@ -17,7 +17,11 @@ const costOf = (u?: { input: number; output: number }, model?: string) => {
   return u ? (u.input * pin + u.output * pout) / 1e6 : 0;
 };
 const money = (n: number) => (n < 0.01 ? "<$0.01" : `$${n.toFixed(2)}`);
-const BATCH = 40;
+// The reply lists one word per product and country that differs, so a
+// language spoken in many countries (Spanish: ~20) needs smaller batches or
+// the reply is cut at the model's output limit and is not valid JSON.
+const batchFor = (countries: number) => Math.max(8, Math.min(40, Math.floor(200 / Math.max(1, countries))));
+const isCutReply = (e: unknown) => /invalid JSON|parse JSON/i.test(e instanceof Error ? e.message : String(e));
 
 // Asks Claude, in batches, for the word each country of a language uses when
 // it differs from the catalog's one (en-US "candy" vs "sweets"), and stores
@@ -37,6 +41,7 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
   const [stopping, setStopping] = useState(false);
   useBackToClose(true, () => { if (phase !== "running") onClose(phase === "done"); });
 
+  const BATCH = batchFor(lang.countries.length);
   const todo = onlyNew ? notDone : withBase;
   const batches = Math.ceil(todo.length / BATCH);
   // ~25 output tokens per product (only the differences come back) plus the prompt.
@@ -49,8 +54,14 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
 
   // One batch, retried twice (3 s, 10 s) before it counts as failed: over
   // mobile data / Funnel a request is sometimes lost on the way and never
-  // reaches the server.
+  // reaches the server. A reply cut short (too long to be valid JSON) would
+  // be cut again: that batch is split in two halves instead.
   type Res = { processed: number; updated: number; variants: number; usage?: { input: number; output: number }; model?: string; dry_run?: boolean };
+  const sum = (a: Res, b: Res): Res => ({
+    processed: a.processed + b.processed, updated: a.updated + b.updated, variants: a.variants + b.variants,
+    usage: { input: (a.usage?.input ?? 0) + (b.usage?.input ?? 0), output: (a.usage?.output ?? 0) + (b.usage?.output ?? 0) },
+    model: a.model || b.model, dry_run: a.dry_run || b.dry_run,
+  });
   const runBatch = async (keys: string[]): Promise<Res> => {
     let err: unknown = null;
     for (const wait of [0, 3000, 10000]) {
@@ -60,6 +71,12 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
         return await callRoute<Res>("regional-variants", { lang: lang.code, langName: lang.name, countries: lang.countries.map(c => ({ code: c.code, name: c.name })), keys });
       } catch (e) {
         err = e;
+        if (isCutReply(e) && keys.length > 1) {
+          const half = Math.ceil(keys.length / 2);
+          const a = await runBatch(keys.slice(0, half));
+          if (a.dry_run) return a;
+          return sum(a, await runBatch(keys.slice(half)));
+        }
       }
     }
     throw err ?? new Error("Stopped");
