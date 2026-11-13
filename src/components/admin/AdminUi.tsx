@@ -1,6 +1,61 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PAGE_SIZE } from "../../hooks/useShowMore";
-import { IconBack, IconSearch } from "../ui/icons";
+import { IconBack, IconSearch, IconMore } from "../ui/icons";
+
+export interface MoreMenuItem {
+  icon: string;
+  label: string;
+  hint?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** Starts a new group (a line above it), e.g. "Advanced". */
+  group?: string;
+}
+
+/** ⋯ button (top right of a section) with that section's extra actions. */
+export function MoreMenu({ items, label = "More actions" }: { items: MoreMenuItem[]; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button type="button" onClick={() => setOpen(v => !v)} aria-label={label} aria-haspopup="menu" aria-expanded={open}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-text-soft cursor-pointer hover:bg-text/5 active:bg-text/10">
+        <IconMore size={22} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full mt-1 z-40 w-[270px] py-1.5 rounded-xl bg-card border border-border-light shadow-2xl">
+          {items.map((it, i) => (
+            <div key={it.label}>
+              {it.group && (
+                <div className={`px-3.5 pt-2 pb-1 text-[10px] font-bold tracking-wider text-text-muted uppercase ${i > 0 ? "mt-1 border-t border-border" : ""}`}>{it.group}</div>
+              )}
+              <button type="button" role="menuitem" disabled={it.disabled}
+                onClick={() => { setOpen(false); it.onClick(); }}
+                className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2 text-left cursor-pointer hover:bg-text/5 active:bg-text/10 disabled:opacity-40 disabled:cursor-default">
+                <span className="text-[16px] w-5 text-center" aria-hidden="true">{it.icon}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-semibold text-text">{it.label}</span>
+                  {it.hint && <span className="block text-[11px] text-text-muted">{it.hint}</span>}
+                </span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Small building blocks shared by the admin screens: a section header with
 // back, a search box, collapsible blocks and "show more" paging, so long

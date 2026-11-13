@@ -279,9 +279,16 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
 
   const openTab = (next: ListTab) => {
     if (next !== "store") setStoreStartId(null);
-    // Tabs replace each other in the history: Back leaves the list.
+    // Lista is the list's base screen; Tienda and Miembros open on top of
+    // it, so Back (←, or the phone's) from them returns to Lista, and from
+    // Lista leaves the list. Tienda ↔ Miembros replace each other.
+    const toTab = () => {
+      if (next === tab) return;
+      if (tab === "list") go({ page: "list", listId, tab: next });
+      else if (next === "list") goBack(listRoute);
+      else go({ page: "list", listId, tab: next }, { replace: true });
+    };
     // Closing the search goes back one entry; switch tab once it has.
-    const toTab = () => go({ page: "list", listId, tab: next }, { replace: true });
     if (searching) closeThenGo(closeSearch, toTab);
     else toTab();
   };
@@ -289,16 +296,16 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
   const showInStore = (item: Item) => {
     setStoreStartId(item.id);
     // Leave the product's page first (and the search it was opened from),
-    // back to the list entry, then swap that entry for the Store tab. go()
-    // waits for the back to land; the other way round, the back undid the
-    // Store tab right after opening it.
+    // back to the Lista entry, then open the Store tab on top of it (Back
+    // returns to Lista). go() waits for the back to land; the other way
+    // round, the back undid the Store tab right after opening it.
     if (searching) {
       closeSearch();
       backSteps(2);
     } else {
       goBack(listRoute);
     }
-    go({ page: "list", listId, tab: "store" }, { replace: true });
+    go({ page: "list", listId, tab: "store" });
   };
 
   // Optimistic list settings; the server enforces who may change what.
@@ -352,7 +359,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
           </>
         ) : (
           <>
-            <button onClick={() => goBack({ page: "lists", view: "home" })} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
+            <button onClick={() => (tab === "list" ? goBack({ page: "lists", view: "home" }) : openTab("list"))} className={iconBtn} aria-label={t(lang, "back")}><IconBack /></button>
             <h1 className="flex-1 min-w-0 truncate text-[20px] font-bold text-text px-1">{list?.name ?? "…"}</h1>
             <button onClick={() => setSearching(true)} className={iconBtn} aria-label={t(lang, "search")}><IconSearch size={22} /></button>
             <button onClick={() => setShowImportReceipt(true)} className={iconBtn} aria-label={t(lang, "importReceipt")}><IconCamera size={22} /></button>

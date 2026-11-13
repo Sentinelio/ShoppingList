@@ -23,7 +23,7 @@ import { setThemeId, resetThemes, useThemeSelection } from "../lib/themeStore";
 import ThemePreview from "../components/admin/ThemePreview";
 import { ConnectionBadge, AdminErrorBanner } from "../components/admin/AdminStatus";
 import { reportAdminError, describeError } from "../lib/adminErrors";
-import { AdminHome, SectionHeader, SearchBox, Chips, Collapsible, ShowMore, type HomeEntry } from "../components/admin/AdminUi";
+import { AdminHome, SectionHeader, SearchBox, Chips, Collapsible, ShowMore, MoreMenu, type HomeEntry } from "../components/admin/AdminUi";
 import { useShowMore } from "../hooks/useShowMore";
 import { useIsDesktop } from "../hooks/useIsDesktop";
 import { useBackToClose } from "../lib/router";
@@ -733,6 +733,17 @@ export default function AdminPage() {
     else download(exportName("csv"), exportCsv(rows, getEnabledLangs()), "text/csv;charset=utf-8");
     showToast(`Exported ${rows.length} entries`);
   };
+  // ⋯ at the top right of a section: its less frequent actions (import /
+  // export now; room for more "advanced" ones later, as new groups).
+  const sectionMenu = tab === "catalog" && !IS_DEMO ? (
+    <MoreMenu label="Catalog actions" items={[
+      { group: "Import / export", icon: "⬇️", label: `Export JSON${catStore ? " (this store)" : ""}`,
+        hint: "Entries, custom store types and categories", onClick: () => exportCatalog("json"), disabled: !dictRows.length },
+      { icon: "📊", label: `Export CSV${catStore ? " (this store)" : ""}`,
+        hint: "Entries only, one column per language (Excel)", onClick: () => exportCatalog("csv"), disabled: !dictRows.length },
+      { icon: "⬆️", label: "Import…", hint: "JSON or CSV, with a preview before anything is written", onClick: () => importInputRef.current?.click() },
+    ]} />
+  ) : null;
   const onImportFile = async (file: File | undefined) => {
     if (importInputRef.current) importInputRef.current.value = "";
     if (!file) return;
@@ -1251,9 +1262,9 @@ export default function AdminPage() {
         {tab === "home" ? (
           <AdminHome groups={homeGroups} onOpen={setTab} />
         ) : isDesktop ? (
-          tab !== "users" && tab !== "lists" && <TopBar title={SECTION_TITLES[tab]} />
+          tab !== "users" && tab !== "lists" && <TopBar title={SECTION_TITLES[tab]}>{sectionMenu}</TopBar>
         ) : (
-          <SectionHeader title={SECTION_TITLES[tab]} onBack={() => setTab("home")} />
+          <SectionHeader title={SECTION_TITLES[tab]} onBack={() => setTab("home")} right={sectionMenu} />
         )}
         {loading && tab !== "home" && !(isDesktop && (tab === "users" || tab === "lists")) && <div className="text-center py-8 text-text-muted animate-pulse">Loading…</div>}
 
@@ -1497,27 +1508,9 @@ export default function AdminPage() {
                 })}
               </select>
             </div>
-            {!IS_DEMO && (
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => exportCatalog("json")} disabled={!dictRows.length}
-                  className="flex-1 min-w-0 h-10 rounded-xl bg-card border border-border-light text-[12px] font-semibold text-text cursor-pointer disabled:opacity-40"
-                  title="Everything: entries, custom store types and categories">
-                  ⬇️ Export JSON{catStore ? " (this store)" : ""}
-                </button>
-                <button type="button" onClick={() => exportCatalog("csv")} disabled={!dictRows.length}
-                  className="flex-1 min-w-0 h-10 rounded-xl bg-card border border-border-light text-[12px] font-semibold text-text cursor-pointer disabled:opacity-40"
-                  title="Entries only, one column per language (opens in Excel)">
-                  ⬇️ Export CSV{catStore ? " (this store)" : ""}
-                </button>
-                <button type="button" onClick={() => importInputRef.current?.click()}
-                  className="flex-1 min-w-0 h-10 rounded-xl text-[12px] font-bold cursor-pointer"
-                  style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}>
-                  ⬆️ Import
-                </button>
-                <input ref={importInputRef} type="file" accept=".json,.csv,application/json,text/csv" className="hidden"
-                  onChange={e => void onImportFile(e.target.files?.[0])} />
-              </div>
-            )}
+            {/* Import / export live in the ⋯ menu of the section header. */}
+            <input ref={importInputRef} type="file" accept=".json,.csv,application/json,text/csv" className="hidden"
+              onChange={e => void onImportFile(e.target.files?.[0])} />
             {catMissingLang && !IS_DEMO && filteredDict.length > 0 && (
               <button type="button" onClick={() => fillLanguageTranslations(catMissingLang)} disabled={!!bulkRunning}
                 className="w-full mb-3 h-11 rounded-xl text-[13px] font-bold cursor-pointer disabled:opacity-40"

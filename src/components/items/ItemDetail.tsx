@@ -117,6 +117,10 @@ export default function ItemDetail({
   const [note, setNote] = useState("");
   const [editName, setEditName] = useState("");
   const [brand, setBrand] = useState("");
+  const [saving, setSaving] = useState(false);
+  // "Saved ✓" on the disabled button, for the changes just saved; any new
+  // edit (or another product) clears it.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
   const [_deleteStep, setDeleteStep] = useState<0 | 1>(0);
   void _deleteStep; // used only for reset in useEffect
   const [activeTab, setActiveTab] = useState<DetailTab>("show");
@@ -240,8 +244,24 @@ export default function ItemDetail({
   const qtyChanged = qty !== (item.qty || "");
   const unitChanged = unit !== (item.unit || "");
   const noteChanged = note !== (item.note || "");
+  // Save is only enabled with unsaved changes; after saving it shows
+  // "Saved ✓" disabled until something changes again.
+  const dirty = nameChanged || brandChanged || qtyChanged || unitChanged || noteChanged;
+  const snapshot = [item.id, editName.trim(), brand.trim(), qty, unit, note].join("\u0001");
+  const justSaved = savedSnapshot === snapshot;
 
   const handleSave = async () => {
+    if (!dirty || saving) return;
+    setSaving(true);
+    try {
+      await saveChanges();
+      setSavedSnapshot(snapshot);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveChanges = async () => {
     const updates: Partial<Record<string, unknown>> = {};
 
     // Always save qty/unit/note/brand
@@ -443,7 +463,13 @@ export default function ItemDetail({
         </button>
       </div>
       <div style={{ marginTop: "auto" }}>
-        <button type="button" onClick={handleSave} style={labBtn}>💾 {t(lang, "save")}</button>
+        <button type="button" onClick={handleSave} disabled={!dirty || saving}
+          style={dirty || saving ? labBtn : {
+            ...labBtn, background: "transparent", color: "var(--color-text-muted)", cursor: "default",
+            border: "1.5px solid color-mix(in srgb, var(--color-text) 10%, transparent)",
+          }}>
+          {saving ? `⏳ ${t(lang, "save")}…` : dirty ? `💾 ${t(lang, "save")}` : justSaved ? `✓ ${t(lang, "saved")}` : `💾 ${t(lang, "save")}`}
+        </button>
       </div>
     </div>
   );
