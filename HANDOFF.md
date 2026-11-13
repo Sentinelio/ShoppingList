@@ -32,6 +32,21 @@ Deadline for the mobile redesign: 2026-11-08.
   Bought, "Most bought", stats by product, category order by buying; admin mode (1792540009: admins work in any list
   without being members). Backups of the day: Copias\pb_data-20261113-1103, -1332, -1413.
 
+- 2026-11-13 later: wake from standby fixed (catalog kept on device, refreshed ≤ every 6 h; index for regional
+  words; gzip middleware babelcart_gzip.pb.js) — wake 573 KB → 6 KB. Fixed: /translate dictionary poisoning,
+  Anthropic retry budget (25 s), price book kept when bought items are cleared, category order uses days before
+  today, deploy-server.ps1 nssm stderr. Backup Copias\pb_data-20261113-1502.
+
+## Auditoría 2026-11-13 — still open (decide with Manu)
+- AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
+  strings and receipt images. Set a monthly limit in console.anthropic.com meanwhile.
+- list_members updateRule: an approver (any_member mode) can reject the owner (rule change → ask).
+- Invite codes 6 chars + /join without rate limit; purchases visible to members from before they joined.
+- Frontend: failed writes look successful (`catch { /* realtime will sync */ }`); list cache not cleared on
+  404/403; late background sign-in can undo a profile edit; AddItemSheet loses qty/note on quick close; unit
+  select saves unsaved edits; Spanish hardcoded in ItemDetail and in stored history texts.
+- Ops: no automatic / off-machine backups; NSSM stdout/stderr not logged.
+
 ## Auditoría 2026-11-12 (pendiente, por prioridad)
 1. DONE 2026-11-13 (superuser block, verified 403 from outside). Manu: still enable MFA at http://127.0.0.1:8090/_/.
    Italian is NOT in the server's enabled_langs (en es pl de fr pt nl): enabling it in the admin did not save.
