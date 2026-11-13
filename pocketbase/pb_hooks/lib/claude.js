@@ -32,13 +32,18 @@ function isDryRun() {
 // Sends one user message. `content` is a string or an array of content
 // blocks. Returns { text } with the first text block, or { dryRun } with the
 // request summary when BABELCART_DRY_RUN=1.
-function callClaude(tag, kind, maxTokens, content, timeoutSec) {
+// `schema` (optional): a JSON schema the reply must follow (structured
+// outputs): the model can't write text before the JSON or break its shape.
+// If the API refuses it (400 about the format), the call is sent once more
+// without it, as before.
+function callClaude(tag, kind, maxTokens, content, timeoutSec, schema) {
   const model = modelFor(kind)
   const payload = {
     model: model,
     max_tokens: maxTokens,
     messages: [{ role: "user", content: content }],
   }
+  if (schema) payload.output_config = { format: { type: "json_schema", schema: schema } }
 
   if (isDryRun()) {
     const textBlocks = typeof content === "string"
@@ -92,6 +97,11 @@ function callClaude(tag, kind, maxTokens, content, timeoutSec) {
       })
     } catch (err) {
       netErr = err
+    }
+    if (res && res.statusCode === 400 && payload.output_config && /output_config|format|schema/i.test(toString(res.body))) {
+      console.warn(`[babelcart/${tag}] structured output refused, sending without it:`, toString(res.body).slice(0, 300))
+      delete payload.output_config
+      continue
     }
     const quick = Date.now() - t0 < 15000
     const retryable = quick && (netErr || RETRYABLE.includes(res.statusCode))

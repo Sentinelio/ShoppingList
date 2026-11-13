@@ -291,16 +291,25 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
 
   // 35 products x 7 languages overflowed the old 4096-token limit: the reply
   // was cut before its closing "]".
-  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode, langs, avoid), 180)
+  // The reply's shape is enforced (structured outputs): {"items": [{en, es, …}]}.
+  // Without it the model sometimes wrote 16000 tokens of notes about the
+  // "avoid" list before any JSON and the batch failed (audit 2026-11-13).
+  const codes = seedLangs(langs)
+  const entry = { type: "object", properties: {}, required: codes, additionalProperties: false }
+  for (const c of codes) entry.properties[c] = { type: "string" }
+  const schema = { type: "object", properties: { items: { type: "array", items: entry } }, required: ["items"], additionalProperties: false }
+  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode, langs, avoid), 180, schema)
   if (res.dryRun) return e.json(200, { dry_run: true, request: res.dryRun })
 
   let items
   if (res.stopReason === "max_tokens") {
     items = extractCompleteObjects(res.text)
-    console.error(`[babelcart/seed-dictionary] reply cut by max_tokens; kept ${items.length} complete entries`)
+    $app.logger().warn("seed-dictionary reply cut by max_tokens", "kept", items.length, "head", String(res.text).slice(0, 400))
     if (!items.length) throw new ApiError(502, "Claude's reply was cut by the token limit before any complete entry")
   } else {
-    items = extractJson("seed-dictionary", res.text, "array")
+    let parsed = null
+    try { parsed = JSON.parse(res.text) } catch (_) { /* not pure JSON: look for the array below */ }
+    items = parsed && Array.isArray(parsed.items) ? parsed.items : extractJson("seed-dictionary", res.text, "array")
   }
   if (!Array.isArray(items)) throw new ApiError(502, "Response is not an array")
 
