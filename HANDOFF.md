@@ -66,9 +66,12 @@ Deadline for the mobile redesign: 2026-11-08.
   (output_config.format, fallback without it on a 400); cut replies log their head via $app.logger(). Dry-run tested
   only — the real call is verified after the admin restart (look in the log for "structured output refused").
   Hooks copied into Servidor\pb_hooks, waiting for that restart too.
-- Ollama on the server (11434): glm-5.3-flash:cloud and gpt-oss:120b-cloud (run on ollama.com, free tier limits)
-  + llama3.2:3b local (CPU only, Intel HD 530). Idea from Manu: use them to translate — proposed, not built.
-- Not done (needs Manu's OK, deletes files): cleanup of orphan item_photos (not referenced by any items/purchases).
+- Ollama on the server (11434), tested 2026-11-13 (Pruebas\babelcart-tools\ollama-compare.mjs vs catalog):
+  glm-5.3-flash:cloud and gpt-oss:120b-cloud answer "Add usage credits or subscribe" (not free); llama3.2:3b local
+  (CPU) gets 3/90 identical, mangles names ("hat" → es «gato»). Decision: keep Claude for translations.
+- Orphan photo cleanup (Manu OK'd): babelcart_photos.pb.js + lib/photos.js, Sundays 04:30, deletes item_photos used
+  by no item/purchase and older than 30 days (photos-test.mjs 4/4 on pbcopy5). Today 2 orphans (5 MB). Copied into
+  Servidor\pb_hooks, active after the admin restart.
 
 ## Auditoría 2026-11-13 — still open (decide with Manu)
 - AI cost: no per-user daily quota on translate / translate-ui / parse-receipt; no size cap on translate-ui
