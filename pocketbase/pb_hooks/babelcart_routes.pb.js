@@ -397,26 +397,31 @@ routerAdd("POST", "/api/babelcart/regional-variants", (e) => {
   if (res.dryRun) return e.json(200, { dry_run: true, request: res.dryRun })
 
   const found = extractJson("regional-variants", res.text, "object") || {}
+  const today = new Date().toISOString().slice(0, 10)
   let updated = 0
   let variants = 0
   for (const r of recs) {
     const diffs = found[r.key]
-    if (!diffs || typeof diffs !== "object") continue
     const merged = Object.assign({}, r.tr)
     let added = 0
-    for (const [cc, word] of Object.entries(diffs)) {
-      const w = typeof word === "string" ? word.trim() : ""
-      const code = `${lang}-${cc}`
-      if (!allowed.has(cc) || !w || w.toLowerCase() === r.base.toLowerCase() || merged[code]) continue
-      merged[code] = w
-      added++
+    if (diffs && typeof diffs === "object") {
+      for (const [cc, word] of Object.entries(diffs)) {
+        const w = typeof word === "string" ? word.trim() : ""
+        const code = `${lang}-${cc}`
+        if (!allowed.has(cc) || !w || w.toLowerCase() === r.base.toLowerCase() || merged[code]) continue
+        merged[code] = w
+        added++
+      }
     }
-    if (!added) continue
+    // Checked, also when every country says the same (nothing to store).
+    let checked = {}
+    try { checked = JSON.parse(toString(r.rec.get("regional_checked"))) || {} } catch (_) { /* none yet */ }
+    checked[lang] = today
     try {
-      r.rec.set("translations", merged)
+      r.rec.set("regional_checked", checked)
+      if (added) r.rec.set("translations", merged)
       $app.save(r.rec)
-      updated++
-      variants += added
+      if (added) { updated++; variants += added }
     } catch (err) {
       console.error(`[babelcart/regional-variants] could not save '${r.key}':`, err)
     }

@@ -69,6 +69,8 @@ interface DictRow {
   category: string;
   store_type?: string;
   is_brand?: boolean;
+  /** Languages whose regional words were already checked ({"en": date}). */
+  regional_checked?: Record<string, string> | null;
   created_at: string;
 }
 
@@ -1192,7 +1194,7 @@ export default function AdminPage() {
       {regionalLang && (() => {
         const def = ALL_LANGUAGES.find(l => l.code === regionalLang);
         return def ? (
-          <RegionalDialog lang={def} entries={dictRows.map(r => ({ key: r.key, translations: r.translations ?? {} }))}
+          <RegionalDialog lang={def} entries={dictRows.map(r => ({ key: r.key, translations: r.translations ?? {}, checked: r.regional_checked ?? {} }))}
             onClose={(changed) => { setRegionalLang(null); if (changed) fetchDictionary(); }} />
         ) : null;
       })()}
@@ -2377,6 +2379,12 @@ export default function AdminPage() {
                             {l.created_at && ` · ${new Date(l.created_at).toLocaleDateString()}`}
                           </div>
                         </div>
+                        {/* Admin mode: work in the list without being a member (nobody sees it). */}
+                        <button type="button" onClick={() => { window.location.hash = `#/list/${encodeURIComponent(l.id)}`; }}
+                          className="shrink-0 h-9 px-3 rounded-lg text-[12px] font-semibold cursor-pointer"
+                          style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}>
+                          Open
+                        </button>
                         <button
                           onClick={() => {
                             if (isConfirming) {

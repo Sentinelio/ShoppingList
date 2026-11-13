@@ -203,6 +203,8 @@ export interface List {
   country?: string;
   // What happens to "No hay" items: "" / "keep" (default), "next_trip", "next_day"
   unavailable_policy?: '' | 'keep' | 'next_trip' | 'next_day';
+  /** When bought items leave the list (empty = daily). */
+  clear_bought?: '' | 'daily' | 'weekly' | 'manual';
   last_checked_at?: string | null;
   // Maintained by the server (pb_hooks), read-only for clients
   active_members?: string[];

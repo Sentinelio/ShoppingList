@@ -6,6 +6,7 @@ import Sheet from "../ui/Sheet";
 
 type Policy = "keep" | "next_trip" | "next_day";
 type Who = "owner" | "any_member";
+type ClearBought = "daily" | "weekly" | "manual";
 
 interface ListSettingsSheetProps {
   open: boolean;
@@ -14,7 +15,7 @@ interface ListSettingsSheetProps {
   lang: string;
   userCountry: string;
   isOwner: boolean;
-  onChange: (updates: Partial<Pick<List, "name" | "country" | "unavailable_policy" | "who_can_approve" | "who_can_remove">>) => void;
+  onChange: (updates: Partial<Pick<List, "name" | "country" | "unavailable_policy" | "who_can_approve" | "who_can_remove" | "clear_bought">>) => void;
   /** Owner: delete the list for everyone. Others: leave it. */
   onDeleteOrLeave: () => void;
 }
@@ -35,6 +36,7 @@ export default function ListSettingsSheet({ open, onClose, list, lang, userCount
   if (!list) return null;
   const countries = getActiveCountries();
   const policy: Policy = (list.unavailable_policy || "keep") as Policy;
+  const clearBought: ClearBought = (list.clear_bought || "daily") as ClearBought;
   const who: Who = list.who_can_approve === "any_member" && list.who_can_remove === "any_member" ? "any_member" : "owner";
 
   const saveName = () => {
@@ -78,6 +80,13 @@ export default function ListSettingsSheet({ open, onClose, list, lang, userCount
         {radio<Policy>("policy", "keep", policy, t(lang, "policyKeep"), v => onChange({ unavailable_policy: v }))}
         {radio<Policy>("policy", "next_trip", policy, t(lang, "policyNextTrip"), v => onChange({ unavailable_policy: v }))}
         {radio<Policy>("policy", "next_day", policy, t(lang, "policyNextDay"), v => onChange({ unavailable_policy: v }))}
+      </div>
+
+      <h3 className={label} style={{ color: "var(--color-accent)" }}>{t(lang, "clearBoughtLabel")}</h3>
+      <div className={block} role="radiogroup" aria-label={t(lang, "clearBoughtLabel")}>
+        {radio<ClearBought>("clear", "daily", clearBought, t(lang, "clearDaily"), v => onChange({ clear_bought: v }))}
+        {radio<ClearBought>("clear", "weekly", clearBought, t(lang, "clearWeekly"), v => onChange({ clear_bought: v }))}
+        {radio<ClearBought>("clear", "manual", clearBought, t(lang, "clearManual"), v => onChange({ clear_bought: v }))}
       </div>
 
       <h3 className={label} style={{ color: "var(--color-accent)" }}>{t(lang, "members")}</h3>

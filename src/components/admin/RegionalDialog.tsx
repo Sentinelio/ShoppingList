@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useBackToClose } from "../../lib/router";
 import { callRoute } from "../../lib/pocketbase";
 
-interface Entry { key: string; translations: Record<string, string> }
+interface Entry { key: string; translations: Record<string, string>; checked?: Record<string, string> }
 
 interface Props {
   lang: { code: string; name: string; flag: string; countries: { code: string; name: string; flag: string }[] };
@@ -25,7 +25,9 @@ const BATCH = 40;
 export default function RegionalDialog({ lang, entries, onClose }: Props) {
   const prefix = `${lang.code}-`;
   const withBase = entries.filter(e => e.translations?.[lang.code]);
-  const notDone = withBase.filter(e => !Object.keys(e.translations).some(k => k.startsWith(prefix)));
+  // Already checked: marked by the server, or (before that mark existed)
+  // has some regional word in this language.
+  const notDone = withBase.filter(e => !e.checked?.[lang.code] && !Object.keys(e.translations).some(k => k.startsWith(prefix)));
   const [onlyNew, setOnlyNew] = useState(true);
   const [budget, setBudget] = useState(1);
   const [phase, setPhase] = useState<"plan" | "running" | "done">("plan");
@@ -85,7 +87,7 @@ export default function RegionalDialog({ lang, entries, onClose }: Props) {
             <>
               <label className="flex items-center gap-2.5 text-[12px] text-text-soft cursor-pointer">
                 <input type="checkbox" checked={onlyNew} onChange={e => setOnlyNew(e.target.checked)} />
-                Only entries without regional words yet ({notDone.length.toLocaleString()} of {withBase.length.toLocaleString()})
+                Only entries not checked yet ({notDone.length.toLocaleString()} of {withBase.length.toLocaleString()})
               </label>
               <label className="flex items-center gap-3">
                 <span className="text-[12px] text-text-soft flex-1">Spend cap for this run (USD)</span>

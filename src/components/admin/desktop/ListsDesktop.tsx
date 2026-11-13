@@ -130,6 +130,12 @@ export default function ListsDesktop({ data, openId, onOpen, onDelete, onBulkUpd
               </div>
             ))}
           </div>
+          {/* Admin mode: work in the list without being a member (nobody sees it). */}
+          <button type="button" onClick={() => { window.location.hash = `#/list/${encodeURIComponent(open.id)}`; }}
+            className="w-full h-10 mb-2 rounded-lg text-[13px] font-semibold cursor-pointer"
+            style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}>
+            Open list (admin mode)
+          </button>
           <button type="button"
             onClick={async () => {
               if (confirmDelete !== open.id) { setConfirmDelete(open.id); return; }

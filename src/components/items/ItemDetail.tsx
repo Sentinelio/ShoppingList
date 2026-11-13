@@ -10,6 +10,7 @@ import { translateProduct } from "../../lib/translate";
 import { getEnabledLangs, getLangDef } from "../../lib/langConfig";
 import { getCountryFlag } from "../../data/countries";
 import { dictionaryVariants } from "../../lib/dictSuggest";
+import { usePurchases, productKeyOf } from "../../hooks/usePurchases";
 import PhotoPicker from "./PhotoPicker";
 import { primaryName, secondaryName, capitalize } from "../../lib/names";
 import ItemIcon from "./ItemIcon";
@@ -150,7 +151,28 @@ export default function ItemDetail({
   const prices = useItemPrices(itemId);
   const comments = useItemComments(itemId);
   const history = useItemHistory(itemId);
-  const stats = computeItemStats(prices);
+  // Statistics come from the purchase log, by product (every "Mleko" is the
+  // same product), in this list or in all my lists. Store details still
+  // come from the prices entered for this item.
+  const [statsScope, setStatsScope] = useState<"list" | "all">("list");
+  const productKey = item ? productKeyOf(item) : "";
+  const { purchases: productPurchases } = usePurchases({
+    productKey, listId: statsScope === "list" ? item?.list_id : undefined, userId: user?.id, enabled: !!productKey,
+  });
+  const fromPrices = computeItemStats(prices);
+  const fromLog = computeItemStats(productPurchases.map(p => ({
+    id: p.id, item_id: p.item_id, store: null, price_value: p.price || null, currency: p.currency || "EUR",
+    added_by: p.user_id, added_by_name: p.expand?.user_id?.name ?? null, created_at: p.bought_at.replace(" ", "T"),
+  })));
+  const logHasPrices = productPurchases.some(p => p.price);
+  const stats = productPurchases.length ? {
+    ...fromPrices,
+    totalPurchases: fromLog.totalPurchases,
+    frequencyDays: fromLog.frequencyDays,
+    lastPurchase: fromLog.lastPurchase,
+    byUser: fromLog.byUser,
+    ...(logHasPrices ? { totalSpent: fromLog.totalSpent, averagePrice: fromLog.averagePrice, currency: fromLog.currency } : {}),
+  } : fromPrices;
 
   // Add price form state
   const [showAddPriceForm, setShowAddPriceForm] = useState(false);
@@ -684,6 +706,16 @@ export default function ItemDetail({
     // v1: Dashboard Grid
     <div key="s0" style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
       <div style={{ textAlign: "center", marginBottom: 4 }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={23} /></span> <span style={{ fontSize: 14, fontWeight: 700 }}>{displayName}</span></div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {(["list", "all"] as const).map(s => (
+          <button key={s} type="button" onClick={() => setStatsScope(s)}
+            style={{ flex: 1, minHeight: 40, borderRadius: 999, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600,
+              background: statsScope === s ? "var(--color-accent)" : "color-mix(in srgb, var(--color-text) 6%, transparent)",
+              color: statsScope === s ? "#fff" : "var(--color-text-soft)" }}>
+            {t(lang, s === "list" ? "thisList" : "allMyLists")}
+          </button>
+        ))}
+      </div>
       {stats.totalPurchases === 0 ? emptyStatsMessage : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           {[

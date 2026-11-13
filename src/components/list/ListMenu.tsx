@@ -14,10 +14,12 @@ interface ListMenuProps {
   /** Personal archive (only hides the list for me). */
   onArchive?: () => void;
   onSettings: () => void;
+  /** "Most bought" (top 100) sheet. */
+  onMostBought?: () => void;
 }
 
 // 3.9 — ⋮ menu anchored under the top bar.
-export default function ListMenu({ open, onClose, lang, sortByCategory, onToggleSort, boughtCount, onClearBought, onArchive, onSettings }: ListMenuProps) {
+export default function ListMenu({ open, onClose, lang, sortByCategory, onToggleSort, boughtCount, onClearBought, onArchive, onSettings, onMostBought }: ListMenuProps) {
   useBackToClose(open, onClose);
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -41,6 +43,11 @@ export default function ListMenu({ open, onClose, lang, sortByCategory, onToggle
         style={{ top: "calc(env(safe-area-inset-top) + 52px)" }}
         onClick={(e) => e.stopPropagation()}
       >
+        {onMostBought && (
+          <button role="menuitem" className={item} onClick={() => { onMostBought(); onClose(); }}>
+            <span className="flex-1 text-text">⭐ {t(lang, "mostBought")}</span>
+          </button>
+        )}
         <button role="menuitemcheckbox" aria-checked={sortByCategory} className={item} onClick={() => { onToggleSort(); onClose(); }}>
           <span className="flex-1 text-text">{t(lang, "sortByCategory")}</span>
           {sortByCategory && <IconCheck size={18} className="text-accent" />}

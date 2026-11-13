@@ -357,7 +357,7 @@ export async function archiveList(listId: string, archived: boolean): Promise<vo
  *  change what (owner-only for approval/removal settings). */
 export async function updateList(
   listId: string,
-  updates: Partial<Pick<List, "name" | "country" | "unavailable_policy" | "who_can_approve" | "who_can_remove" | "require_approval">>,
+  updates: Partial<Pick<List, "name" | "country" | "unavailable_policy" | "who_can_approve" | "who_can_remove" | "require_approval" | "clear_bought">>,
 ): Promise<void> {
   if (IS_DEMO) return;
   await pb.collection("lists").update(listId, updates);

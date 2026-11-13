@@ -2,7 +2,10 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useThemeView } from "../lib/themeStore";
 import { useAuth } from "../hooks/useAuth";
 import { useListDetail, exitList, approveMember, rejectMember, removeMember, updateList, archiveList } from "../hooks/useList";
-import { toggleItem, updateItem, deleteItem } from "../hooks/useItems";
+import { toggleItem, updateItem, deleteItem, addItem } from "../hooks/useItems";
+import { usePurchases, productKeyOf, type Purchase } from "../hooks/usePurchases";
+import BoughtHistory from "../components/list/BoughtHistory";
+import TopProductsSheet from "../components/list/TopProductsSheet";
 import { logItemHistory, logAutoPurchase, removeRecentAutoPurchase } from "../lib/itemData";
 import { setLocallyImportant } from "../lib/importantStore";
 import { t } from "../data/i18n";
@@ -86,6 +89,36 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dictLoaded: re-run when the dictionary arrives
   }), [items, shelfLang, userLang, listCountry, myCountry, dictLoaded]);
 
+  // Purchase log of this list (kept when bought items leave the list): the
+  // history under "Bought", "Most bought", and the order of the categories.
+  const { purchases: listPurchases, reload: reloadPurchases } = usePurchases({ listId, days: 120 });
+  const [showTop, setShowTop] = useState(false);
+  // Categories bought most often in the last 90 days first; the usual
+  // supermarket order breaks ties and places the never-bought ones.
+  const byBuying = useMemo(() => {
+    const since = new Date(Date.now() - 90 * 86400000).toISOString().replace("T", " ");
+    const count: Record<string, number> = {};
+    for (const p of listPurchases) if (p.bought_at >= since) count[p.category || "other"] = (count[p.category || "other"] ?? 0) + 1;
+    const base = (c: string) => { const i = CATEGORY_ORDER.indexOf(c); return i < 0 ? CATEGORY_ORDER.length : i; };
+    return (a: string, b: string) => (count[b] ?? 0) - (count[a] ?? 0) || base(a) - base(b);
+  }, [listPurchases]);
+  const pendingKeys = useMemo(() => new Set(items.filter(i => !i.checked && !i.unavailable).map(productKeyOf)), [items]);
+  // "Add again" from the history or "Most bought".
+  const addAgain = async (p: Purchase) => {
+    if (!user) return;
+    try {
+      const created = await addItem({
+        listId, original: p.original, translations: p.translations, category: p.category || "other",
+        qty: p.qty || "", unit: p.unit || "", note: "", addedBy: user.id, addedByName: user.name,
+      });
+      setItems(prev => (prev.some(i => i.id === created.id) ? prev : [...prev, created]));
+      logItemHistory({ itemId: created.id, eventType: "created", icon: "➕", description: `${user.name} añadió ${created.original} a la lista`, byUserId: user.id, byUserName: user.name })
+        .catch(err => console.error("[logItemHistory:created]", err));
+    } catch (err) {
+      console.error("[addAgain]", err);
+    }
+  };
+
   const editingItem = itemId ? items.find(i => i.id === itemId) ?? null : null;
   const listRoute = { page: "list" as const, listId, tab: "list" as const };
   const closeItem = () => goBack(listRoute);
@@ -162,20 +195,19 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
       const cat = item.category || "other";
       (grouped[cat] ??= []).push(item);
     }
-    const order = [...CATEGORY_ORDER, ...Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c))];
+    const order = [...CATEGORY_ORDER, ...Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c))].sort(byBuying);
     return order.filter(cat => grouped[cat]?.length).map(cat => {
       const names = categoryNames(cat, shelfLang, userLang);
       return { key: cat, name: names.primary, nameMine: names.secondary, items: sortByImportance(grouped[cat]) };
     });
-  }, [shown, filter, shelfLang, userLang, sortByCategory]);
+  }, [shown, filter, shelfLang, userLang, sortByCategory, byBuying]);
 
   // Store tab (3.7): pending items in the same order as the list.
   const storeItems = useMemo(() => {
     const pending = sortByImportance(shown.filter(i => statusOf(i) === "pending"));
     if (!sortByCategory) return pending;
-    const rank = (c: string) => { const i = CATEGORY_ORDER.indexOf(c || "other"); return i < 0 ? CATEGORY_ORDER.length : i; };
-    return [...pending].sort((a, b) => rank(a.category) - rank(b.category));
-  }, [shown, sortByCategory]);
+    return [...pending].sort((a, b) => byBuying(a.category || "other", b.category || "other"));
+  }, [shown, sortByCategory, byBuying]);
 
   // 3.1.1 — search matches either of the two names shown (or the original).
   const searchResults = useMemo(() => {
@@ -189,6 +221,8 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
   }, [shown, searchQuery, shelfLang, userLang]);
 
   const handleToggle = useCallback(async (itemId: string, checked: boolean) => {
+    // The server logs (or undoes) the purchase; read the log again after it.
+    setTimeout(() => { void reloadPurchases(); }, 1200);
     // Buying a "No hay" item takes it out of "No hay" (the server does the same).
     setItems(prev => prev.map(i => i.id === itemId
       ? { ...i, checked, checked_at: checked ? new Date().toISOString() : null, ...(checked ? { unavailable: false, unavailable_at: null } : {}) }
@@ -212,7 +246,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         removeRecentAutoPurchase({ itemId, byUserId: user.id }).catch(err => console.error("[removeRecentAutoPurchase]", err));
       }
     }
-  }, [setItems, user]);
+  }, [setItems, user, reloadPurchases]);
 
   const handleUpdate = useCallback(async (
     itemId: string,
@@ -397,6 +431,13 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
           </>
         )}
       </header>
+      {/* Admin mode: an admin working in a list they are not a member of. */}
+      {user?.is_admin && list && !(list.active_members ?? []).includes(user.id) && (
+        <div className="shrink-0 mx-3 mb-1 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-center"
+          style={{ background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", color: "var(--color-accent)" }}>
+          🛡️ {t(lang, "adminModeBanner")}
+        </div>
+      )}
 
       {searching ? (
         <div className="flex-1 overflow-y-auto px-3 pb-4">
@@ -514,6 +555,10 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
                 );
               })
             )}
+            {filter === "bought" && !loading && (
+              <BoughtHistory purchases={listPurchases} listLang={shelfLang} userLang={userLang} lang={lang}
+                pendingKeys={pendingKeys} onAddAgain={p => void addAgain(p)} />
+            )}
           </main>
         </>
       )}
@@ -574,7 +619,13 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
           go({ page: "lists", view: "home" }, { replace: true });
         }}
         onSettings={() => setShowSettings(true)}
+        onMostBought={() => setShowTop(true)}
       />
+
+      {user && (
+        <TopProductsSheet open={showTop} onClose={() => setShowTop(false)} listId={listId} userId={user.id}
+          listLang={shelfLang} userLang={userLang} lang={lang} pendingKeys={pendingKeys} onAdd={addAgain} />
+      )}
 
       <ShareSheet
         open={showShare}
