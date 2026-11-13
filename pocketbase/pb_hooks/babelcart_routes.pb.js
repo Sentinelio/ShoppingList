@@ -236,8 +236,11 @@ routerAdd("POST", "/api/babelcart/parse-receipt", (e) => {
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/babelcart/seed-dictionary   (superuser or users.is_admin)
-//   { count, prompt, category?, storeType?, mode?, langs? }
-//   →  { success, generated, inserted, created, updated, unchanged, langs }
+//   { count, prompt, category?, storeType?, mode?, langs?, avoidExisting? }
+//   →  { success, generated, inserted, created, updated, unchanged, langs,
+//        existing, usage: { input, output }, model }
+// avoidExisting: tell Claude what the section already has, so repeated calls
+// (the admin generates in batches up to a target) bring new entries.
 // Existing entries keep their category and every translation already set
 // (hand edits win); only missing languages are filled in.
 // ─────────────────────────────────────────────────────────────────────────
@@ -259,9 +262,25 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
     ? body.langs.filter((c) => typeof c === "string" && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(c)).slice(0, 40)
     : []
 
+  // What the section already has (English names), newest first, capped so
+  // the prompt stays small; only when asked (batch generation).
+  const sectionNames = () => {
+    const rows = arrayOf(new DynamicModel({ key: "", translations: "" }))
+    $app.db()
+      .newQuery("SELECT `key`, translations FROM dictionary WHERE category = {:cat} AND is_brand = {:brand} ORDER BY created_at DESC LIMIT 1500")
+      .bind({ cat: String(body.category || "other"), brand: isBrandsMode })
+      .all(rows)
+    return rows.map((r) => {
+      let tr = {}
+      try { tr = JSON.parse(toString(r.translations)) || {} } catch (_) { /* key only */ }
+      return String(tr.en || r.key || "").trim()
+    }).filter(Boolean)
+  }
+  const avoid = body.avoidExisting === true ? sectionNames() : []
+
   // 35 products x 7 languages overflowed the old 4096-token limit: the reply
   // was cut before its closing "]".
-  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode, langs), 180)
+  const res = callClaude("seed-dictionary", "translate", 16000, seedPrompt(count, catPrompt, isBrandsMode, langs, avoid), 180)
   if (res.dryRun) return e.json(200, { dry_run: true, request: res.dryRun })
 
   let items
@@ -328,6 +347,9 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
     updated: updated,
     unchanged: unchanged,
     langs: seedLangs(langs),
+    existing: avoid.length + created,
+    usage: res.usage || { input: 0, output: 0 },
+    model: res.model || "",
   })
 }, $apis.requireAuth())
 

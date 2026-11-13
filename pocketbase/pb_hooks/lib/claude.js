@@ -64,21 +64,41 @@ function callClaude(tag, kind, maxTokens, content, timeoutSec) {
     throw new ApiError(500, "ANTHROPIC_API_KEY is not configured")
   }
 
+  // Anthropic answers 429 / 5xx / 529 when it is busy for a moment: retry a
+  // few times, waiting longer each time (or what retry-after says), instead
+  // of failing the user's action at the first hiccup.
+  const RETRYABLE = [408, 409, 429, 500, 502, 503, 504, 529]
+  const WAITS = [2000, 5000, 12000]
   let res
-  try {
-    res = $http.send({
-      url: "https://api.anthropic.com/v1/messages",
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(payload),
-      timeout: timeoutSec || 120,
-    })
-  } catch (err) {
-    console.error(`[babelcart/${tag}] request to Anthropic failed:`, err)
+  for (let attempt = 0; ; attempt++) {
+    let netErr = null
+    try {
+      res = $http.send({
+        url: "https://api.anthropic.com/v1/messages",
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(payload),
+        timeout: timeoutSec || 120,
+      })
+    } catch (err) {
+      netErr = err
+    }
+    const retryable = netErr || RETRYABLE.includes(res.statusCode)
+    if (!retryable || attempt >= WAITS.length) break
+    let wait = WAITS[attempt]
+    try {
+      const ra = Number(res && res.headers && (res.headers["Retry-After"] || res.headers["retry-after"]))
+      if (ra > 0 && ra <= 30) wait = ra * 1000
+    } catch (_) { /* no header */ }
+    console.warn(`[babelcart/${tag}] Anthropic ${netErr ? "unreachable" : res.statusCode}, retry ${attempt + 1}/${WAITS.length} in ${wait} ms`)
+    sleep(wait)
+  }
+  if (!res) {
+    console.error(`[babelcart/${tag}] request to Anthropic failed after retries`)
     throw new ApiError(502, "Could not reach the Anthropic API")
   }
 
@@ -89,7 +109,13 @@ function callClaude(tag, kind, maxTokens, content, timeoutSec) {
 
   const blocks = (res.json && res.json.content) || []
   const first = blocks.find((b) => b.type === "text")
-  return { text: first ? first.text : "", stopReason: (res.json && res.json.stop_reason) || "" }
+  const usage = (res.json && res.json.usage) || {}
+  return {
+    text: first ? first.text : "",
+    stopReason: (res.json && res.json.stop_reason) || "",
+    model: model,
+    usage: { input: Number(usage.input_tokens) || 0, output: Number(usage.output_tokens) || 0 },
+  }
 }
 
 // Extracts and parses the first {...} (or [...]) JSON value from a model reply,

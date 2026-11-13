@@ -311,7 +311,17 @@ function seedLangs(langs) {
   return ["en"].concat((langs && langs.length ? langs : SEED_DEFAULT_LANGS).filter((c) => c !== "en"))
 }
 
-function seedPrompt(count, catPrompt, isBrandsMode, langs) {
+// `avoid`: names already in the dictionary for this section (English), so a
+// batch brings new ones instead of repeating the same favourites.
+function avoidBlock(avoid, isBrandsMode) {
+  if (!avoid || !avoid.length) return ""
+  return `
+
+Already in the dictionary - do NOT return any of these again, nor a spelling, singular/plural or synonym variant of them${isBrandsMode ? "" : " (a genuinely different product is fine, e.g. a different variety or form)"}:
+${avoid.join("; ")}`
+}
+
+function seedPrompt(count, catPrompt, isBrandsMode, langs, avoid) {
   const codes = seedLangs(langs)
   const n = codes.length
   const brandExample = (name) => "{" + codes.map((c) => `"${c}":"${name}"`).join(",") + "}"
@@ -327,7 +337,8 @@ Rules:
 - Only real brands, no generic descriptions
 - Same exact string for all ${n} languages
 - ${count} distinct brands, no duplicates
-- All ${n} languages required per entry`
+- All ${n} languages required per entry
+- If fewer than ${count} new brands exist, return only the real ones (fewer is fine, never invent)${avoidBlock(avoid, true)}`
     : `You are a product translation dictionary builder. Generate a list of ${count} common ${catPrompt} that people buy regularly.
 
 For EACH product, provide translations in these languages (ISO 639-1 codes): ${codes.join(", ")}
@@ -339,7 +350,8 @@ Rules:
 - Use the most common/generic name (not brand names), as written on shop shelves in each language
 - Use singular forms
 - ${count} products, no duplicates
-- Every product MUST have all ${n} languages`
+- Every product MUST have all ${n} languages
+- If fewer than ${count} new products exist, return only the real ones (fewer is fine, never pad with near-duplicates)${avoidBlock(avoid, false)}`
 }
 
 module.exports = { CATEGORIES_LIST, CATEGORY_KEYS, translatePrompt, translateUiPrompt, receiptPrompt, seedPrompt, seedLangs }
