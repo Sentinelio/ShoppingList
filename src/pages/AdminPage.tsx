@@ -945,7 +945,7 @@ export default function AdminPage() {
     const { seed } = target;
     setBuildingCategory(seed.category);
     try {
-      const data = await callRoute<{ inserted?: number; generated?: number; created?: number; updated?: number; unchanged?: number; dry_run?: boolean }>("seed-dictionary", {
+      const data = await callRoute<{ inserted?: number; generated?: number; created?: number; updated?: number; unchanged?: number; dry_run?: boolean; usage?: { input: number; output: number }; model?: string }>("seed-dictionary", {
         count,
         // For brands we reuse the seed prompt only as a section label to
         // steer Claude toward the right product space (e.g. "drinks",
@@ -955,11 +955,19 @@ export default function AdminPage() {
         storeType: seed.storeType,
         mode,
         langs: getEnabledLangs(),
+        // Batches: Claude is told what the category already has.
+        avoidExisting: true,
       });
       if (data.dry_run) return { created: 0, updated: 0, unchanged: 0, dryRun: true };
-      const result = { created: data.created ?? data.inserted ?? 0, updated: data.updated ?? 0, unchanged: data.unchanged ?? 0 };
-      if (!data.generated) throw new Error("Claude returned no entries (see the server log)");
-      return result;
+      // An empty batch is not an error any more: the category may have run
+      // out of new entries (the dialog stops after two of those).
+      return {
+        created: data.created ?? data.inserted ?? 0,
+        updated: data.updated ?? 0,
+        unchanged: data.unchanged ?? 0,
+        usage: data.usage,
+        model: data.model,
+      };
     } catch (err) {
       reportAdminError(`Generate ${target.catLabel}`, err);
       throw new Error(describeError(err));

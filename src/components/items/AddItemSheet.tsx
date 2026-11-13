@@ -162,7 +162,9 @@ export default function AddItemSheet({
   const addProduct = async (picked: DictSuggestion | null) => {
     const typed = input.trim();
     if (adding || (!picked && !typed)) return;
-    const parsed = parseQty(picked ? mineOf(picked) : typed);
+    // Picked as the singular/plural of what was typed ("tomates" → tomate):
+    // the item keeps the typed form, in my language.
+    const parsed = parseQty(picked ? picked.typed ?? mineOf(picked) : typed);
     setAdding(true);
     setSubmitError(null);
 
@@ -170,6 +172,7 @@ export default function AddItemSheet({
     let category = "other";
     if (picked && picked.translations[shelfLang]) {
       translations = { ...picked.translations };
+      if (picked.typed && picked.matchLang === userLang) translations[userLang] = parsed.text;
       category = picked.category || "other";
     } else {
       try {

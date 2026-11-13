@@ -9,7 +9,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import {
-  normalize, rankSuggestions, matchTier, exactSuggestion, shownName, otherNames,
+  normalize, rankSuggestions, matchTier, exactSuggestion, shownName, otherNames, sameName,
   localToEntry, remoteToEntry, mergeEntries,
 } from "../src/lib/suggestRank.ts";
 import { LOCAL_DICTIONARY } from "../src/data/localDictionary.ts";
@@ -53,8 +53,9 @@ for (const q of queries) {
     const where = `"${q}" (${ul})`;
     const tiers = entries.map(e => matchTier(e, q, ul));
     const startsExist = tiers.some(t => t >= 0 && t <= 4);
-    const eligible = tiers.filter(t => t >= 0 && (t <= 4 || (!startsExist && q.length >= 4))).length;
-    const anyExact = entries.some(e => names(e).some(n => n === q));
+    // Tiers 0-1 (what was typed, or its singular/plural) are offered once.
+    const eligible = Math.min(1, tiers.filter(t => t === 0 || t === 1).length) + tiers.filter(t => t >= 2 && (t <= 4 || (!startsExist && q.length >= 4))).length;
+    const anyExact = entries.some(e => Object.entries(e.translations).some(([l, n]) => n && sameName(normalize(n).trim(), q, l)));
 
     // 1. Tiers never go back up.
     for (let i = 1; i < res.length; i++) {
