@@ -531,7 +531,7 @@ export default function ItemDetail({
               onClick={() => setOpenLangs(o => (o.includes(row.code) ? o.filter(c => c !== row.code) : [...o, row.code]))}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", minHeight: 44, background: "transparent", border: "none", cursor: row.countries.length ? "pointer" : "default", fontFamily: "inherit", textAlign: "left" }}>
               <span style={{ width: 12, fontSize: 10, color: "var(--color-text-muted)" }}>{row.countries.length ? (isOpen ? "▾" : "▸") : ""}</span>
-              <span style={{ fontSize: 16 }}>{row.flag}</span>
+              <span style={{ fontSize: 21 }}>{row.flag}</span>
               <span style={{ fontSize: 13, color: "var(--color-text-soft)", flex: 1, minWidth: 0 }}>{row.name}</span>
               {row.varies && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: "var(--color-accent)", background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>{t(lang, "variesByCountry")}</span>
@@ -558,8 +558,7 @@ export default function ItemDetail({
                     return (
                       <div key={g.word} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, borderTop: i ? "1px dashed color-mix(in srgb, var(--color-text) 8%, transparent)" : "none" }}>
                         <span style={{ flex: 1, minWidth: 0, color: "var(--color-text-soft)", lineHeight: 1.35 }}>
-                          <span style={{ marginRight: 6 }}>{g.countries.map(c => c.flag).join(" ")}</span>
-                          {row.varies && g.countries.length <= 3 && <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{g.countries.map(c => c.name).join(" · ")}</span>}
+                          <span style={{ fontSize: 19, letterSpacing: 2, marginRight: 6 }} title={g.countries.map(c => c.name).join(", ")}>{g.countries.map(c => c.flag).join(" ")}</span>
                           {tags.map(tag => <span key={tag} style={{ marginLeft: 6, fontSize: 9, color: "var(--color-secondary-name)", border: "1px solid color-mix(in srgb, var(--color-secondary-name) 50%, transparent)", borderRadius: 6, padding: "0 5px" }}>{tag}</span>)}
                         </span>
                         <span style={{ fontWeight: diff ? 700 : 500, color: diff ? "var(--color-shelf)" : "var(--color-text-muted)", textAlign: "right" }}>{capitalize(g.word)}</span>
