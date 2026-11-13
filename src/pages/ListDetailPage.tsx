@@ -524,6 +524,7 @@ export default function ListDetailPage({ listId, tab, itemId }: ListDetailPagePr
         userLang={userLang}
         shelfLang={shelfLang}
         countryFlag={countryFlag}
+        listCountry={list?.country || user?.country || ""}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
         onShowStore={showInStore}

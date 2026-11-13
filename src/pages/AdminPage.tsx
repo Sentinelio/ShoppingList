@@ -34,6 +34,7 @@ import { loadPeople, matchUsers, EMPTY_PEOPLE, type PeopleData } from "../lib/ad
 import AdminMessages from "../components/admin/AdminMessages";
 import GenerateDialog, { type GenerateMode, type GenerateTarget, type GenerateResult } from "../components/admin/GenerateDialog";
 import ImportCatalogDialog from "../components/admin/ImportCatalogDialog";
+import RegionalDialog from "../components/admin/RegionalDialog";
 import { exportJson, exportCsv, download, parseCatalogFile, type ParsedCatalog } from "../lib/catalogIO";
 import { getCustomStoreTypes, getCustomCategories } from "../lib/customStoreConfig";
 import {
@@ -724,6 +725,7 @@ export default function AdminPage() {
   // Catalog import / export.
   const importInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState<{ filename: string; parsed: ParsedCatalog } | null>(null);
+  const [regionalLang, setRegionalLang] = useState<string | null>(null);
   const exportRows = () => dictRows.filter(r => !catStore || (r.store_type || "grocery") === catStore)
     .map(r => ({ ...r, store_type: r.store_type || "grocery", is_brand: !!r.is_brand }));
   const exportName = (ext: string) => `babelcart-catalog${catStore ? "-" + catStore : ""}-${new Date().toISOString().slice(0, 10)}.${ext}`;
@@ -895,9 +897,10 @@ export default function AdminPage() {
     let failed = 0;
     let firstError: unknown = null;
     for (const row of dictRows) {
-      if (!row.translations || !(langCode in row.translations)) continue;
-      const next: Record<string, string> = { ...row.translations };
-      delete next[langCode];
+      // The language and its regional words (es, es-MX, es-AR…).
+      const own = (k: string) => k === langCode || k.startsWith(`${langCode}-`);
+      if (!row.translations || !Object.keys(row.translations).some(own)) continue;
+      const next: Record<string, string> = Object.fromEntries(Object.entries(row.translations).filter(([k]) => !own(k)));
       try {
         await upsertByKey("dictionary", row.key, { translations: next });
         updated++;
@@ -1186,6 +1189,13 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text" style={isDesktop ? undefined : { maxWidth: 960, margin: "0 auto" }}>
+      {regionalLang && (() => {
+        const def = ALL_LANGUAGES.find(l => l.code === regionalLang);
+        return def ? (
+          <RegionalDialog lang={def} entries={dictRows.map(r => ({ key: r.key, translations: r.translations ?? {} }))}
+            onClose={(changed) => { setRegionalLang(null); if (changed) fetchDictionary(); }} />
+        ) : null;
+      })()}
       {importing && (
         <ImportCatalogDialog
           filename={importing.filename}
@@ -2064,6 +2074,17 @@ export default function AdminPage() {
                               {isFillRunning ? "⏳ Filling..." : `🧠 Fill ${missingCount}`}
                             </button>
                           )}
+                          {lang.countries.length >= 2 && !IS_DEMO && (() => {
+                            const withRegional = dictRows.filter(d => Object.keys(d.translations ?? {}).some(k => k.startsWith(`${lang.code}-`))).length;
+                            return (
+                              <button onClick={() => setRegionalLang(lang.code)} disabled={!!bulkRunning}
+                                title="Words that change by country (en-US candy / en-GB sweets)"
+                                className="text-[9px] font-semibold px-1.5 py-0.5 rounded cursor-pointer disabled:opacity-40"
+                                style={{ background: "rgba(122,140,255,0.1)", color: "#8fa3ff", border: "1px solid rgba(122,140,255,0.25)" }}>
+                                🌍 Regional{withRegional ? ` · ${withRegional}` : ""}
+                              </button>
+                            );
+                          })()}
                         </div>
                       </div>
                       {!isCore && (() => {

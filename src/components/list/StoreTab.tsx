@@ -4,7 +4,6 @@ import { t, formatQtyUnit } from "../../data/i18n";
 import { primaryName, secondaryName, capitalize } from "../../lib/names";
 import { useStorePhrases } from "../../hooks/useStorePhrases";
 import { incrementPhraseUsage } from "../../lib/storePhrasesStore";
-import ItemIcon from "../items/ItemIcon";
 import { IconBack, IconChevronDown, IconChevronRight } from "../ui/icons";
 
 interface StoreTabProps {
@@ -79,11 +78,10 @@ export default function StoreTab({ items, startItemId, listLang, userLang }: Sto
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center-safe text-center px-5 py-4 *:shrink-0">
         {item ? (
           <>
-            <div className="w-full max-w-[420px] mb-3 flex items-center justify-center gap-3">
-              <ItemIcon name={item.original} category={item.category} size={phrase ? 64 : 72} />
+            <div className="w-full max-w-[420px] flex items-center justify-center">
               {phrase && (
                 <button type="button" onClick={() => setPhraseKey(null)} aria-label={t(lang, "tapToClose")}
-                  className="flex-1 min-w-0 px-4 py-3 rounded-[18px] text-center cursor-pointer"
+                  className="flex-1 min-w-0 mb-3 px-4 py-3 rounded-[18px] text-center cursor-pointer"
                   style={{ background: "var(--color-accent)", color: "var(--color-on-accent)" }}>
                   <div className="text-[24px] font-extrabold leading-tight">
                     {phrase.emoji} {phrase.translations[listLang] || phrase.translations.en || phrase.key}

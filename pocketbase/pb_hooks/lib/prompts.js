@@ -354,4 +354,27 @@ Rules:
 - If fewer than ${count} new products exist, return only the real ones (fewer is fine, never pad with near-duplicates)${avoidBlock(avoid, false)}`
 }
 
-module.exports = { CATEGORIES_LIST, CATEGORY_KEYS, translatePrompt, translateUiPrompt, receiptPrompt, seedPrompt, seedLangs }
+// Regional variants: for products whose name in `lang` is `base`, the word
+// people use in each country when it is different (en-US "candy" vs
+// "sweets"). Only the differences come back.
+function regionalPrompt(lang, langName, countries, items) {
+  const list = items.map((it) => `${JSON.stringify(it.key)}: ${JSON.stringify(it.base)}`).join("\n")
+  const cs = countries.map((c) => `${c.code} (${c.name})`).join(", ")
+  return `You are a shopping-list localisation expert. Below are products with their ${langName} (${lang}) name as written on shop shelves.
+
+Countries where ${langName} is spoken: ${cs}
+
+For each product, give the word that shoppers and shop staff commonly use in each of those countries, but ONLY for countries where it is DIFFERENT from the given name (another word, e.g. US "candy" vs "sweets"; or a different usual spelling, e.g. "yogurt" vs "yoghurt"). Leave out countries that use the same word. Leave out products where every country uses the same word.
+
+Rules:
+- Only real, common everyday usage in shops of that country; never invent, never translate into another language.
+- Keep the same form as the given name (singular/plural, lowercase unless it is a proper noun).
+- Use the 2-letter country codes exactly as given.
+
+Products (key: ${lang} name):
+${list}
+
+Return ONLY JSON, no markdown: {"<key>": {"<COUNTRY>": "<word>", ...}, ...} — an empty object {} if nothing differs.`
+}
+
+module.exports = { CATEGORIES_LIST, CATEGORY_KEYS, translatePrompt, translateUiPrompt, receiptPrompt, seedPrompt, seedLangs, regionalPrompt }

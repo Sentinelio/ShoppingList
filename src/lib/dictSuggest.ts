@@ -54,6 +54,18 @@ export function invalidateDictionaryCache(): void {
   CACHE = null;
 }
 
+/** Regional names ("en-GB": "sweets", "es-AR": "palta") the dictionary has
+ *  for a product, found by its English name. Items copied their names from
+ *  the dictionary before it had these, so the product page asks here. */
+export async function dictionaryVariants(translations: Record<string, string> | null | undefined): Promise<Record<string, string>> {
+  const en = normalize(translations?.en ?? "").trim();
+  if (!en) return {};
+  const entry = (await ensureLoaded()).find(e => normalize(e.key).trim() === en || normalize(e.translations.en ?? "").trim() === en);
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(entry?.translations ?? {})) if (k.includes("-") && v) out[k] = v;
+  return out;
+}
+
 /** Return up to `limit` suggestions matching `query`, best tier first
  *  (see matchTier). */
 export async function suggest(

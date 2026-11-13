@@ -7,9 +7,11 @@ import { useItemPrices, useItemComments, useItemHistory } from "../../hooks/useI
 import { addItemPrice, deleteItemPrice, addItemComment, deleteItemComment, computeItemStats, relativeTime, formatPrice, getCountryCurrency, getCountryPopularStore } from "../../lib/itemData";
 import { useAuth } from "../../hooks/useAuth";
 import { translateProduct } from "../../lib/translate";
-import { getEnabledLangs } from "../../lib/langConfig";
+import { getEnabledLangs, getLangDef } from "../../lib/langConfig";
+import { getCountryFlag } from "../../data/countries";
+import { dictionaryVariants } from "../../lib/dictSuggest";
 import PhotoPicker from "./PhotoPicker";
-import { primaryName, secondaryName } from "../../lib/names";
+import { primaryName, secondaryName, capitalize } from "../../lib/names";
 import ItemIcon from "./ItemIcon";
 import EmojiImage from "../ui/EmojiImage";
 import { IconBack } from "../ui/icons";
@@ -23,7 +25,9 @@ interface ItemDetailProps {
   userLang: string;
   shelfLang: string;
   countryFlag?: string;
-  onUpdate: (itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand" | "checked_at">>) => void;
+  /** The list's country (its words go on the "Shelf" row). */
+  listCountry?: string;
+  onUpdate:(itemId: string, updates: Partial<Pick<Item, "qty" | "unit" | "note" | "photo" | "important" | "original" | "translations" | "brand" | "checked_at">>) => void;
   onDelete: (itemId: string) => void;
   /** Opens the Store tab (3.7) on this product. */
   onShowStore: (item: Item) => void;
@@ -105,6 +109,7 @@ export default function ItemDetail({
   userLang,
   shelfLang,
   countryFlag,
+  listCountry,
   onUpdate,
   onDelete,
   onShowStore,
@@ -129,6 +134,17 @@ export default function ItemDetail({
   // ── Real per-item data (prices, comments, history) ───────────────────
   const { user } = useAuth();
   const itemId = item?.id;
+  // Regional names from the dictionary (items added before they existed
+  // don't carry them) and which languages are unfolded in the languages tab.
+  const [regional, setRegional] = useState<Record<string, string>>({});
+  const [openLangs, setOpenLangs] = useState<string[]>([]);
+  const itemEn = item?.translations?.en ?? "";
+  useEffect(() => {
+    let alive = true;
+    setOpenLangs([]);
+    dictionaryVariants({ en: itemEn }).then(v => { if (alive) setRegional(v); }).catch(() => { if (alive) setRegional({}); });
+    return () => { alive = false; };
+  }, [itemId, itemEn]);
   const prices = useItemPrices(itemId);
   const comments = useItemComments(itemId);
   const history = useItemHistory(itemId);
@@ -475,26 +491,78 @@ export default function ItemDetail({
   );
 
 
-  // ── TRANSLATIONS PANE (5 variants from the lab) ─────────────────────────
-  const otherLangs = Object.entries(item.translations || {}).filter(([c]) => c !== userLang && c !== shelfLang);
+  // ── TRANSLATIONS PANE ───────────────────────────────────────────────────
+  // Mine and the shelf's on top, in my country's and the list country's
+  // words; below, one folded row per language with its usual word, and
+  // unfolded, the word in each of its countries ("varies" when they differ).
+  const tr: Record<string, string> = { ...regional, ...(item.translations || {}) };
+  const myCountry = user?.country || "";
+  const wordIn = (code: string, country: string) => tr[`${code}-${country}`] || tr[code] || "";
+  const myWord = capitalize(wordIn(userLang, myCountry) || displayName);
+  const shelfWord = capitalize(wordIn(shelfLang, listCountry || "") || shelfName);
+  const baseLangs = Object.keys(tr).filter(c => !c.includes("-") && tr[c]);
+  const langRows = baseLangs.map(code => {
+    const def = getLangDef(code);
+    const countries = (def?.countries ?? []).map(c => ({ ...c, word: wordIn(code, c.code) }));
+    const varies = countries.some(c => c.word.toLowerCase() !== (tr[code] || "").toLowerCase());
+    return { code, name: def?.name ?? code, flag: getLangFlag(code), word: tr[code], countries, varies };
+  });
 
   const transPane = (
-    // v1: Flag List — yours + shelf highlighted, others below divider
     <div key="t0" style={{ padding: "12px 16px", flex: 1 }}>
       <div style={{ textAlign: "center", marginBottom: 10 }}><span style={{ display: "inline-flex", verticalAlign: "middle" }}><EmojiImage emoji={emojiChar} size={32} /></span>{" "}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-accent)" }}>{formatQtyUnit(qty, unit, lang)}</span></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
-        {[{ flag: getLangFlag(userLang), word: displayName, label: "Tu idioma", bg: "color-mix(in srgb, var(--color-info) 8%, transparent)", border: "color-mix(in srgb, var(--color-info) 20%, transparent)", color: "var(--color-text)" },
-          ...(showShelf ? [{ flag: getLangFlag(shelfLang) || countryFlag, word: shelfName, label: "Estante", bg: "color-mix(in srgb, var(--color-shelf) 8%, transparent)", border: "color-mix(in srgb, var(--color-shelf) 20%, transparent)", color: "var(--color-shelf)" }] : []),
+        {[{ flag: (tr[`${userLang}-${myCountry}`] && getCountryFlag(myCountry)) || getLangFlag(userLang), word: myWord, label: t(lang, "yourLanguage"), bg: "color-mix(in srgb, var(--color-info) 8%, transparent)", border: "color-mix(in srgb, var(--color-info) 20%, transparent)", color: "var(--color-text)" },
+          ...(showShelf || shelfWord.toLowerCase() !== myWord.toLowerCase() ? [{ flag: countryFlag || getLangFlag(shelfLang), word: shelfWord, label: t(lang, "shelfLabel"), bg: "color-mix(in srgb, var(--color-shelf) 8%, transparent)", border: "color-mix(in srgb, var(--color-shelf) 20%, transparent)", color: "var(--color-shelf)" }] : []),
         ].map((row, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, background: row.bg, border: `1.5px solid ${row.border}` }}>
             <span style={{ fontSize: 20 }}>{row.flag}</span><span style={{ fontSize: 17, fontWeight: 800, flex: 1, color: row.color }}>{row.word}</span><span style={{ fontSize: 9, color: "var(--color-text-muted)", fontWeight: 600 }}>{row.label}</span>
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0 8px" }}><div style={{ flex: 1, height: 1, background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }} /><span style={{ fontSize: 9, color: "var(--color-text-muted)", fontWeight: 600 }}>Otros idiomas</span><div style={{ flex: 1, height: 1, background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }} /></div>
-      {otherLangs.map(([code, word]) => (
-        <div key={code} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px", borderRadius: 8 }}><span style={{ fontSize: 14 }}>{getLangFlag(code)}</span><span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-soft)" }}>{word}</span></div>
-      ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0 8px" }}><div style={{ flex: 1, height: 1, background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }} /><span style={{ fontSize: 9, color: "var(--color-text-muted)", fontWeight: 600 }}>{t(lang, "otherLanguages")}</span><div style={{ flex: 1, height: 1, background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }} /></div>
+      {langRows.map(row => {
+        const isOpen = openLangs.includes(row.code);
+        return (
+          <div key={row.code} style={{ borderRadius: 12, background: isOpen ? "color-mix(in srgb, var(--color-text) 4%, transparent)" : "transparent", marginBottom: 2 }}>
+            <button type="button" aria-expanded={isOpen} disabled={!row.countries.length}
+              onClick={() => setOpenLangs(o => (o.includes(row.code) ? o.filter(c => c !== row.code) : [...o, row.code]))}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", minHeight: 44, background: "transparent", border: "none", cursor: row.countries.length ? "pointer" : "default", fontFamily: "inherit", textAlign: "left" }}>
+              <span style={{ width: 12, fontSize: 10, color: "var(--color-text-muted)" }}>{row.countries.length ? (isOpen ? "▾" : "▸") : ""}</span>
+              <span style={{ fontSize: 16 }}>{row.flag}</span>
+              <span style={{ fontSize: 13, color: "var(--color-text-soft)", flex: 1, minWidth: 0 }}>{row.name}</span>
+              {row.varies && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--color-accent)", background: "color-mix(in srgb, var(--color-accent) 14%, transparent)", padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>{t(lang, "variesByCountry")}</span>
+              )}
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text)", textAlign: "right" }}>{capitalize(row.word)}</span>
+            </button>
+            {isOpen && (
+              <div style={{ padding: "0 12px 8px 34px", display: "flex", flexDirection: "column" }}>
+                {!row.varies ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 13 }}>
+                    <span style={{ flex: 1, color: "var(--color-text-soft)" }}>{row.countries.map(c => c.flag).join(" ")} · {t(lang, "sameEverywhere")}</span>
+                    <span style={{ color: "var(--color-text-muted)" }}>{capitalize(row.word)}</span>
+                  </div>
+                ) : row.countries.map((c, i) => {
+                  const diff = c.word.toLowerCase() !== row.word.toLowerCase();
+                  const tag = row.code === userLang && c.code === myCountry ? t(lang, "you").toLowerCase()
+                    : row.code === shelfLang && c.code === listCountry ? t(lang, "listCountryTag") : "";
+                  return (
+                    <div key={c.code} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 13, borderTop: i ? "1px dashed color-mix(in srgb, var(--color-text) 8%, transparent)" : "none" }}>
+                      <span>{c.flag}</span>
+                      <span style={{ flex: 1, minWidth: 0, color: "var(--color-text-soft)" }}>
+                        {c.name}
+                        {tag && <span style={{ marginLeft: 6, fontSize: 9, color: "var(--color-secondary-name)", border: "1px solid color-mix(in srgb, var(--color-secondary-name) 50%, transparent)", borderRadius: 6, padding: "0 5px" }}>{tag}</span>}
+                      </span>
+                      <span style={{ fontWeight: diff ? 700 : 500, color: diff ? "var(--color-shelf)" : "var(--color-text-muted)" }}>{capitalize(c.word)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 

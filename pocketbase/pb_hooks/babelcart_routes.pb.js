@@ -354,6 +354,85 @@ routerAdd("POST", "/api/babelcart/seed-dictionary", (e) => {
 }, $apis.requireAuth())
 
 // ─────────────────────────────────────────────────────────────────────────
+// POST /api/babelcart/regional-variants   (superuser or users.is_admin)
+//   { lang, langName, countries: [{code, name}], keys: [dictionary keys] }
+//   →  { success, processed, updated, variants, usage, model }
+// For up to 60 dictionary entries, asks Claude the word used in each
+// country of `lang` when it differs from the entry's `lang` name, and
+// stores it as translations["<lang>-<COUNTRY>"]. Never overwrites a variant
+// that is already there (hand edits win), never touches other keys.
+// ─────────────────────────────────────────────────────────────────────────
+routerAdd("POST", "/api/babelcart/regional-variants", (e) => {
+  const { callClaude, extractJson } = require(`${__hooks}/lib/claude.js`)
+  const { regionalPrompt } = require(`${__hooks}/lib/prompts.js`)
+  const { isAdmin } = require(`${__hooks}/lib/members.js`)
+
+  if (!isAdmin(e)) throw new ForbiddenError("Admins only")
+
+  const body = e.requestInfo().body || {}
+  const lang = typeof body.lang === "string" && /^[a-z]{2,3}$/.test(body.lang) ? body.lang : ""
+  const countries = (Array.isArray(body.countries) ? body.countries : [])
+    .filter((c) => c && typeof c.code === "string" && /^[A-Z]{2}$/.test(c.code))
+    .map((c) => ({ code: c.code, name: String(c.name || c.code).slice(0, 60) }))
+    .slice(0, 30)
+  const keys = (Array.isArray(body.keys) ? body.keys : []).filter((k) => typeof k === "string" && k.trim()).slice(0, 60)
+  if (!lang || countries.length < 2 || !keys.length) throw new BadRequestError("Provide lang, 2+ countries and keys")
+  const allowed = new Set(countries.map((c) => c.code))
+
+  // The entries and their name in `lang`.
+  const recs = []
+  for (const k of keys) {
+    let rec = null
+    try { rec = $app.findFirstRecordByData("dictionary", "key", k) } catch (_) { /* gone */ }
+    if (!rec) continue
+    let tr = {}
+    try { tr = JSON.parse(toString(rec.get("translations"))) || {} } catch (_) { /* empty */ }
+    const base = String(tr[lang] || "").trim()
+    if (base) recs.push({ rec, tr, key: k, base })
+  }
+  if (!recs.length) return e.json(200, { success: true, processed: 0, updated: 0, variants: 0, usage: { input: 0, output: 0 }, model: "" })
+
+  const res = callClaude("regional-variants", "translate", 8000,
+    regionalPrompt(lang, String(body.langName || lang).slice(0, 40), countries, recs.map((r) => ({ key: r.key, base: r.base }))), 180)
+  if (res.dryRun) return e.json(200, { dry_run: true, request: res.dryRun })
+
+  const found = extractJson("regional-variants", res.text, "object") || {}
+  let updated = 0
+  let variants = 0
+  for (const r of recs) {
+    const diffs = found[r.key]
+    if (!diffs || typeof diffs !== "object") continue
+    const merged = Object.assign({}, r.tr)
+    let added = 0
+    for (const [cc, word] of Object.entries(diffs)) {
+      const w = typeof word === "string" ? word.trim() : ""
+      const code = `${lang}-${cc}`
+      if (!allowed.has(cc) || !w || w.toLowerCase() === r.base.toLowerCase() || merged[code]) continue
+      merged[code] = w
+      added++
+    }
+    if (!added) continue
+    try {
+      r.rec.set("translations", merged)
+      $app.save(r.rec)
+      updated++
+      variants += added
+    } catch (err) {
+      console.error(`[babelcart/regional-variants] could not save '${r.key}':`, err)
+    }
+  }
+
+  return e.json(200, {
+    success: true,
+    processed: recs.length,
+    updated: updated,
+    variants: variants,
+    usage: res.usage || { input: 0, output: 0 },
+    model: res.model || "",
+  })
+}, $apis.requireAuth())
+
+// ─────────────────────────────────────────────────────────────────────────
 // POST /api/babelcart/phrase-used   { key }   (was RPC increment_store_phrase_usage)
 // ─────────────────────────────────────────────────────────────────────────
 routerAdd("POST", "/api/babelcart/phrase-used", (e) => {
